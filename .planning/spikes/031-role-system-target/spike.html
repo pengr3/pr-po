@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 031 — Target Role System</title>
+<style>
+  :root{
+    --primary:#1a73e8; --primary-dark:#1557b0;
+    --success:#059669; --warning:#f59e0b; --danger:#ef4444;
+    --border:#e5e7eb; --text:#1e293b; --text-2:#475569; --text-3:#64748b;
+    --gray-50:#f8fafc; --gray-100:#f1f5f9;
+    --shadow:0 4px 16px rgba(0,0,0,.08);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+    color:var(--text); background:#eef1f5; padding-bottom:170px; font-size:14px;}
+
+  .appnav{position:sticky; top:0; z-index:40; height:52px; background:#fff;
+    border-bottom:1px solid var(--border); display:flex; align-items:center; gap:1rem; padding:0 1.25rem;}
+  .appnav .logo{font-weight:700;}
+  .appnav .sub{font-size:.8rem; color:var(--text-3);}
+
+  .roles{position:sticky; top:52px; z-index:30; background:#0f172a; color:#cbd5e1;
+    display:flex; align-items:center; gap:.4rem; padding:.6rem 1.25rem; flex-wrap:wrap;}
+  .roles .lbl{font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:#94a3b8; margin-right:.4rem;}
+  .role-btn{background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:8px;
+    padding:.35rem .7rem; font-size:.78rem; font-weight:600; cursor:pointer; position:relative;}
+  .role-btn:hover{background:#334155;}
+  .role-btn.active{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .role-btn .new{position:absolute; top:-7px; right:-7px; background:var(--success); color:#fff;
+    font-size:.52rem; font-weight:800; padding:1px 5px; border-radius:999px;}
+
+  .page{max-width:1280px; margin:0 auto; padding:1.25rem; display:grid; grid-template-columns:370px 1fr; gap:1rem; align-items:start;}
+  .panel{background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); overflow:hidden; margin-bottom:1rem;}
+  .panel-head{padding:.7rem .9rem; border-bottom:1px solid var(--border); font-weight:700; font-size:.83rem; display:flex; align-items:center; gap:.4rem;}
+  .panel-head .tag{font-size:.58rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:2px 6px; border-radius:5px;}
+  .tag-src{background:#eef2ff; color:#4338ca;} .tag-guard{background:#ecfdf5; color:#059669;}
+  .panel-body{padding:.85rem .9rem;}
+
+  pre.code{margin:0; background:#0f172a; color:#e2e8f0; border-radius:8px; padding:.8rem .9rem;
+    font-family:'SF Mono','Consolas',monospace; font-size:.7rem; line-height:1.5; overflow-x:auto;}
+  pre.code .k{color:#7dd3fc;} pre.code .s{color:#86efac;} pre.code .c{color:#64748b;} pre.code .o{color:#fca5a5;}
+
+  .grow{display:flex; align-items:center; justify-content:space-between; padding:.3rem 0; border-bottom:1px solid var(--gray-100); font-size:.78rem;}
+  .grow:last-child{border-bottom:none;}
+  .grow .a{font-family:'SF Mono','Consolas',monospace; font-size:.72rem; color:var(--text-2);}
+  .chk{font-weight:700; font-size:.7rem;} .chk.ok{color:var(--success);} .chk.bad{color:var(--danger);}
+  .sim{margin-top:.7rem; padding:.6rem .7rem; background:var(--gray-50); border:1px dashed var(--border); border-radius:8px; font-size:.76rem;}
+  .sim select{font:inherit; font-size:.76rem; padding:.2rem .4rem; border:1px solid var(--border); border-radius:6px;}
+  .sim .out{margin-top:.4rem; font-weight:700;}
+
+  .rp-head{display:flex; align-items:center; gap:.6rem; margin-bottom:.2rem; flex-wrap:wrap;}
+  .rp-head h1{font-size:1.4rem; margin:0;}
+  .rp-chip{font-size:.66rem; font-weight:800; text-transform:uppercase; letter-spacing:.04em; padding:3px 9px; border-radius:999px;}
+  .chip-system{background:#fef2f2; color:#b91c1c;} .chip-exec{background:#f5f3ff; color:#6d28d9;}
+  .chip-approver{background:#eff6ff; color:#1d4ed8;} .chip-manager{background:#fffbeb; color:#b45309;}
+  .chip-handler{background:#ecfeff; color:#0e7490;}
+  .rp-rid{font-family:'SF Mono','Consolas',monospace; font-size:.78rem; color:var(--text-3); background:var(--gray-100); padding:2px 8px; border-radius:6px;}
+  .rp-scope{font-size:.78rem; color:var(--text-3); margin-bottom:.2rem;}
+  .rp-scope b{color:var(--text-2);}
+
+  .sect{margin-top:1rem;}
+  .sect-h{font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-3); margin-bottom:.5rem; display:flex; align-items:center; gap:.4rem;}
+  .sect-h .pill{font-size:.6rem; font-weight:700; padding:1px 7px; border-radius:999px;}
+  .pill-shared{background:#eff6ff; color:#1d4ed8;} .pill-scoped{background:#ecfeff; color:#0e7490;}
+  .tiles{display:grid; grid-template-columns:repeat(auto-fill,minmax(195px,1fr)); gap:.55rem;}
+  .tile{text-align:left; background:var(--gray-50); border:1px solid var(--border); border-left:4px solid var(--primary); border-radius:10px; padding:.6rem .75rem;}
+  .tile--warning{border-left-color:var(--warning);} .tile--danger{border-left-color:var(--danger);} .tile--revise{border-left-color:#8b5cf6;}
+  .tile--oversee{border-left-style:dashed; opacity:.85;}
+  .tile-top{display:flex; align-items:center; gap:.45rem;}
+  .tile-count{font-size:1.15rem; font-weight:800; font-family:'SF Mono','Consolas',monospace;}
+  .tile-name{font-weight:700; font-size:.84rem;}
+  .tile-scope{font-size:.66rem; font-weight:700; margin-top:.3rem; display:inline-block; padding:1px 7px; border-radius:999px;}
+  .sc-assigned{background:#ecfeff; color:#0e7490;} .sc-dept{background:#fffbeb; color:#b45309;}
+  .sc-shared{background:#eff6ff; color:#1d4ed8;} .sc-oversight{background:#f1f5f9; color:#64748b;}
+  .none{background:#f8fafc; border:1px dashed var(--border); border-radius:10px; padding:.8rem; font-size:.82rem; color:var(--text-3);}
+
+  .guard-list{list-style:none; margin:0; padding:0;}
+  .guard-list li{display:flex; justify-content:space-between; padding:.32rem 0; border-bottom:1px solid var(--gray-100); font-size:.8rem;}
+  .guard-list li:last-child{border-bottom:none;}
+  .guard-list .act{color:var(--text-2);} .guard-list .own{color:var(--text-3); font-size:.76rem;} .guard-list .own b{color:var(--text-2);}
+
+  .scope-tabs{display:flex; flex-wrap:wrap; gap:.35rem;}
+  .scope-tabs .sb{font-size:.7rem; padding:3px 8px; border-radius:6px; font-weight:600;}
+  .sb.view{background:#ecfdf5; color:#059669;} .sb.edit{background:#1a73e8; color:#fff;} .sb.no{background:#f3f4f6; color:#9ca3af;}
+
+  .spotlight{margin-top:.6rem; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:10px; padding:.8rem .9rem; font-size:.84rem; line-height:1.5; color:#5b21b6;}
+  .spotlight b{color:#4c1d95;}
+
+  .logpane{position:fixed; right:1rem; bottom:1rem; z-index:50; width:430px; max-width:42vw; background:#0f172a; border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.2); overflow:hidden; font-family:'SF Mono','Consolas',monospace;}
+  .logpane-head{display:flex; justify-content:space-between; align-items:center; padding:.5rem .8rem; background:#1e293b; color:#94a3b8; font-size:.7rem; font-weight:700;}
+  .logpane-head button{background:none; border:1px solid #334155; color:#94a3b8; border-radius:6px; padding:2px 8px; cursor:pointer;}
+  .logpane-body{max-height:110px; overflow-y:auto; padding:.5rem .8rem; font-size:.7rem; line-height:1.7;}
+  .log-ts{color:#475569;} .log-role{color:#60a5fa;} .log-sim{color:#fbbf24;}
+
+  @media(max-width:980px){ .page{grid-template-columns:1fr;} .logpane{position:static; width:auto; max-width:100%; margin:1rem;} body{padding-bottom:1rem;} }
+</style>
+</head>
+<body>
+  <div class="appnav">
+    <span class="logo">🛡️ Spike 031</span>
+    <span class="sub">Target Role System — hybrid model: role-shared approvals + assignment-scoped execution</span>
+  </div>
+
+  <div class="roles" id="roleBar"><span class="lbl">Logged-in role</span></div>
+
+  <div class="page">
+    <div>
+      <div class="panel">
+        <div class="panel-head"><span class="tag tag-src">Source of truth</span> RESPONSIBILITY (code constant)</div>
+        <div class="panel-body"><pre class="code" id="codeBlock"></pre></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="tag tag-guard">Guardrail</span> approval owners × role_templates</div>
+        <div class="panel-body">
+          <div id="guardrail"></div>
+          <div class="sim">
+            <div>Bad-assignment test: <b>Collectible</b> owner →
+              <select id="simOwner" onchange="simReassign(this.value)">
+                <option value="finance">finance</option>
+                <option value="procurement">procurement</option>
+                <option value="operations_admin">operations_admin</option>
+                <option value="management">management</option>
+              </select>
+            </div>
+            <div class="out" id="simOut"></div>
+          </div>
+          <div style="font-size:.72rem;color:var(--text-3);margin-top:.55rem;line-height:1.4;">
+            Execution queues aren't tab-checked — they're scoped by <b>assignment</b> (<code>personnel_user_ids</code>) for users, by <b>department</b> for admins.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">Role profile — rights &amp; responsibilities</div>
+      <div class="panel-body" id="profile"></div>
+    </div>
+  </div>
+
+  <div class="logpane">
+    <div class="logpane-head"><span>EVENT LOG</span><button onclick="document.getElementById('logBody').innerHTML=''">Clear</button></div>
+    <div class="logpane-body" id="logBody"></div>
+  </div>
+
+<script>
+/* =========================================================
+   Spike 031 — Target Role System (hybrid)
+     • role_templates: 029 verbatim + the NEW `management` role
+     • RESPONSIBILITY: explicit map (code constant), TWO classes —
+         - approval : role owns a SHARED queue (RBAC); guardrail = owner has tab.edit
+         - exec     : scoped by ASSIGNMENT (users) or DEPARTMENT (admins) (ReBAC)
+   ========================================================= */
+
+const ROLE_TEMPLATES = {
+  super_admin:     mk('Super Admin',     {dashboard:[1,1],clients:[1,1],projects:[1,1],services:[1,1],procurement:[1,1],finance:[1,1],role_config:[1,1],procurement_mrfs:[1,1],procurement_records:[1,1]}),
+  management:      mk('Management',       {dashboard:[1,0],clients:[1,0],projects:[1,0],services:[1,0],procurement:[1,0],finance:[1,0],role_config:[0,0],procurement_mrfs:[1,0],procurement_records:[1,0]}),
+  operations_admin:mk('Operations Admin',{dashboard:[1,0],clients:[1,1],projects:[1,1],services:[1,1],procurement:[1,1],finance:[1,0],role_config:[0,0],procurement_mrfs:[1,1],procurement_records:[1,1]}),
+  operations_user: mk('Operations User', {dashboard:[1,0],clients:[1,0],projects:[1,1],services:[1,0],procurement:[1,0],finance:[0,0],role_config:[0,0],procurement_mrfs:[1,0],procurement_records:[1,0]}),
+  services_admin:  mk('Services Admin',  {dashboard:[1,0],clients:[1,1],projects:[1,1],services:[1,1],procurement:[1,1],finance:[1,0],role_config:[0,0],procurement_mrfs:[1,1],procurement_records:[1,1]}),
+  services_user:   mk('Services User',   {dashboard:[1,0],clients:[1,0],projects:[1,0],services:[1,1],procurement:[1,0],finance:[0,0],role_config:[0,0],procurement_mrfs:[1,0],procurement_records:[1,0]}),
+  finance:         mk('Finance',         {dashboard:[1,0],clients:[1,0],projects:[1,0],services:[1,0],procurement:[0,0],finance:[1,1],role_config:[0,0],procurement_mrfs:[0,0],procurement_records:[0,0]}),
+  procurement:     mk('Procurement',     {dashboard:[1,0],clients:[1,0],projects:[1,0],services:[1,0],procurement:[1,1],finance:[0,0],role_config:[0,0],procurement_mrfs:[1,1],procurement_records:[1,1]}),
+};
+function mk(name, spec){ const tabs={}; for(const k in spec){ tabs[k]={access:!!spec[k][0],edit:!!spec[k][1]}; } return {role_name:name,permissions:{tabs}}; }
+const ROLE_ORDER = ['super_admin','management','operations_admin','operations_user','services_admin','services_user','finance','procurement'];
+
+/* ---- THE source of truth: explicit map, two classes ---- */
+const RESP = {
+  // ----- APPROVAL — role owns a shared queue -----
+  mrf_process:       {cls:'approval', owner:'procurement',                tab:'procurement_mrfs',  label:'MRFs to process',   icon:'📦', tone:'warning', count:4},
+  po_tracking:       {cls:'approval', owner:'procurement',                tab:'procurement_records',label:'POs in-flight',    icon:'🚚', tone:'primary', count:8},
+  rfp_handle:        {cls:'approval', owner:'procurement',                tab:'procurement_records',label:'RFPs to handle',   icon:'🧾', tone:'primary', count:2},
+  pr_approval:       {cls:'approval', owner:'finance',                    tab:'finance',           label:'PRs to review',     icon:'🧾', tone:'warning', count:2},
+  tr_approval:       {cls:'approval', owner:'finance',                    tab:'finance',           label:'TRs to review',     icon:'🚚', tone:'warning', count:1},
+  collectible:       {cls:'approval', owner:'finance',                    tab:'finance',           label:'Collectibles',      icon:'💰', tone:'danger',  count:5},
+  payables:          {cls:'approval', owner:'finance',                    tab:'finance',           label:'Payables',          icon:'🏦', tone:'warning', count:3},
+  proposal_approval: {cls:'approval', owner:['management','super_admin'], tab:null,                label:'Proposal approvals',icon:'📋', tone:'warning', count:3},
+  // ----- EXEC — scoped by assignment (users) / department (admins). Applies to ops + services -----
+  new_assignment:    {cls:'exec', dept:'both', usersOnly:true, label:'New projects assigned', icon:'🆕', tone:'primary', deptCount:0, assignedCount:1},
+  project_plan:      {cls:'exec', dept:'both',                 label:'Plans to update',       icon:'📅', tone:'primary', deptCount:6, assignedCount:2},
+  project_health:    {cls:'exec', dept:'both', oversee:true,   label:'Projects at risk',      icon:'🚧', tone:'danger',  deptCount:2, assignedCount:1},
+  inspection:        {cls:'exec', dept:'both',                 label:'Inspections due',       icon:'🔍', tone:'warning', deptCount:3, assignedCount:2},
+  mrf_submit:        {cls:'exec', dept:'both',                 label:'MRFs to raise',         icon:'📝', tone:'primary', deptCount:5, assignedCount:1},
+  proposal_work:     {cls:'exec', dept:'both',                 label:'Proposals (draft/revise)',icon:'✏️', tone:'revise', deptCount:2, assignedCount:1},
+};
+const APPROVAL_KEYS = Object.keys(RESP).filter(k=>RESP[k].cls==='approval');
+let RMAP = JSON.parse(JSON.stringify(RESP));
+
+/* ---- helpers ---- */
+function roleFamily(role){
+  if (role==='operations_admin'||role==='operations_user') return 'operations';
+  if (role==='services_admin'||role==='services_user') return 'services';
+  return null;
+}
+const isAdmin = r => r.endsWith('_admin');
+const isUser  = r => r.endsWith('_user');
+
+// returns 'own' | 'oversee' | false
+function owns(role, key, map){
+  const r = map[key];
+  if (r.cls==='approval'){
+    if (role==='super_admin') return 'own';
+    const owners = Array.isArray(r.owner)?r.owner:[r.owner];
+    return owners.includes(role) ? 'own' : false;
+  }
+  // exec
+  if (role==='super_admin') return 'oversee';
+  if (role==='management') return (r.oversee ? 'oversee' : false); // mgmt tracks health, doesn't execute
+  const fam = roleFamily(role);
+  if (fam && (r.dept==='both' || r.dept===fam)){
+    if (r.usersOnly && !isUser(role)) return false;
+    return 'own';
+  }
+  return false;
+}
+function ownedKeys(role, map){ return Object.keys(map).filter(k=>owns(role,k,map)); }
+
+function execScope(role){ return isAdmin(role) ? 'dept' : isUser(role) ? 'assigned' : 'oversight'; }
+function execCount(role, r){
+  if (isAdmin(role)) return r.deptCount;
+  if (isUser(role))  return r.assignedCount;
+  return r.deptCount; // oversight
+}
+
+/* ---- guardrail (approval entries) ---- */
+function ownerHasEdit(o, tab){ if(!tab) return true; if(o==='super_admin') return true; const t=ROLE_TEMPLATES[o]?.permissions.tabs[tab]; return !!(t&&t.edit); }
+function validateApproval(key, map){
+  const r=map[key]; const owners=Array.isArray(r.owner)?r.owner:[r.owner];
+  const bad=owners.filter(o=>!ownerHasEdit(o,r.tab));
+  return {ok:bad.length===0, bad, owners};
+}
+
+/* ---- render: code block ---- */
+function renderCode(){
+  const appr = APPROVAL_KEYS.map(k=>{
+    const r=RESP[k]; const owner=Array.isArray(r.owner)?`[<span class="s">'${r.owner.join("'</span>,<span class=\"s\">'")}'</span>]`:`<span class="s">'${r.owner}'</span>`;
+    return `  <span class="k">${k}</span>: { owner:${owner} },`;
+  }).join('\n');
+  const exec = Object.keys(RESP).filter(k=>RESP[k].cls==='exec').map(k=>{
+    const r=RESP[k]; return `  <span class="k">${k}</span>: { dept:<span class="s">'both'</span>, scope:<span class="s">'assignment|dept'</span> },`;
+  }).join('\n');
+  document.getElementById('codeBlock').innerHTML =
+    `<span class="c">// SHARED queues — role owns (RBAC)</span>\nconst RESPONSIBILITY = {\n${appr}\n\n`+
+    `  <span class="c">// SCOPED queues — by assignment / dept (ReBAC)</span>\n${exec}\n};`;
+}
+
+/* ---- render: guardrail ---- */
+function renderGuardrail(){
+  document.getElementById('guardrail').innerHTML = APPROVAL_KEYS.map(k=>{
+    const r=RMAP[k]; const v=validateApproval(k,RMAP);
+    const owner=Array.isArray(r.owner)?r.owner.join(' / '):r.owner;
+    const chk = v.ok?`<span class="chk ok">✓ ${owner}${r.tab?` · ${r.tab}.edit`:''}</span>`
+                    :`<span class="chk bad">✗ ${v.bad.join('/')} lacks ${r.tab}.edit</span>`;
+    return `<div class="grow"><span class="a">${k} → ${owner}</span>${chk}</div>`;
+  }).join('');
+}
+function simReassign(role){
+  RMAP.collectible.owner=role; const v=validateApproval('collectible',RMAP); const out=document.getElementById('simOut');
+  out.innerHTML = v.ok ? `<span style="color:var(--success)">✓ ${role} can edit finance → valid owner</span>`
+    : `<span style="color:var(--danger)">✗ PERMISSION GAP — ${role} has no finance.edit. The map flags it instead of silently lying.</span>`;
+  renderGuardrail(); log(`sim: collectible → ${role} (${v.ok?'valid':'flagged'})`,'sim');
+}
+
+/* ---- render: role profile ---- */
+const PROFILE = {
+  super_admin:['System / oversight','chip-system','Everything — config &amp; break-glass'],
+  management:['Executive overseer','chip-exec','All operations + services (read)'],
+  operations_admin:['Dept manager','chip-manager','All Operations projects'],
+  operations_user:['Project handler','chip-handler','Your <b>assigned</b> Operations projects'],
+  services_admin:['Dept manager','chip-manager','All Services'],
+  services_user:['Project handler','chip-handler','Your <b>assigned</b> Services'],
+  finance:['Approver','chip-approver','Money — PR / TR / Collectible / Payables'],
+  procurement:['Approver · executor','chip-approver','Sourcing — MRF / PO / RFP'],
+};
+let current='operations_user';
+
+function tileHtml(role, key){
+  const r=RMAP[key]; const mode=owns(role,key,RMAP);
+  let count, scopeChip;
+  if (r.cls==='approval'){ count=r.count; scopeChip=`<span class="tile-scope sc-shared">shared role queue</span>`; }
+  else {
+    count=execCount(role,r); const s=execScope(role);
+    scopeChip = mode==='oversee' ? `<span class="tile-scope sc-oversight">👁️ oversight (read)</span>`
+      : s==='assigned' ? `<span class="tile-scope sc-assigned">📍 your assigned</span>`
+      : `<span class="tile-scope sc-dept">🏢 dept-wide</span>`;
+  }
+  const cls = mode==='oversee' ? 'tile--oversee' : `tile--${r.tone}`;
+  return `<div class="tile ${cls}">
+    <div class="tile-top"><span class="tile-count">${count}</span><span class="tile-name">${r.icon} ${r.label}</span></div>
+    ${scopeChip}</div>`;
+}
+
+function renderProfile(role){
+  current=role;
+  const tpl=ROLE_TEMPLATES[role]; const [ptype,pclass,scopeTxt]=PROFILE[role];
+  const owned=ownedKeys(role,RMAP);
+  const appr=owned.filter(k=>RMAP[k].cls==='approval');
+  const exec=owned.filter(k=>RMAP[k].cls==='exec');
+
+  let mine='';
+  if (appr.length){ mine += `<div class="sect"><div class="sect-h">Approval queues <span class="pill pill-shared">shared · RBAC</span></div><div class="tiles">${appr.map(k=>tileHtml(role,k)).join('')}</div></div>`; }
+  if (exec.length){ mine += `<div class="sect"><div class="sect-h">Execution queues <span class="pill pill-scoped">scoped · ${isAdmin(role)||role==='management'||role==='super_admin'?'dept/oversight':'assignment'}</span></div><div class="tiles">${exec.map(k=>tileHtml(role,k)).join('')}</div></div>`; }
+  if (!owned.length){ mine = `<div class="sect"><div class="none"><b>Owns no queue.</b> Action Center shows the Pulse/shortcuts fallback.</div></div>`; }
+
+  // what's NOT mine (approval queues this role doesn't own) — the guard
+  const notMine = APPROVAL_KEYS.filter(k=>!owns(role,k,RMAP));
+  const guard = role==='super_admin'
+    ? `<div class="none">Super Admin implicitly oversees every queue — config &amp; break-glass only, every action audited.</div>`
+    : `<ul class="guard-list">${notMine.map(k=>{const r=RMAP[k];const own=Array.isArray(r.owner)?r.owner.join(' / '):r.owner;return `<li><span class="act">${r.label}</span><span class="own">owned by <b>${own}</b></span></li>`;}).join('')||'<li><span class="act" style="color:var(--success)">— owns every approval queue —</span></li>'}</ul>`;
+
+  const spotlight = role==='management' ? `<div class="spotlight"><b>Why a new role, not super_admin?</b> Management oversees all of operations + services (read) and approves proposals — but <b>cannot edit ops data or touch role config</b>. Business authority, not system authority. The boss gets this; super_admin stays with IT.</div>` : '';
+  const handlerNote = (role==='operations_user'||role==='services_user') ? `<div class="spotlight" style="background:#ecfeff;border-color:#a5f3fc;color:#155e75;"><b>Not a "doer with nothing."</b> Their queues are real — just <b>scoped to assigned projects</b> (<code>personnel_user_ids</code>) instead of a shared role queue. This is why the Action Center matters for them too.</div>` : '';
+
+  const scopeTabs = ['projects','services','procurement','finance','role_config'].map(t=>{const tab=tpl.permissions.tabs[t];if(!tab)return '';const cls=tab.edit?'edit':tab.access?'view':'no';const lbl=tab.edit?`${t}: edit`:tab.access?`${t}: view`:`${t}: —`;return `<span class="sb ${cls}">${lbl}</span>`;}).join('');
+
+  document.getElementById('profile').innerHTML = `
+    <div class="rp-head"><h1>${tpl.role_name}</h1><span class="rp-chip ${pclass}">${ptype}</span><span class="rp-rid">role_id: ${role}</span></div>
+    <div class="rp-scope">Scope: <b>${scopeTxt}</b></div>
+    ${spotlight}${handlerNote}
+    <div class="sect-h" style="margin-top:1rem;">✅ What's mine (Action Center "needs you")</div>
+    ${mine}
+    <div class="sect"><div class="sect-h">🛡️ What's NOT mine (guarded — owned by others)</div>${guard}</div>
+    <div class="sect"><div class="sect-h">👁️ What I can see / touch</div><div class="scope-tabs">${scopeTabs}</div></div>`;
+
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.toggle('active', b.dataset.r===role));
+  log(`role → ${role} · ${appr.length} approval + ${exec.length} exec queue(s) · ${ptype}`,'role');
+}
+
+/* ---- log ---- */
+function nowTs(){ try{ return new Date().toLocaleTimeString('en-US',{hour12:false}); }catch(e){ return '--:--:--'; } }
+function log(msg,kind){ const b=document.getElementById('logBody'); const d=document.createElement('div'); const c=kind==='role'?'log-role':kind==='sim'?'log-sim':''; d.innerHTML=`<span class="log-ts">${nowTs()}</span> <span class="${c}">${msg}</span>`; b.insertBefore(d,b.firstChild); }
+
+/* ---- boot ---- */
+(function(){
+  const bar=document.getElementById('roleBar');
+  ROLE_ORDER.forEach(r=>{ const btn=document.createElement('button'); btn.className='role-btn'; btn.dataset.r=r; btn.textContent=ROLE_TEMPLATES[r].role_name;
+    if(r==='management'){ const n=document.createElement('span'); n.className='new'; n.textContent='NEW'; btn.appendChild(n); } btn.onclick=()=>renderProfile(r); bar.appendChild(btn); });
+  renderCode(); renderGuardrail();
+  renderProfile('operations_user'); // open on ops_user — the role whose model just got corrected
+  log('spike 031 ready — hybrid model: shared approvals + assignment-scoped execution. Start on Operations User.','role');
+})();
+</script>
+</body>
+</html>

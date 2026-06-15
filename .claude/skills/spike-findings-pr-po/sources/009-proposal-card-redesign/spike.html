@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spike 009 — Proposal Card: Data Layout Alternatives</title>
+<style>
+:root {
+    --primary: #1a73e8;
+    --primary-dark: #1557b0;
+    --success: #059669;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --text: #1e293b;
+    --text-muted: #475569;
+    --text-light: #64748b;
+    --text-faint: #94a3b8;
+    --border: #e2e8f0;
+    --bg-subtle: #f8fafc;
+    --radius: 8px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f1f5f9;
+    color: var(--text);
+    padding: 24px;
+}
+h1 { font-size: 1rem; font-weight: 700; margin-bottom: 3px; }
+.subtitle { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 18px; }
+
+/* ─── Controls ─────────────────────────────────────── */
+.controls {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 22px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+}
+.ctrl-group { display: flex; align-items: center; gap: 8px; }
+.ctrl-group label {
+    font-size: 0.72rem; font-weight: 600; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+}
+.ctrl-group select {
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 10px; font-size: 0.8125rem; color: var(--text);
+    background: white; cursor: pointer; outline: none;
+}
+.ctrl-group select:focus { border-color: var(--primary); }
+.toggle-wrap { display: flex; align-items: center; gap: 6px; }
+.toggle { position: relative; width: 34px; height: 20px; flex-shrink: 0; }
+.toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.toggle-track {
+    position: absolute; inset: 0; background: #cbd5e1;
+    border-radius: 10px; cursor: pointer; transition: background 0.15s;
+}
+.toggle input:checked + .toggle-track { background: var(--primary); }
+.toggle-thumb {
+    position: absolute; left: 3px; top: 3px;
+    width: 14px; height: 14px; border-radius: 50%; background: white;
+    transition: transform 0.15s; pointer-events: none;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+.toggle input:checked ~ .toggle-thumb { transform: translateX(14px); }
+
+/* ─── Section header ────────────────────────────────── */
+.section-heading {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--text-faint);
+    margin-bottom: 10px;
+}
+.section-heading span {
+    font-weight: 600; color: var(--text-muted);
+    text-transform: none; letter-spacing: 0; font-size: 0.875rem;
+}
+
+/* ─── Grid ──────────────────────────────────────────── */
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+.col-label {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--text-faint); margin-bottom: 7px;
+}
+.col-label span {
+    font-weight: 600; color: var(--text-muted);
+    text-transform: none; letter-spacing: 0; font-size: 0.8rem;
+}
+
+/* ─── Card base ─────────────────────────────────────── */
+.card {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+.card.overdue { border-left: 3px solid var(--warning); }
+.card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+}
+.card-title {
+    font-size: 0.72rem; font-weight: 700; color: var(--text);
+    text-transform: uppercase; letter-spacing: 0.05em;
+}
+.card-footer {
+    padding: 10px 14px; border-top: 1px solid var(--border);
+    background: var(--bg-subtle);
+    display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+}
+
+/* ─── Buttons ───────────────────────────────────────── */
+.btn {
+    border-radius: 6px; font-size: 0.8125rem; font-weight: 500;
+    padding: 6px 14px; cursor: pointer; border: none; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-outline { background: white; color: var(--text); border: 1px solid var(--border); }
+.btn-outline:hover { background: var(--bg-subtle); }
+
+/* ─── CTA / empty ───────────────────────────────────── */
+.cta-inner {
+    border: 1.5px dashed #cbd5e1; border-radius: 6px;
+    background: var(--bg-subtle); padding: 18px; text-align: center; margin: 14px;
+}
+.cta-inner p { font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 12px; }
+.no-prop-msg { padding: 20px; text-align: center; color: var(--text-faint); font-size: 0.8125rem; }
+
+/* ─── Progress track (Concept B) ───────────────────── */
+.track-wrapper { padding: 12px 12px 8px; border-bottom: 1px solid var(--border); }
+.track { display: flex; align-items: flex-start; }
+.track-node {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 5px; flex: 1; position: relative; z-index: 1;
+}
+.track-node:not(:last-child)::after {
+    content: ''; position: absolute; top: 9px;
+    left: calc(50% + 10px); right: calc(-50% + 10px);
+    height: 2px; background: #e2e8f0; z-index: 0;
+}
+.track-node.t-passed:not(:last-child)::after { background: var(--primary); }
+.t-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid #e2e8f0; background: white; z-index: 1;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.track-node.t-passed .t-dot { background: var(--primary); border-color: var(--primary); }
+.track-node.t-active .t-dot {
+    border-color: var(--primary); background: white;
+    box-shadow: 0 0 0 3px rgba(26,115,232,0.18); width: 20px; height: 20px;
+}
+.track-node.t-active-warn .t-dot {
+    border-color: #f97316; background: white;
+    box-shadow: 0 0 0 3px rgba(249,115,22,0.18); width: 20px; height: 20px;
+}
+.t-label {
+    font-size: 0.6375rem; font-weight: 500; color: var(--text-faint);
+    text-align: center; line-height: 1.25; max-width: 50px;
+}
+.track-node.t-passed .t-label { color: var(--text-muted); font-weight: 600; }
+.track-node.t-active .t-label { color: var(--primary); font-weight: 700; font-size: 0.65rem; }
+.track-node.t-active-warn .t-label { color: #f97316; font-weight: 700; font-size: 0.65rem; }
+.loss-badge-wrap { padding: 10px 14px 4px; border-bottom: 1px solid var(--border); }
+.loss-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #fef2f2; color: #991b1b; border: 1px solid #fecaca;
+    border-radius: 6px; padding: 6px 12px; font-size: 0.8125rem; font-weight: 600;
+}
+.check-icon { width: 9px; height: 9px; stroke: white; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ─── Shared info rows (attachment + comms) ─────────── */
+.info-row {
+    display: flex; align-items: flex-start;
+    gap: 6px; font-size: 0.75rem; color: var(--text-muted); line-height: 1.4;
+}
+.info-icon { flex-shrink: 0; font-size: 0.7rem; }
+.info-link { color: var(--primary); text-decoration: none; }
+.info-link:hover { text-decoration: underline; }
+
+/* ─── DATA LAYOUT: Current (baseline) ───────────────── */
+.dl-current { padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; }
+.prop-id-row { display: flex; align-items: center; gap: 7px; }
+.prop-id {
+    font-size: 0.8125rem; font-weight: 600; color: var(--primary);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; letter-spacing: -0.01em;
+}
+.prop-ver {
+    font-size: 0.75rem; color: var(--text-faint); background: #f1f5f9;
+    padding: 1px 7px; border-radius: 4px; font-weight: 500;
+}
+.prop-title-base {
+    font-size: 0.9375rem; font-weight: 600; color: var(--text); line-height: 1.35;
+}
+.prop-meta-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.prop-amount-base { font-size: 0.8125rem; color: var(--text-muted); font-weight: 500; }
+.age-ok  { font-size: 0.75rem; color: var(--text-light); }
+.age-warn { font-size: 0.75rem; font-weight: 500; color: #92400e; background: #fffbeb; padding: 2px 8px; border-radius: 4px; }
+
+/* ─── DATA LAYOUT A: Title-first + divider row ───────── */
+.dl-a { padding: 12px 14px; }
+.dl-a .title-first { font-size: 0.9375rem; font-weight: 600; color: var(--text); line-height: 1.35; margin-bottom: 2px; }
+.dl-a .id-secondary { font-size: 0.75rem; color: var(--text-faint); font-family: 'SF Mono','Fira Code',monospace; margin-bottom: 10px; }
+.dl-a .id-secondary .ver { color: var(--text-faint); margin-left: 4px; font-family: inherit; }
+.dl-a .stat-divider-row {
+    border-top: 1px solid var(--border); padding-top: 10px; margin-bottom: 8px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+}
+.dl-a .amount-block { display: flex; flex-direction: column; gap: 2px; }
+.dl-a .amount-label { font-size: 0.65rem; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+.dl-a .amount-val { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+.dl-a .age-block { text-align: right; }
+.dl-a .age-label { font-size: 0.65rem; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+.dl-a .age-pill-ok { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+.dl-a .age-pill-warn {
+    display: inline-block; font-size: 0.75rem; font-weight: 600;
+    color: #92400e; background: #fffbeb; padding: 2px 8px; border-radius: 4px;
+}
+.dl-a .info-gap { display: flex; flex-direction: column; gap: 4px; }
+
+/* ─── DATA LAYOUT B: Title-first + stat chips ────────── */
+.dl-b { padding: 12px 14px; }
+.dl-b .title-first { font-size: 0.9375rem; font-weight: 600; color: var(--text); line-height: 1.35; margin-bottom: 2px; }
+.dl-b .id-secondary { font-size: 0.75rem; color: var(--text-faint); font-family: 'SF Mono','Fira Code',monospace; margin-bottom: 10px; }
+.chips-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.stat-chip {
+    flex: 1; background: var(--bg-subtle); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px;
+}
+.stat-chip.chip-warn { background: #fffbeb; border-color: #fde68a; }
+.chip-label {
+    font-size: 0.625rem; font-weight: 600; color: var(--text-light);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px;
+}
+.stat-chip.chip-warn .chip-label { color: #92400e; }
+.chip-val { font-size: 0.8125rem; font-weight: 700; color: var(--text); line-height: 1.2; }
+.stat-chip.chip-warn .chip-val { color: #92400e; }
+.chip-sub { font-size: 0.65rem; color: #92400e; margin-top: 1px; }
+.dl-b .info-gap { display: flex; flex-direction: column; gap: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Spike 009 — Proposal Card: Data Section Alternatives</h1>
+<p class="subtitle">Concept B (progress track) is the base. Comparing 3 layouts for the data section below the track.</p>
+
+<div class="controls">
+  <div class="ctrl-group">
+    <label for="stateSelect">State</label>
+    <select id="stateSelect">
+      <option value="draft">Draft</option>
+      <option value="pending_internal">For Internal Approval</option>
+      <option value="pending_client" selected>Under Client Review</option>
+      <option value="for_revision">Revision Requested</option>
+      <option value="client_approved">Client Approved</option>
+      <option value="loss">Loss</option>
+      <option value="cta">No proposal — can start</option>
+      <option value="empty">No proposal — view only</option>
+    </select>
+  </div>
+  <div class="ctrl-group toggle-wrap">
+    <label>Attachment</label>
+    <label class="toggle"><input type="checkbox" id="tog-attach" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+  </div>
+  <div class="ctrl-group toggle-wrap">
+    <label>Comms</label>
+    <label class="toggle"><input type="checkbox" id="tog-comms" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+  </div>
+  <div class="ctrl-group toggle-wrap">
+    <label>Overdue</label>
+    <label class="toggle"><input type="checkbox" id="tog-overdue" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+  </div>
+  <div class="ctrl-group toggle-wrap">
+    <label>Can drive</label>
+    <label class="toggle"><input type="checkbox" id="tog-drive" checked><div class="toggle-track"></div><div class="toggle-thumb"></div></label>
+  </div>
+</div>
+
+<div class="grid-3" id="grid"></div>
+
+<script>
+const MOCK = {
+    proposal_id: 'PROPOSAL-CLMC-2026-002',
+    version: 1,
+    title: 'Mixed-Use Development Proposal',
+    amount: 39500000,
+    attachment_kind: 'link',
+    attachment_url: 'https://docs.google.com/presentation/d/1abc',
+    comms_log: [{ date: '2026-03-15', description: 'Awaiting client signature on revised scope document — will follow up next week.' }],
+};
+
+const STATUS_META = {
+    draft:            { trackIdx: 0 },
+    pending_internal: { trackIdx: 1 },
+    pending_client:   { trackIdx: 2 },
+    for_revision:     { trackIdx: 2, warn: true },
+    client_approved:  { trackIdx: 3 },
+    loss:             { trackIdx: -1 },
+};
+
+const TRACK_NODES = [
+    { label: 'Draft' },
+    { label: 'Internal\nReview' },
+    { label: 'Client\nReview' },
+    { label: 'Approved' },
+];
+
+const CHECK = `<svg class="check-icon" viewBox="0 0 12 12"><polyline points="2,6 5,9 10,3"/></svg>`;
+
+function fmt(n) {
+    return 'PHP ' + n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtCompact(n) {
+    if (n >= 1e6) return 'PHP ' + (n / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+    if (n >= 1e3) return 'PHP ' + (n / 1e3).toFixed(0) + 'K';
+    return 'PHP ' + n;
+}
+
+function buildTrack(status) {
+    const meta = STATUS_META[status];
+    if (meta.trackIdx === -1) {
+        return `<div class="loss-badge-wrap"><div class="loss-badge">✕ Loss — Proposal closed</div></div>`;
+    }
+    const isWarn = !!meta.warn;
+    const nodes = TRACK_NODES.map((n, i) => {
+        let cls = i < meta.trackIdx ? 't-passed' : (i === meta.trackIdx ? (isWarn ? 't-active-warn' : 't-active') : '');
+        return `<div class="track-node ${cls}">
+            <div class="t-dot">${cls === 't-passed' ? CHECK : ''}</div>
+            <div class="t-label">${n.label.replace('\n','<br>')}</div>
+        </div>`;
+    }).join('');
+    return `<div class="track-wrapper"><div class="track">${nodes}</div></div>`;
+}
+
+function buildFooter(status, canDrive) {
+    const showSubmit = canDrive && ['draft','for_revision'].includes(status);
+    return `<div class="card-footer">
+        ${showSubmit ? `<button class="btn btn-primary">Submit for Approval</button>` : ''}
+        <button class="btn btn-outline">View Proposal</button>
+    </div>`;
+}
+
+function attachHtml(p) {
+    if (!p.attachment_kind) return '';
+    let host = 'View link';
+    try { host = new URL(p.attachment_url).hostname.replace('www.',''); } catch(_) {}
+    return `<div class="info-row"><span class="info-icon">📎</span><a class="info-link" href="${p.attachment_url}" target="_blank" rel="noopener">${host}</a></div>`;
+}
+
+function commsHtml(p) {
+    if (!p.comms_log.length) return '';
+    const last = p.comms_log[p.comms_log.length - 1];
+    const desc = last.description.length > 60 ? last.description.slice(0,60)+'…' : last.description;
+    return `<div class="info-row"><span class="info-icon">💬</span><span>${last.date} · ${desc}</span></div>`;
+}
+
+// ─── Current (baseline) ──────────────────────────────
+function dataCurrent(p, overdue, attach, comms) {
+    const pd = { ...p, attachment_kind: attach ? p.attachment_kind : null, comms_log: comms ? p.comms_log : [] };
+    const ageHtml = overdue
+        ? `<span class="age-warn">103 days — needs attention</span>`
+        : `<span class="age-ok">103 days</span>`;
+    return `<div class="dl-current">
+        <div class="prop-id-row">
+            <span class="prop-id">${pd.proposal_id}</span>
+            <span class="prop-ver">v${pd.version}</span>
+        </div>
+        <div class="prop-title-base">${pd.title}</div>
+        <div class="prop-meta-inline">
+            <span class="prop-amount-base">${fmt(pd.amount)}</span>
+            ${ageHtml}
+        </div>
+        ${attachHtml(pd)}
+        ${commsHtml(pd)}
+    </div>`;
+}
+
+// ─── Alt A: Title-first + divider + labeled stat row ──
+function dataAltA(p, overdue, attach, comms) {
+    const pd = { ...p, attachment_kind: attach ? p.attachment_kind : null, comms_log: comms ? p.comms_log : [] };
+    const ageWarn = overdue;
+    return `<div class="dl-a">
+        <div class="title-first">${pd.title}</div>
+        <div class="id-secondary">${pd.proposal_id} <span class="ver">· v${pd.version}</span></div>
+        <div class="stat-divider-row">
+            <div class="amount-block">
+                <div class="amount-label">Value</div>
+                <div class="amount-val">${fmt(pd.amount)}</div>
+            </div>
+            <div class="age-block">
+                <div class="age-label">Stage age</div>
+                ${ageWarn
+                    ? `<div class="age-pill-warn">103 days — attention</div>`
+                    : `<div class="age-pill-ok">103 days</div>`
+                }
+            </div>
+        </div>
+        <div class="info-gap">
+            ${attachHtml(pd)}
+            ${commsHtml(pd)}
+        </div>
+    </div>`;
+}
+
+// ─── Alt B: Title-first + stat chips ──────────────────
+function dataAltB(p, overdue, attach, comms) {
+    const pd = { ...p, attachment_kind: attach ? p.attachment_kind : null, comms_log: comms ? p.comms_log : [] };
+    const ageWarn = overdue;
+    const ageSub = ageWarn ? `<div class="chip-sub">needs attention</div>` : '';
+    return `<div class="dl-b">
+        <div class="title-first">${pd.title}</div>
+        <div class="id-secondary">${pd.proposal_id} · v${pd.version}</div>
+        <div class="chips-row">
+            <div class="stat-chip">
+                <div class="chip-label">Value</div>
+                <div class="chip-val">${fmt(pd.amount)}</div>
+            </div>
+            <div class="stat-chip ${ageWarn ? 'chip-warn' : ''}">
+                <div class="chip-label">Stage age</div>
+                <div class="chip-val">103 days</div>
+                ${ageSub}
+            </div>
+        </div>
+        <div class="info-gap">
+            ${attachHtml(pd)}
+            ${commsHtml(pd)}
+        </div>
+    </div>`;
+}
+
+// ─── Full card assembly ───────────────────────────────
+function buildCard(dataFn, label, descLabel, status, overdue, attach, comms, canDrive) {
+    const isCTA   = status === 'cta';
+    const isEmpty = status === 'empty';
+    const isSpecial = isCTA || isEmpty;
+
+    let body = '';
+    if (isCTA) {
+        body = `<div class="cta-inner"><p>No proposal yet. Ready to start one?</p><button class="btn btn-primary">Start Proposal</button></div>`;
+    } else if (isEmpty) {
+        body = `<div class="no-prop-msg">No proposal linked yet.</div>`;
+    } else {
+        body = buildTrack(status) + dataFn(MOCK, overdue, attach, comms);
+    }
+
+    const footer = (!isSpecial) ? buildFooter(status, canDrive) : '';
+
+    return `
+        <div>
+            <div class="col-label">${label} <span>— ${descLabel}</span></div>
+            <div class="card ${(!isSpecial && overdue) ? 'overdue' : ''}">
+                <div class="card-header"><span class="card-title">Proposal</span></div>
+                ${body}
+                ${footer}
+            </div>
+        </div>
+    `;
+}
+
+function render() {
+    const status  = document.getElementById('stateSelect').value;
+    const overdue = document.getElementById('tog-overdue').checked;
+    const attach  = document.getElementById('tog-attach').checked;
+    const comms   = document.getElementById('tog-comms').checked;
+    const drive   = document.getElementById('tog-drive').checked;
+
+    document.getElementById('grid').innerHTML =
+        buildCard(dataCurrent, 'CURRENT',  'ID first, inline stats',    status, overdue, attach, comms, drive) +
+        buildCard(dataAltA,    'ALT A',    'Title first, labeled stats', status, overdue, attach, comms, drive) +
+        buildCard(dataAltB,    'ALT B',    'Title first, stat chips',    status, overdue, attach, comms, drive);
+}
+
+['stateSelect','tog-overdue','tog-attach','tog-comms','tog-drive'].forEach(id => {
+    document.getElementById(id).addEventListener('change', render);
+});
+render();
+</script>
+</body>
+</html>

@@ -11,6 +11,68 @@
     z-index: 100;
 }
 
+/* ── Update strip banner (Phase 94) ──
+   Collapsing slot in normal flow above the sticky nav.
+   Adding .open transitions height from 0 → 46px, pushing the nav down.
+   Do NOT use position:fixed — the strip scrolls away naturally when the
+   user scrolls, and the sticky nav pins to viewport top on its own. */
+.update-strip-slot {
+    overflow: hidden;
+    height: 0;
+    max-height: 0;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.update-strip-slot.open {
+    height: 46px;
+    max-height: 46px;
+}
+.update-strip-inner {
+    background: #1557b0;
+    color: white;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+}
+.update-strip-text {
+    font-size: 0.9375rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.update-strip-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.update-strip-btn {
+    padding: 6px 14px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+.update-strip-btn--refresh {
+    background: white;
+    color: #1557b0;
+}
+.update-strip-btn--refresh:hover {
+    background: #f0f7ff;
+}
+.update-strip-btn--dismiss {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.update-strip-btn--dismiss:hover {
+    color: white;
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
 .top-nav-content {
     max-width: 1600px;
     margin: 0 auto;
@@ -395,6 +457,36 @@ textarea.form-control {
     min-height: 80px;
 }
 
+/* Inline detail-field: styled editable input for project/service detail cards */
+.detail-field {
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    color: #1e293b;
+    background: #f8fafc;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+.detail-field:hover:not(:disabled) {
+    border-color: #cbd5e1;
+    background: #fff;
+}
+.detail-field:focus {
+    outline: none;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26,115,232,0.1);
+    background: #fff;
+}
+.detail-field:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+    cursor: not-allowed;
+    border-color: #e2e8f0;
+}
+
 .form-actions {
     display: flex;
     gap: 0.5rem;
@@ -536,6 +628,36 @@ tr:hover {
     font-weight: 600;
     display: inline-block;
     text-align: center;
+}
+
+/* Phase 87.4 D-15/D-19 — defensive sizing for badge-class pills.
+   Three properties together immunise every current and future caller:
+     1. display: inline-block — prevents flex-blockification of `<span>`
+        (UA default `inline` becomes `block` when inside a flex parent).
+     2. width: fit-content — locks box to content width (was the
+        original row-width-fill fix per Task 1 diagnosis).
+     3. white-space: nowrap — REVISION (post-UAT 2026-05-24): flex
+        items default to `min-width: auto = min-content`, which for
+        normal-wrap text is the longest single word. In a constrained
+        flex parent (e.g., pill + timestamp on the same row), the pill
+        was being squeezed down to the longest word's width and the
+        rest of the label wrapped inside the pill. `nowrap` makes
+        min-content == max-content, so the pill stays on one line.
+   See 87.4-03-SUMMARY.md `## Follow-up — UAT Multi-Line Wrap` for the
+   diagnosis trace. No `overflow:hidden` / fixed-width / `max-width` per
+   D-20 root-cause-first. */
+.status-badge,
+.badge-primary,
+.badge-secondary,
+.badge-pending,
+.badge-approved,
+.badge-rejected,
+.badge-success,
+.badge-danger,
+.badge-warning {
+    display: inline-block;
+    width: fit-content;
+    white-space: nowrap;
 }
 
 .status-badge {
@@ -1322,11 +1444,137 @@ tr:hover {
     background-attachment: local, local, scroll, scroll;
 }
 
+/* ===== Phase 91.3 — RFP Fees ===== */
+
+/* Progressive-disclosure add-chips */
+.btn-ghost-fee {
+    padding: 6px 12px;
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px dashed #bae6fd;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.btn-ghost-fee:hover { background: #e0f2fe; }
+
+/* Fee row: label / amount / remove-× */
+.fee-row {
+    display: grid;
+    grid-template-columns: 1fr 150px 32px;
+    gap: 8px;
+    align-items: center;
+    margin-top: 8px;
+}
+
+/* ₱ prefix on amount inputs (non-interactive) */
+.fee-amount-wrap { position: relative; display: block; }
+.fee-amount-wrap::before {
+    content: "\20B1"; /* ₱ */
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 0.875rem;
+    pointer-events: none;
+}
+.fee-amount {
+    text-align: right;
+    padding-left: 22px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Invalid-fee state (positive-only, D-05) */
+.fee-amount.err {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+.field-err {
+    margin-top: 4px;
+    font-size: 0.74rem;
+    color: #ef4444;
+}
+.fee-footer-alert {
+    margin-top: 0.75rem;
+    padding: 8px 12px;
+    background: #fef2f2;
+    color: #991b1b;
+    border-radius: 6px;
+    font-size: 0.875rem;
+}
+
+/* Running-total / tinted fee card */
+.fee-card {
+    border: 1px dashed #bae6fd;
+    background: #f0f9ff;
+    border-radius: 10px;
+    padding: 0.75rem;
+}
+.fee-card .grand .amt {
+    font-size: 1.3rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Downstream "incl. fees" cue pill (tables/cards) */
+.cue {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    border-radius: 9999px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    vertical-align: middle;
+}
+.cue:focus-visible { outline: 2px solid #0ea5e9; outline-offset: 1px; }
+
+/* Cue tooltip (desktop hover + JS tap-toggle .cue-open) */
+.cue-tip {
+    position: absolute;
+    z-index: 50;
+    width: 210px;
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.75rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    display: none;
+}
+.cue:hover + .cue-tip,
+.cue.cue-open + .cue-tip { display: block; }
+
+/* PO-summary fee sub-note */
+.fee-subnote { font-size: 0.7rem; color: #0369a1; }
+
 /* ========================================
    RESPONSIVE
    ======================================== */
 
 @media (max-width: 768px) {
+    /* Phase 91.3 — fee controls mobile */
+    .btn-ghost-fee { min-height: 44px; }
+    #feeChips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .fee-amount { min-height: 44px; }
+    .fee-row button { min-height: 44px; min-width: 44px; }
+    .fee-row { grid-template-columns: 1fr 130px 44px; }
+    .cue {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        /* keep the visible pill small; expand the hit area via padding */
+        padding-top: 0; padding-bottom: 0;
+    }
+    .cue-tip { width: calc(100vw - 48px); max-width: 240px; }
+
     .top-nav-content {
         padding: 0 1rem;
         height: 64px; /* keep fixed height on mobile */
@@ -1572,6 +1820,11 @@ tr:hover {
     text-overflow: ellipsis;
 }
 
+.personnel-pill.selected {
+    background: var(--primary, #1a73e8);
+    color: #ffffff;
+}
+
 .personnel-pill.legacy {
     background: var(--gray-100);
     color: var(--gray-700);
@@ -1632,6 +1885,12 @@ tr:hover {
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+.pill-dropdown.pill-dropdown-up {
+    border-top: 1px solid var(--gray-300);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+}
+
 .pill-dropdown-item {
     padding: 0.5rem 0.75rem;
     cursor: pointer;
@@ -1685,3 +1944,670 @@ tr:hover {
     opacity: 0.6;
     transition: opacity 0.3s ease;
 }
+
+/* ========================================
+   NOTIFICATIONS BELL + DROPDOWN — Phase 83 (D-01 / D-02)
+   Parallel to .nav-dropdown* but separate class set so visual styles
+   can diverge later (notif dropdown is wider, has rows with icons,
+   has a footer link to the history page).
+   ======================================== */
+
+.notif-bell-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    /* Visual placement on desktop: between Admin dropdown and Log Out.
+       Achieved by CSS `order` since the markup is a sibling of .nav-links. */
+    order: 2;
+    margin: 0 0.5rem;
+}
+
+.notif-bell {
+    position: relative;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 6px;
+    color: #475569;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.notif-bell:hover,
+.notif-bell:focus-visible {
+    background: #f1f5f9;
+    color: #1a73e8;
+    outline: none;
+}
+
+.notif-bell-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.notif-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    border-radius: 9px;
+    box-shadow: 0 0 0 2px #fff;
+    pointer-events: none;
+}
+
+.notif-dropdown-menu {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 360px;
+    max-width: calc(100vw - 24px);
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    z-index: 200;
+    max-height: 70vh;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(-12px);
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 200ms ease-out, opacity 200ms ease-out, visibility 0ms 200ms;
+}
+
+.notif-dropdown-menu.open {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+    pointer-events: auto;
+    transition: transform 200ms ease-out, opacity 200ms ease-out, visibility 0ms 0ms;
+}
+
+.notif-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+}
+
+.notif-dropdown-title {
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.notif-mark-all-btn {
+    background: transparent;
+    border: none;
+    color: #1a73e8;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+.notif-mark-all-btn:hover:not(:disabled) {
+    background: #eff6ff;
+}
+
+.notif-mark-all-btn:disabled {
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+.notif-dropdown-rows {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    max-height: 50vh;
+}
+
+.notif-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+/* Phase 98 Slice 2: the history page (#/notifications) wraps its rows in
+   .notif-rows-container and uses an inline single-line layout. The dropdown
+   (app/notifications.js) reuses the bare .notif-row / .notif-row-body classes
+   for a stacked .na-body, so the inline alignment is scoped here to the history
+   container only — keeping the bell dropdown visually unchanged (D-10). */
+.notif-rows-container .notif-row {
+    align-items: center;
+}
+
+.notif-row:hover {
+    background: #f8fafc;
+}
+
+.notif-row--unread {
+    background: #f8fbff;
+    border-left-color: #1a73e8;
+}
+
+.notif-row--unread:hover {
+    background: #eff6ff;
+}
+
+.notif-type-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.notif-type-badge svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    flex-shrink: 0;
+}
+
+.notif-row-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+}
+
+/* Phase 98 Slice 2: fixed-width inline label column so every history-row
+   message starts at the same x. Sized to fit the longest TYPE_META label
+   "REGISTRATION PENDING" (20 chars uppercase @0.7rem). */
+.notif-row-label {
+    flex: 0 0 160px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.notif-row-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notif-row-read-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+    font-size: 0.875rem;
+    line-height: 1;
+    margin-left: 0.25rem;
+}
+
+.notif-row-read-btn:hover {
+    background: #fff;
+    border-color: #e2e8f0;
+    color: #1a73e8;
+}
+
+.notif-row-message {
+    flex: 1 1 auto;
+    font-size: 0.875rem;
+    color: #1e293b;
+    line-height: 1.4;
+    /* MAJOR-8: prevent overflow when message contains long unbroken tokens
+       (URLs, IDs like MRF-2026-00001-LONG-SOURCE-ID). min-width:0 lets
+       the flex item shrink below its content's intrinsic min-content width. */
+    min-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+}
+
+.notif-row-message--unread {
+    font-weight: 600;
+}
+
+.notif-row-time {
+    font-size: 0.75rem;
+    color: #64748b;
+    flex-shrink: 0;
+    white-space: nowrap;
+    /* Phase 98 Slice 2: push time + ✓ cluster to the right edge consistently */
+    margin-left: auto;
+}
+
+/* ========================================
+   NOTIFICATION ROW ANATOMY — Phase 95
+   3-line structure: event title / objectId·objectName / actor
+   .na-* classes sit inside .notif-row-body alongside the badge
+   ======================================== */
+
+.na-body {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Line 1: event title + action chip + time */
+.na-l1 {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 2px;
+}
+
+.na-event {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.na-chip {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.na-time {
+    font-size: 11px;
+    color: #64748b;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Line 2: objectId · objectName */
+.na-l2 {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 2px;
+}
+
+.na-obj-id {
+    font-size: 11px;
+    font-weight: 700;
+    color: #1a73e8;
+    font-family: 'Consolas', monospace;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.na-sep {
+    font-size: 11px;
+    color: #cbd5e1;
+    flex-shrink: 0;
+}
+
+.na-obj-name {
+    font-size: 11px;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Line 3: actor */
+.na-l3 {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.notif-row-mark-read {
+    background: transparent;
+    border: 1px solid transparent;
+    color: #64748b;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    flex-shrink: 0;
+    /* Phase 98 Slice 2 fix: restore the ✓ to its intended small size + tight line
+       so the action sits on the same middle line as the message/time (the original
+       inline font-size:0.75rem was dropped in the markup rewrite, making ✓ inherit
+       ~1rem and appear over-sized / vertically off). History page only — the bell
+       dropdown uses .notif-row-read-btn, not this class. */
+    font-size: 0.75rem;
+    line-height: 1;
+}
+
+.notif-row-mark-read:hover {
+    background: #fff;
+    border-color: #e2e8f0;
+    color: #1a73e8;
+}
+
+.notif-empty-state {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: #64748b;
+    font-size: 0.875rem;
+}
+
+.notif-dropdown-footer {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.notif-view-all {
+    color: #1a73e8;
+    text-decoration: none;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.notif-view-all:hover {
+    text-decoration: underline;
+}
+
+/* Mobile: dropdown becomes near-full-width takeover.
+   Also adjust .top-nav-content so brand + bell + hamburger fit at narrow widths.
+   Consolidated in this file because the existing .top-nav-content rule lives here. */
+@media (max-width: 768px) {
+    /* Update strip: stack text above buttons on narrow viewports (Phase 94) */
+    .update-strip-slot {
+        transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        max-height: 0;
+    }
+    .update-strip-slot.open {
+        height: auto;
+        max-height: 120px;
+    }
+    .update-strip-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        height: auto;
+        padding: 10px 16px;
+    }
+    .update-strip-actions {
+        justify-content: flex-end;
+    }
+
+    .notif-bell-wrap {
+        order: 0;  /* Reset desktop ordering on mobile (where .nav-links is hidden anyway) */
+        margin: 0 0.25rem;
+    }
+    .notif-dropdown-menu {
+        width: calc(100vw - 24px);
+        right: -8px;
+    }
+
+    /* Top-nav mobile flex tweak — Phase 83 (D-02)
+       Bell remains visible at ≤768px alongside brand and hamburger.
+       Bell is a sibling of .nav-links (which becomes display:none here). */
+    .top-nav-content {
+        gap: 0.5rem;
+    }
+    .top-nav-content .nav-brand {
+        flex-shrink: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+/* Phase 87.1 D-05 / Phase 87.3 D-15 / Phase 96 — Inline proposal card in project/service detail */
+.proposal-inline-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+.proposal-inline-card--start {
+    border: 1.5px dashed #cbd5e1;
+    background: #f8fafc;
+}
+.proposal-inline-card__body {
+    text-align: center;
+    padding: 1rem 0;
+}
+
+/* Phase 96 — Card heading (matches PROJECT PLAN card style) */
+.proposal-card-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Phase 96 — Progress track (Concept B from spike 009) */
+.proposal-card-track {
+    padding: 12px 12px 8px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.proposal-track {
+    display: flex;
+    align-items: flex-start;
+}
+.proposal-track-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+    position: relative;
+    z-index: 1;
+}
+.proposal-track-node:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 9px;
+    left: calc(50% + 10px);
+    right: calc(-50% + 10px);
+    height: 2px;
+    background: #e2e8f0;
+    z-index: 0;
+}
+.proposal-track-node.t-passed:not(:last-child)::after {
+    background: #1a73e8;
+}
+.proposal-track-node .t-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #e2e8f0;
+    background: white;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.proposal-track-node.t-passed .t-dot {
+    background: #1a73e8;
+    border-color: #1a73e8;
+}
+.proposal-track-node.t-active .t-dot {
+    border-color: #1a73e8;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(26,115,232,0.18);
+    width: 20px;
+    height: 20px;
+}
+.proposal-track-node.t-active-warn .t-dot {
+    border-color: #f97316;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(249,115,22,0.18);
+    width: 20px;
+    height: 20px;
+}
+.proposal-track-node .t-label {
+    font-size: 0.6375rem;
+    font-weight: 500;
+    color: #94a3b8;
+    text-align: center;
+    line-height: 1.25;
+    max-width: 50px;
+}
+.proposal-track-node.t-passed .t-label {
+    color: #475569;
+    font-weight: 600;
+}
+.proposal-track-node.t-active .t-label {
+    color: #1a73e8;
+    font-weight: 700;
+    font-size: 0.65rem;
+}
+.proposal-track-node.t-active-warn .t-label {
+    color: #f97316;
+    font-weight: 700;
+    font-size: 0.65rem;
+}
+.proposal-check-icon {
+    width: 9px;
+    height: 9px;
+    stroke: white;
+    fill: none;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.proposal-loss-badge-wrap {
+    padding: 10px 14px 4px;
+    border-bottom: 1px solid #e2e8f0;
+}
+.proposal-loss-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+/* Phase 96 — Stat chips + data body (Alt B layout from spike 009) */
+.proposal-card-body {
+    padding: 12px 14px;
+}
+.proposal-card-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.35;
+    margin-bottom: 2px;
+}
+.proposal-card-id {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    margin-bottom: 10px;
+}
+.proposal-chip-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.proposal-stat-chip {
+    flex: 1;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 10px;
+}
+.proposal-stat-chip.chip-warn {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+.proposal-stat-chip .proposal-chip-label {
+    font-size: 0.625rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 3px;
+}
+.proposal-stat-chip.chip-warn .proposal-chip-label {
+    color: #92400e;
+}
+.proposal-stat-chip .proposal-chip-val {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1.2;
+}
+.proposal-stat-chip.chip-warn .proposal-chip-val {
+    color: #92400e;
+}
+.proposal-stat-chip .proposal-chip-sub {
+    font-size: 0.65rem;
+    color: #92400e;
+    margin-top: 1px;
+}
+.proposal-info-gap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.proposal-info-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: #475569;
+    line-height: 1.4;
+}
+.proposal-info-link {
+    color: #1a73e8;
+    text-decoration: none;
+}
+.proposal-info-link:hover {
+    text-decoration: underline;
+}
+.proposal-card-footer {
+    padding: 10px 14px;
+    border-top: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+

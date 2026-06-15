@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 003a/b — Notification Icon Set</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* ── SVG SYMBOL DEFS (003b approach — defined once, used via <use>) ── */
+  #spike-symbol-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  h1 { font-size: 1.25rem; font-weight: 700; color: #1e293b; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; }
+  .section-label {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 0.75rem;
+  }
+
+  /* ── LAYOUT ── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    max-width: 900px;
+    margin: 0 auto 2.5rem;
+  }
+  @media (max-width: 640px) { .compare-grid { grid-template-columns: 1fr; } }
+
+  /* ── MOCK DROPDOWN ── */
+  .mock-dropdown {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    width: 100%;
+    overflow: hidden;
+  }
+  .mock-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .mock-header-title { font-weight: 600; color: #1e293b; font-size: 0.9375rem; }
+  .mock-mark-all {
+    background: transparent; border: none; color: #1a73e8;
+    font-size: 0.8125rem; cursor: pointer; padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+  }
+  .mock-rows { max-height: 480px; overflow-y: auto; }
+  .mock-row {
+    display: flex; align-items: flex-start; gap: 0.75rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+  }
+  .mock-row:hover { background: #f8fafc; }
+  .mock-row.unread { background: #eff6ff; }
+  .mock-row.unread:hover { background: #dbeafe; }
+
+  .mock-badge-wrap { flex-shrink: 0; padding-top: 2px; }
+
+  /* ── CURRENT (text/emoji) badge ── */
+  .badge-text {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    font-size: 0.875rem; font-weight: 700;
+    line-height: 1;
+  }
+
+  /* ── NEW (SVG) badge ── */
+  .badge-svg {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .badge-svg svg {
+    width: 16px; height: 16px;
+    stroke: currentColor; fill: none;
+    stroke-width: 1.75;
+    stroke-linecap: round; stroke-linejoin: round;
+    flex-shrink: 0;
+  }
+
+  .mock-body { flex: 1; min-width: 0; }
+  .mock-msg { font-size: 0.875rem; color: #1e293b; line-height: 1.4; }
+  .mock-time { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+  .mock-read-btn {
+    background: transparent; border: 1px solid transparent;
+    color: #94a3b8; cursor: pointer; padding: 0.25rem;
+    border-radius: 4px; flex-shrink: 0; font-size: 0.75rem;
+  }
+  .mock-footer {
+    padding: 0.75rem 1rem; border-top: 1px solid #e5e7eb;
+    text-align: center;
+  }
+  .mock-footer a { color: #1a73e8; font-size: 0.875rem; font-weight: 500; text-decoration: none; }
+
+  /* ── CODE COMPARISON ── */
+  .code-compare {
+    max-width: 900px; margin: 0 auto 2rem;
+    background: #1e293b; border-radius: 8px; overflow: hidden;
+  }
+  .code-tabs {
+    display: flex; border-bottom: 1px solid #334155;
+  }
+  .code-tab {
+    padding: 0.6rem 1.25rem; font-size: 0.8125rem; font-weight: 600;
+    color: #94a3b8; cursor: pointer; border: none; background: transparent;
+  }
+  .code-tab.active { color: #e2e8f0; border-bottom: 2px solid #1a73e8; }
+  .code-body { padding: 1.25rem; overflow-x: auto; display: none; }
+  .code-body.active { display: block; }
+  pre { font-family: 'Consolas', 'SF Mono', monospace; font-size: 0.8125rem;
+        color: #e2e8f0; line-height: 1.6; white-space: pre-wrap; }
+  .c-key { color: #7dd3fc; }
+  .c-str { color: #86efac; }
+  .c-cmt { color: #64748b; font-style: italic; }
+
+  /* ── VERDICT BOX ── */
+  .verdict {
+    max-width: 900px; margin: 0 auto 2rem;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+  }
+  .verdict h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; color: #1e293b; }
+  .verdict ul { font-size: 0.875rem; color: #475569; line-height: 1.7; padding-left: 1.25rem; }
+  .verdict li { margin-bottom: 0.25rem; }
+
+  /* ── CONTROLS ── */
+  .controls {
+    position: fixed; bottom: 1.5rem; left: 1.5rem;
+    background: #1e293b; color: #e2e8f0;
+    border-radius: 8px; padding: 0.875rem 1.125rem;
+    font-size: 0.8125rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    display: flex; flex-direction: column; gap: 0.5rem; z-index: 999;
+  }
+  .controls strong { color: #7dd3fc; display: block; margin-bottom: 0.25rem; }
+  .ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+  .ctrl-btn {
+    padding: 0.3rem 0.75rem; border-radius: 4px; border: 1px solid #475569;
+    background: #334155; color: #e2e8f0; font-size: 0.75rem;
+    cursor: pointer; transition: background 0.1s;
+  }
+  .ctrl-btn:hover, .ctrl-btn.active { background: #1a73e8; border-color: #1a73e8; }
+</style>
+</head>
+<body>
+
+<!-- 003b: SVG symbol defs (defined once, referenced via <use href="#...">) -->
+<svg id="spike-symbol-defs" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <symbol id="i-check" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></symbol>
+    <symbol id="i-exclaim-circle" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/></symbol>
+    <symbol id="i-doc-search" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></symbol>
+    <symbol id="i-dollar" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></symbol>
+    <symbol id="i-user-plus" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/></symbol>
+    <symbol id="i-doc-plus" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></symbol>
+    <symbol id="i-badge-check" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z"/></symbol>
+    <symbol id="i-banknotes" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></symbol>
+    <symbol id="i-coin" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 7.756a4.5 4.5 0 100 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></symbol>
+  </defs>
+</svg>
+
+<div style="max-width:900px;margin:0 auto;">
+  <h1>Spike 003a/b — Notification Icon Set</h1>
+  <p class="subtitle">Given 16 types each get a unique SVG icon, do they look visually distinct and consistent in the badge?</p>
+</div>
+
+<!-- COMPARE GRID -->
+<div class="compare-grid">
+  <!-- OLD: current text/emoji -->
+  <div>
+    <div class="section-label">CURRENT — text chars + emoji</div>
+    <div class="mock-dropdown">
+      <div class="mock-header">
+        <span class="mock-header-title">Notifications</span>
+        <button class="mock-mark-all">Mark all read</button>
+      </div>
+      <div class="mock-rows" id="old-rows"></div>
+      <div class="mock-footer"><a href="#">View all notifications</a></div>
+    </div>
+  </div>
+
+  <!-- NEW: SVG icons -->
+  <div>
+    <div class="section-label" id="new-label">NEW — 003a: inline SVG paths</div>
+    <div class="mock-dropdown">
+      <div class="mock-header">
+        <span class="mock-header-title">Notifications</span>
+        <button class="mock-mark-all">Mark all read</button>
+      </div>
+      <div class="mock-rows" id="new-rows"></div>
+      <div class="mock-footer"><a href="#">View all notifications</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- CODE COMPARISON -->
+<div style="max-width:900px;margin:0 auto 1.5rem;">
+  <div class="section-label">IMPLEMENTATION APPROACH</div>
+</div>
+<div class="code-compare">
+  <div class="code-tabs">
+    <button class="code-tab active" onclick="showCode('a')">003a — Inline SVG</button>
+    <button class="code-tab" onclick="showCode('b')">003b — SVG Symbol</button>
+  </div>
+  <div class="code-body active" id="code-a">
+    <pre><span class="c-cmt">// TYPE_META in app/notifications.js
+// icon field holds a self-contained SVG string</span>
+
+<span class="c-key">const</span> TYPE_META = {
+  <span class="c-key">MRF_APPROVED</span>: {
+    <span class="c-key">label</span>: <span class="c-str">'MRF Approved'</span>,
+    <span class="c-key">color</span>: <span class="c-str">'#059669'</span>,
+    <span class="c-key">icon</span>: <span class="c-str">`&lt;svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+       stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"&gt;
+  &lt;path d="M4.5 12.75l6 6 9-13.5"/&gt;
+&lt;/svg&gt;`</span>
+  },
+  <span class="c-key">MRF_REJECTED</span>: {
+    <span class="c-key">label</span>: <span class="c-str">'MRF Rejected'</span>,
+    <span class="c-key">color</span>: <span class="c-str">'#ef4444'</span>,
+    <span class="c-key">icon</span>: <span class="c-str">`&lt;svg viewBox="0 0 24 24" ...&gt;
+  &lt;path d="M6 18L18 6M6 6l12 12"/&gt;
+&lt;/svg&gt;`</span>
+  },
+  <span class="c-cmt">// ... 14 more entries</span>
+};
+
+<span class="c-cmt">// In renderDropdownRows() — ZERO CHANGE NEEDED:
+// The template already does: ${meta.icon}
+// innerHTML parses the SVG string automatically.</span>
+
+<span class="c-cmt">// Pros: Self-contained. No index.html changes.
+//       Each TYPE_META entry shows its own icon inline.
+// Cons: Long strings in TYPE_META (~40 chars/path avg).
+//       "Same icon" requires copy-paste if reused.</span></pre>
+  </div>
+  <div class="code-body" id="code-b">
+    <pre><span class="c-cmt">// 003b: Define symbols once in index.html, reference by ID</span>
+
+<span class="c-cmt">// ── index.html (added once, inside &lt;body&gt;) ──</span>
+<span class="c-str">&lt;svg style="display:none"&gt;
+  &lt;defs&gt;
+    &lt;symbol id="i-check" viewBox="0 0 24 24"&gt;
+      &lt;path stroke-linecap="round" stroke-linejoin="round"
+            d="M4.5 12.75l6 6 9-13.5"/&gt;
+    &lt;/symbol&gt;
+    &lt;symbol id="i-x" viewBox="0 0 24 24"&gt;...&lt;/symbol&gt;
+    &lt;!-- 16 symbols total --&gt;
+  &lt;/defs&gt;
+&lt;/svg&gt;</span>
+
+<span class="c-cmt">// ── TYPE_META in app/notifications.js ──</span>
+<span class="c-key">const</span> TYPE_META = {
+  <span class="c-key">MRF_APPROVED</span>: {
+    <span class="c-key">color</span>: <span class="c-str">'#059669'</span>,
+    <span class="c-key">icon</span>: <span class="c-str">`&lt;svg viewBox="0 0 24 24"&gt;&lt;use href="#i-check"/&gt;&lt;/svg&gt;`</span>
+  },
+  <span class="c-key">PR_DECIDED</span>: {
+    <span class="c-key">color</span>: <span class="c-str">'#059669'</span>,
+    <span class="c-key">icon</span>: <span class="c-str">`&lt;svg viewBox="0 0 24 24"&gt;&lt;use href="#i-check-circle"/&gt;&lt;/svg&gt;`</span>
+  },
+  <span class="c-cmt">// Shared symbols cost nothing — MRF_APPROVED and PR_DECIDED
+  // can use the same check icon or different ones, zero duplication.</span>
+};
+
+<span class="c-cmt">// ── renderDropdownRows() — ZERO CHANGE NEEDED ──
+
+// Pros: Short, readable TYPE_META entries.
+//       True single source for shared icons.
+//       stroke/fill props on &lt;symbol&gt; apply to all uses.
+// Cons: Requires modifying index.html.
+//       &lt;use href&gt; cross-document usage not supported
+//       (same-document is fine; external SVG files are not).</span></pre>
+  </div>
+</div>
+
+<!-- VERDICT -->
+<div class="verdict">
+  <h3>Key Observations</h3>
+  <ul>
+    <li><strong>Visual consistency:</strong> All 16 SVG icons share identical stroke-width (1.75), linecap (round), linejoin (round) — the set feels unified. Text chars don't share any visual properties.</li>
+    <li><strong>Emoji elimination:</strong> ⏳ (REGISTRATION_PENDING) and 📦 (PO_DELIVERED) were the worst offenders — emoji render at inconsistent sizes across Windows/Mac/mobile. Both now have proper stroked SVG icons.</li>
+    <li><strong>Icon conflicts resolved:</strong> <code>✓</code> was shared by MRF_APPROVED / PR_DECIDED / TR_DECIDED. Now: simple check / check-circle / badge-check — visually distinct at 16px.</li>
+    <li><strong>Dollar conflicts resolved:</strong> <code>$</code> was shared by PROJECT_COST_CHANGED / RFP_PAID / COLLECTIBLE_CREATED. Now: dollar-circle / banknotes / coin — each tells a different story.</li>
+    <li><strong>003a vs 003b:</strong> Identical visual output. 003a is simpler — no index.html changes, TYPE_META is self-documenting. 003b is cleaner at scale (true symbol reuse). For this SPA's 16 types, 003a wins on simplicity.</li>
+  </ul>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <strong>Controls</strong>
+  <div class="ctrl-row">
+    <span>New panel:</span>
+    <button class="ctrl-btn active" id="btn-003a" onclick="setImpl('a')">003a inline</button>
+    <button class="ctrl-btn" id="btn-003b" onclick="setImpl('b')">003b symbol</button>
+  </div>
+  <div class="ctrl-row">
+    <span>Toggle unread:</span>
+    <button class="ctrl-btn" onclick="toggleUnread()">first 4 rows</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// DATA: 16 notification type definitions
+// ─────────────────────────────────────────
+
+const TYPES_OLD = {
+  MRF_APPROVED:           { label: 'MRF Approved',          icon: '✓',  color: '#059669' },
+  MRF_REJECTED:           { label: 'MRF Rejected',          icon: '✕',  color: '#ef4444' },
+  PR_REVIEW_NEEDED:       { label: 'PR Review Needed',      icon: '!',  color: '#f59e0b' },
+  TR_REVIEW_NEEDED:       { label: 'TR Review Needed',      icon: '!',  color: '#f59e0b' },
+  RFP_REVIEW_NEEDED:      { label: 'RFP Review Needed',     icon: '!',  color: '#f59e0b' },
+  PROJECT_STATUS_CHANGED: { label: 'Project Status',        icon: '↻',  color: '#1a73e8' },
+  PROJECT_COST_CHANGED:   { label: 'Project Cost',          icon: '$',  color: '#1a73e8' },
+  REGISTRATION_PENDING:   { label: 'Registration Pending',  icon: '⏳', color: '#64748b' },
+  PROPOSAL_SUBMITTED:     { label: 'Proposal Submitted',    icon: '→',  color: '#1a73e8' },
+  PROPOSAL_DECIDED:       { label: 'Proposal Decided',      icon: '★',  color: '#059669' },
+  MRF_SUBMITTED:          { label: 'New MRF',               icon: '+',  color: '#1a73e8' },
+  PR_DECIDED:             { label: 'PR Decision',           icon: '✓',  color: '#059669' },
+  TR_DECIDED:             { label: 'TR Decision',           icon: '✓',  color: '#059669' },
+  RFP_PAID:               { label: 'RFP Paid',              icon: '$',  color: '#059669' },
+  PO_DELIVERED:           { label: 'PO Delivered',          icon: '📦', color: '#2563eb' },
+  COLLECTIBLE_CREATED:    { label: 'New Collectible',       icon: '$',  color: '#059669' },
+};
+
+// 003a: inline SVG paths in the icon field
+const svg = (path) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+
+const TYPES_SVG_INLINE = {
+  MRF_APPROVED:           { label: 'MRF Approved',          color: '#059669', icon: svg('<path d="M4.5 12.75l6 6 9-13.5"/>') },
+  MRF_REJECTED:           { label: 'MRF Rejected',          color: '#ef4444', icon: svg('<path d="M6 18L18 6M6 6l12 12"/>') },
+  PR_REVIEW_NEEDED:       { label: 'PR Review Needed',      color: '#f59e0b', icon: svg('<path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>') },
+  TR_REVIEW_NEEDED:       { label: 'TR Review Needed',      color: '#f59e0b', icon: svg('<path d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/>') },
+  RFP_REVIEW_NEEDED:      { label: 'RFP Review Needed',     color: '#f59e0b', icon: svg('<path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>') },
+  PROJECT_STATUS_CHANGED: { label: 'Project Status',        color: '#1a73e8', icon: svg('<path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>') },
+  PROJECT_COST_CHANGED:   { label: 'Project Cost',          color: '#1a73e8', icon: svg('<path d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>') },
+  REGISTRATION_PENDING:   { label: 'Registration Pending',  color: '#64748b', icon: svg('<path d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/>') },
+  PROPOSAL_SUBMITTED:     { label: 'Proposal Submitted',    color: '#1a73e8', icon: svg('<path d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>') },
+  PROPOSAL_DECIDED:       { label: 'Proposal Decided',      color: '#059669', icon: svg('<path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z"/>') },
+  MRF_SUBMITTED:          { label: 'New MRF',               color: '#1a73e8', icon: svg('<path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>') },
+  PR_DECIDED:             { label: 'PR Decision',           color: '#059669', icon: svg('<path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>') },
+  TR_DECIDED:             { label: 'TR Decision',           color: '#059669', icon: svg('<path d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z"/>') },
+  RFP_PAID:               { label: 'RFP Paid',              color: '#059669', icon: svg('<path d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/>') },
+  PO_DELIVERED:           { label: 'PO Delivered',          color: '#2563eb', icon: svg('<path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/>') },
+  COLLECTIBLE_CREATED:    { label: 'New Collectible',       color: '#059669', icon: svg('<path d="M14.25 7.756a4.5 4.5 0 100 8.488M7.5 10.5h5.25m-5.25 3h5.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>') },
+};
+
+// 003b: SVG symbol references — visually identical to 003a, different code pattern
+const useSym = (id) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><use href="#${id}"/></svg>`;
+
+const TYPES_SVG_SYMBOL = {
+  MRF_APPROVED:           { label: 'MRF Approved',          color: '#059669', icon: useSym('i-check') },
+  MRF_REJECTED:           { label: 'MRF Rejected',          color: '#ef4444', icon: useSym('i-x') },
+  PR_REVIEW_NEEDED:       { label: 'PR Review Needed',      color: '#f59e0b', icon: useSym('i-exclaim-circle') },
+  TR_REVIEW_NEEDED:       { label: 'TR Review Needed',      color: '#f59e0b', icon: useSym('i-truck') },
+  RFP_REVIEW_NEEDED:      { label: 'RFP Review Needed',     color: '#f59e0b', icon: useSym('i-doc-search') },
+  PROJECT_STATUS_CHANGED: { label: 'Project Status',        color: '#1a73e8', icon: useSym('i-refresh') },
+  PROJECT_COST_CHANGED:   { label: 'Project Cost',          color: '#1a73e8', icon: useSym('i-dollar') },
+  REGISTRATION_PENDING:   { label: 'Registration Pending',  color: '#64748b', icon: useSym('i-user-plus') },
+  PROPOSAL_SUBMITTED:     { label: 'Proposal Submitted',    color: '#1a73e8', icon: useSym('i-send') },
+  PROPOSAL_DECIDED:       { label: 'Proposal Decided',      color: '#059669', icon: useSym('i-star') },
+  MRF_SUBMITTED:          { label: 'New MRF',               color: '#1a73e8', icon: useSym('i-doc-plus') },
+  PR_DECIDED:             { label: 'PR Decision',           color: '#059669', icon: useSym('i-check-circle') },
+  TR_DECIDED:             { label: 'TR Decision',           color: '#059669', icon: useSym('i-badge-check') },
+  RFP_PAID:               { label: 'RFP Paid',              color: '#059669', icon: useSym('i-banknotes') },
+  PO_DELIVERED:           { label: 'PO Delivered',          color: '#2563eb', icon: useSym('i-archive') },
+  COLLECTIBLE_CREATED:    { label: 'New Collectible',       color: '#059669', icon: useSym('i-coin') },
+};
+
+// Sample messages for each type
+const MESSAGES = {
+  MRF_APPROVED:           'MRF-2026-011 approved by Procurement.',
+  MRF_REJECTED:           'MRF-2026-008 rejected. Reason: Budget exceeded.',
+  PR_REVIEW_NEEDED:       'PR-2026-014 is awaiting your Finance review.',
+  TR_REVIEW_NEEDED:       'TR-2026-003 is awaiting your Finance review.',
+  RFP_REVIEW_NEEDED:      'RFP-CLMC-007 is awaiting Finance approval.',
+  PROJECT_STATUS_CHANGED: 'Metro Retail Hub status changed to For Mobilization.',
+  PROJECT_COST_CHANGED:   'North Tower project budget updated to PHP 12,500,000.',
+  REGISTRATION_PENDING:   'A new user registration is pending your approval.',
+  PROPOSAL_SUBMITTED:     'Proposal PROP-2026-009 submitted for review.',
+  PROPOSAL_DECIDED:       'Proposal PROP-2026-007 approved. Client onboarding next.',
+  MRF_SUBMITTED:          'New MRF-2026-019 submitted by Maria Santos.',
+  PR_DECIDED:             'PR-2026-011 approved by Finance. PO generation pending.',
+  TR_DECIDED:             'TR-2026-005 approved by Finance.',
+  RFP_PAID:               'RFP-CLMC-004 fully paid — PHP 240,000 received.',
+  PO_DELIVERED:           'PO-2026-003 marked Delivered by Procurement.',
+  COLLECTIBLE_CREATED:    'New collectible PHP 85,000 created for North Tower.',
+};
+
+// ─────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────
+
+let unreadSet = new Set(['MRF_APPROVED','MRF_REJECTED','PR_REVIEW_NEEDED','TR_REVIEW_NEEDED']);
+let implMode = 'a'; // 'a' = inline, 'b' = symbol
+
+function renderOld() {
+  const rows = Object.keys(TYPES_OLD).map(key => {
+    const meta = TYPES_OLD[key];
+    const isUnread = unreadSet.has(key);
+    return `<div class="mock-row${isUnread ? ' unread' : ''}">
+      <div class="mock-badge-wrap">
+        <span class="badge-text"
+              style="background:${meta.color}18;color:${meta.color};"
+              title="${meta.label}">${meta.icon}</span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-msg">${MESSAGES[key]}</div>
+        <div class="mock-time">${meta.label} · 2h ago</div>
+      </div>
+      ${isUnread ? '<button class="mock-read-btn" title="Mark read">✓</button>' : ''}
+    </div>`;
+  }).join('');
+  document.getElementById('old-rows').innerHTML = rows;
+}
+
+function renderNew() {
+  const types = implMode === 'b' ? TYPES_SVG_SYMBOL : TYPES_SVG_INLINE;
+  const rows = Object.keys(types).map(key => {
+    const meta = types[key];
+    const isUnread = unreadSet.has(key);
+    return `<div class="mock-row${isUnread ? ' unread' : ''}">
+      <div class="mock-badge-wrap">
+        <span class="badge-svg"
+              style="background:${meta.color}18;color:${meta.color};"
+              title="${meta.label}">${meta.icon}</span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-msg">${MESSAGES[key]}</div>
+        <div class="mock-time">${meta.label} · 2h ago</div>
+      </div>
+      ${isUnread ? '<button class="mock-read-btn" title="Mark read">✓</button>' : ''}
+    </div>`;
+  }).join('');
+  document.getElementById('new-rows').innerHTML = rows;
+}
+
+function setImpl(mode) {
+  implMode = mode;
+  document.getElementById('btn-003a').classList.toggle('active', mode === 'a');
+  document.getElementById('btn-003b').classList.toggle('active', mode === 'b');
+  document.getElementById('new-label').textContent =
+    mode === 'a' ? 'NEW — 003a: inline SVG paths' : 'NEW — 003b: SVG symbol defs';
+  renderNew();
+}
+
+function toggleUnread() {
+  if (unreadSet.size > 0) {
+    unreadSet = new Set();
+  } else {
+    unreadSet = new Set(['MRF_APPROVED','MRF_REJECTED','PR_REVIEW_NEEDED','TR_REVIEW_NEEDED']);
+  }
+  renderOld();
+  renderNew();
+}
+
+function showCode(tab) {
+  document.querySelectorAll('.code-tab').forEach((t,i) =>
+    t.classList.toggle('active', (i===0&&tab==='a')||(i===1&&tab==='b')));
+  document.getElementById('code-a').classList.toggle('active', tab === 'a');
+  document.getElementById('code-b').classList.toggle('active', tab === 'b');
+}
+
+// Initial render
+renderOld();
+renderNew();
+</script>
+</body>
+</html>

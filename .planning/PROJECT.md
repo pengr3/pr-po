@@ -12,9 +12,31 @@ Projects tab must work — it's the foundation where project name and code origi
 
 **Latest shipped:** v3.2 Supplier Search, Proof of Procurement & Payables Tracking (2026-04-28) — 28 phases, 55 plans, 107/107 requirements satisfied. Major additions: full RFP / Payables Tracking workflow, proof-of-procurement document links, Financial Breakdown modal with Payables tab, Finance + MRF mobile card layouts, clientless project creation, home dashboard Chart.js visualizations, unified 10-option project/service status, and Delete-Rejected-MRFs cleanup.
 
-**Active milestone:** None — planning v3.3.
+**Active milestone:** v4.0 — Procurement → Full Management Portal (started 2026-04-28).
+
+**v4.0 progress (Phase 105 complete, 2026-06-15):** Services reached plan/Gantt parity with projects. New `service_tasks` Firestore collection (two-tier write gates mirroring `project_tasks`) + `generateServiceTaskId` per-service sequential IDs; a full editable `service-plan.js` Gantt surface (copy-adapt of the ~4,800-line `project-plan.js`: critical path, predecessors, milestones, drag-resize/reschedule, copy/paste, multi-select, search, PDF export) at `#/services/{service_code}/plan`; and a Service Plan summary card on `service-detail.js` (live `service_tasks` listener, health/overdue stats, "Open Plan" CTA, 2-col proposal+plan bottom-row layout matching project-detail). The two collection-backed subsystems (baseline 86.12 + iterations 97) were intentionally deferred to a future 105.1. Prod firestore rules deploy rides the standing v3.3→main merge debt (dev rules deployed).
+
+**Prior (Phase 104 complete, 2026-06-13):** `service-detail.js` reached full functional parity with `project-detail.js` — lifecycle accordion, 3-tab activity journal, and DLP/retention surfaces all ported.
 
 See `.planning/MILESTONES.md` for full milestone history and `.planning/changelogs/v3.2.md` for the user-facing release notes.
+
+## Current Milestone: v4.0 Procurement → Full Management Portal
+
+**Goal:** Transform CLMC from a procurement-focused system into a full management portal — adding native project management, in-app notifications, manual collectibles tracking, end-to-end proposal lifecycle, and a Super Admin management hub for approval queues and engagement creation.
+
+**Target features:**
+- **Project Management (native Gantt/task tracker)** — task hierarchy, dependencies, % progress per task, milestone dates, anchored to existing project records
+- **Notification System (in-app)** — Firestore-backed notifications with bell/dropdown UI, triggered by approval events (proposal submitted, MRF approved, RFP filed, project status changes, user-registration approvals, etc.)
+- **Collectibles Tracking (manual entry)** — Operations Admin / Finance manually create collectibles against a project; PM acts as filter/context (auto-trigger from PM progress deferred)
+- **Proposal Tracking (full lifecycle)** — multi-step internal approval workflow with audit trail, document upload + versioning, proposal-specific dashboard/queue (lives inside Mgmt Tab), client communication log
+- **Management Tab (Super Admin only)** — centralized decision-making hub: proposal approval queue + project/service creation hub with auto-routing (one-time vs recurring)
+
+**Key context:**
+- Major version bump (procurement → management portal identity shift)
+- Phase numbering continues from 83 (no reset)
+- Notification email/push, ProjectLibre file import, per-task billing, collectibles auto-trigger from PM progress, and role-configurable Mgmt Tab access all explicitly deferred
+- v3.2 deferred items (Phase 68.1 subcon scorecard fix, Phase 70 cancel-PR rework) deferred to v4.1+ — kept v4.0 focused on the 5 portal-transformation features
+- Phase order to be determined by roadmapper based on dependency analysis
 
 ## Requirements
 
@@ -565,5 +587,22 @@ See `.planning/MILESTONES.md` for full milestone history and `.planning/changelo
 | Phase 82: Delete Rejected MRFs without `deleted_mrfs` audit row (lightweight cleanup) | Soft-deleted MRFs already have rejection audit trail (reason, actor, timestamp); double-audit overkill for pure cleanup | ✓ Good - low-friction UX, mirrors Delete TR pattern |
 | Phase 82: Dual-site button render (initial render + re-render path) gated by same eligibility expression | Any data-driven button whose container is rewritten by re-render must be appended at both sites | ✓ Good - generalizable pattern for future buttons |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-04-28 — v3.2 Supplier Search, Proof of Procurement & Payables Tracking shipped (28 phases, 107 requirements). Core additions: RFP / Payables Tracking workflow, Financial Breakdown modal, Finance + MRF mobile card layouts, clientless project creation, unified project/service status, home dashboard Chart.js visualizations, layout fixes for 1366×768 laptops.*
+*Last updated: 2026-06-15 — Phase 105 (Service Plan / Gantt Parity) complete. 3/3 plans, verification 14/14, all browser UAT approved. New service_tasks model + editable service Gantt (#/services/{code}/plan) + Service Plan card on service-detail. Three UAT/review fixes applied: incomplete project→service identifier swap in write guards (f4fdc3a), 2-col bottom-row layout parity (1712450), and code-review CR-01 unclosed divs + string leaks (2b7d4cd). Baseline + iterations subsystems deferred to 105.1. Prod rules deploy rides v3.3→main debt.*

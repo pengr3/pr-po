@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 005 — Fee Edge & Validation States</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; padding-top:52px; font-family:var(--font-sans); background:var(--color-bg); color:var(--color-text); }
+  #variant-nav { position:fixed; top:0; left:0; right:0; z-index:9998; background:#0f172a; border-bottom:1px solid #1e293b; padding:8px 14px; display:flex; gap:6px; align-items:center; font-size:13px; flex-wrap:wrap; }
+  #variant-nav .title { color:#94a3b8; font-weight:600; margin-right:6px; }
+  .state-tab { background:#1e293b; color:#cbd5e1; border:1px solid #334155; padding:5px 10px; border-radius:6px; cursor:pointer; font-size:12px; font-family:inherit; transition:all .15s; }
+  .state-tab:hover { background:#334155; color:#fff; }
+  .state-tab.active { background:var(--color-primary); color:#fff; border-color:var(--color-primary); }
+
+  #stage-wrap { display:flex; justify-content:center; padding:24px 16px 90px; }
+  #stage { width:100%; max-width:600px; transition:max-width .2s; }
+  .note { margin:0 auto 14px; color:#475569; font-size:.82rem; background:#fff; border:1px solid var(--color-border); border-left:3px solid var(--color-primary); border-radius:8px; padding:.6rem .8rem; }
+  .backdrop { background:rgba(15,23,42,.45); border-radius:14px; padding:26px 18px; display:flex; justify-content:center; }
+
+  .modal-content { background:#fff; border-radius:var(--radius-modal); max-width:520px; width:100%; margin:auto; box-shadow:var(--shadow-modal); overflow:hidden; }
+  .modal-header { padding:1rem 1.5rem; background:linear-gradient(180deg,#fff,#f8fafc); border-bottom:1px solid var(--color-border); display:flex; justify-content:space-between; align-items:center; }
+  .modal-header h2 { font-size:1.06rem; font-weight:600; margin:0; }
+  .modal-close { background:none; border:none; font-size:1.5rem; color:#94a3b8; cursor:pointer; }
+  .modal-body { padding:1.25rem 1.5rem; max-height:64vh; overflow-y:auto; }
+  .modal-footer { padding:.9rem 1.5rem; border-top:1px solid var(--color-border); display:flex; justify-content:flex-end; gap:.6rem; align-items:center; }
+
+  .section { margin-bottom:1.1rem; }
+  .section-head { display:flex; align-items:center; gap:8px; margin-bottom:.7rem; }
+  .section-num { width:20px; height:20px; border-radius:var(--radius-full); background:var(--color-primary); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .section-title { font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--color-text-muted); }
+  .section-rule { flex:1; height:1px; background:var(--color-border); }
+
+  label.fld { display:block; margin-bottom:.4rem; font-weight:600; color:var(--color-text-2); font-size:.875rem; }
+  .req { color:var(--color-danger-2); }
+  .form-control { width:100%; padding:.5rem .75rem; border:1px solid var(--color-border-2); border-radius:var(--radius-input); font-size:.875rem; font-family:inherit; transition:all .2s; }
+  .form-control:focus { outline:none; border-color:var(--color-primary); box-shadow:0 0 0 3px rgba(26,115,232,.12); }
+  .form-control[readonly] { background:var(--color-disabled-bg); cursor:not-allowed; color:#334155; font-weight:600; }
+  .form-control.err { border-color:var(--color-danger); box-shadow:0 0 0 3px rgba(239,68,68,.12); }
+  .stack { display:flex; flex-direction:column; gap:.85rem; }
+
+  .btn { padding:.5rem 1rem; border:none; border-radius:var(--radius-btn); font-weight:600; cursor:pointer; font-size:.875rem; font-family:inherit; transition:all .2s; }
+  .btn-primary { background:var(--color-primary); color:#fff; }
+  .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-outline { background:#fff; color:var(--color-text-2); border:1px solid var(--color-border-2); }
+  .btn-ghost-fee { background:var(--color-fee-bg); color:#0369a1; border:1px dashed var(--color-fee-border); padding:.45rem .75rem; border-radius:6px; font-size:.82rem; font-weight:600; cursor:pointer; font-family:inherit; }
+  .btn-ghost-fee:disabled { opacity:.5; cursor:not-allowed; }
+  .icon-x { background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1.05rem; padding:2px 6px; }
+
+  .fee-amount-wrap { position:relative; }
+  .fee-amount-wrap::before { content:"₱"; position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:.85rem; }
+  .fee-amount-wrap .form-control { padding-left:22px; text-align:right; }
+  .fee-fixed-row { display:grid; grid-template-columns:1fr 150px 32px; gap:.5rem; align-items:start; margin-bottom:.55rem; }
+  .field-err { color:var(--color-danger); font-size:.74rem; margin-top:3px; display:none; }
+  .field-err.show { display:block; }
+
+  .total-line { display:flex; justify-content:space-between; padding:.35rem 0; font-size:.875rem; color:var(--color-text-2); }
+  .total-line .v { font-weight:600; color:var(--color-text); font-variant-numeric:tabular-nums; }
+  .grand { display:flex; justify-content:space-between; align-items:center; border-top:1px dashed var(--color-fee-border); margin-top:.4rem; padding-top:.55rem; }
+  .grand .lbl { font-size:.8rem; font-weight:700; text-transform:uppercase; color:var(--color-text-2); }
+  .grand .amt { font-size:1.3rem; font-weight:800; font-variant-numeric:tabular-nums; }
+  .muted-hint { color:var(--color-text-muted); font-size:.8rem; font-style:italic; padding:.35rem 0; }
+
+  /* banners (mirror app inline styles) */
+  .banner-block { margin-bottom:1rem; padding:8px 12px; background:#fef2f2; color:#991b1b; border:1px solid #fecaca; border-radius:6px; font-size:.875rem; display:none; }
+  .banner-block.show { display:block; }
+  .err-alert { margin-top:1rem; padding:8px 12px; background:#fef2f2; color:#991b1b; border-radius:6px; font-size:.875rem; display:none; }
+  .err-alert.show { display:block; }
+  .body-dim { opacity:.45; pointer-events:none; }
+
+  #sketch-tools { position:fixed; bottom:12px; right:12px; z-index:9999; font-family:system-ui; font-size:12px; background:rgba(15,23,42,.82); color:#fff; padding:8px 10px; border-radius:10px; opacity:.5; transition:opacity .2s; display:flex; gap:6px; align-items:center; }
+  #sketch-tools:hover { opacity:1; }
+  #sketch-tools button { background:#334155; color:#fff; border:none; border-radius:5px; padding:4px 8px; cursor:pointer; font-size:11px; }
+  #sketch-tools button.on { background:var(--color-primary); }
+  #sketch-tools .vw { color:#94a3b8; min-width:62px; text-align:center; }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <span class="title">Sketch 005 · State</span>
+  <button class="state-tab active" data-s="empty" onclick="setState('empty')">Empty (default)</button>
+  <button class="state-tab" data-s="valid" onclick="setState('valid')">Valid + fees</button>
+  <button class="state-tab" data-s="invalid" onclick="setState('invalid')">Invalid fee</button>
+  <button class="state-tab" data-s="dupDelivery" onclick="setState('dupDelivery')">Blocked · delivery-fee exists</button>
+  <button class="state-tab" data-s="allTranches" onclick="setState('allTranches')">Blocked · all tranches used</button>
+</div>
+
+<div id="stage-wrap"><div id="stage">
+  <div class="note" id="state-note"></div>
+  <div class="backdrop"><div class="modal-content">
+    <div class="modal-header"><h2 id="m-title">Create Request for Payment</h2><button class="modal-close">&times;</button></div>
+    <div class="modal-body">
+      <div class="banner-block" id="m-banner"></div>
+      <div id="m-form">
+        <div class="section"><div class="section-head"><span class="section-num">2</span><span class="section-title">Base Amount</span><span class="section-rule"></span></div>
+          <div class="stack">
+            <div><label class="fld">Tranche</label><select class="form-control" id="m-tranche" onchange="recompute()"><option data-amount="45000">30% Downpayment — ₱45,000.00</option><option data-amount="60000">40% Upon Delivery — ₱60,000.00</option></select></div>
+            <div><label class="fld">Amount Requested <span style="font-weight:400;color:#94a3b8;">(auto)</span></label><input class="form-control" id="m-base" readonly></div>
+          </div>
+        </div>
+        <div class="section"><div class="section-head"><span class="section-num">3</span><span class="section-title">Fees <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;">— optional, positive amounts only</span></span><span class="section-rule"></span></div>
+          <div class="chips" id="m-chips" style="display:flex;flex-wrap:wrap;gap:8px;">
+            <button class="btn-ghost-fee" id="m-chip-transfer" onclick="revealFee('transfer')">+ Transfer fee</button>
+            <button class="btn-ghost-fee" id="m-chip-cashout" onclick="revealFee('cashout')">+ Cash-out fee</button>
+            <button class="btn-ghost-fee" onclick="addMisc()">+ Misc fee</button>
+          </div>
+          <div id="m-transfer-row" class="fee-fixed-row" style="display:none;margin-top:.7rem;">
+            <div><label class="fld">Transfer Fee</label><div class="fee-amount-wrap"><input class="form-control fee-amount" id="m-transfer" inputmode="decimal" placeholder="0.00" oninput="recompute()"></div><div class="field-err" id="m-transfer-err">Amount must be greater than ₱0.</div></div>
+            <div></div><button class="icon-x" onclick="hideFee('transfer')">&times;</button>
+          </div>
+          <div id="m-cashout-row" class="fee-fixed-row" style="display:none;margin-top:.55rem;">
+            <div><label class="fld">Cash-Out Fee</label><div class="fee-amount-wrap"><input class="form-control fee-amount" id="m-cashout" inputmode="decimal" placeholder="0.00" oninput="recompute()"></div><div class="field-err" id="m-cashout-err">Amount must be greater than ₱0.</div></div>
+            <div></div><button class="icon-x" onclick="hideFee('cashout')">&times;</button>
+          </div>
+          <div id="m-misc" style="margin-top:.55rem;"></div>
+          <div id="m-totalblock" style="display:none;margin-top:.9rem;border-top:1px solid var(--color-border);padding-top:.6rem;">
+            <div class="total-line"><span>Base amount</span><span class="v" id="m-baseEcho">₱0.00</span></div>
+            <div class="total-line"><span>Fees</span><span class="v" id="m-feesEcho">₱0.00</span></div>
+            <div class="grand"><span class="lbl">Grand total</span><span class="amt" id="m-grand">₱0.00</span></div>
+          </div>
+          <div id="m-noFees" class="muted-hint" style="margin-top:.5rem;">No fees added — disbursement equals the base amount.</div>
+        </div>
+        <div class="section"><div class="section-head"><span class="section-num">4</span><span class="section-title">Payment Details</span><span class="section-rule"></span></div>
+          <div class="stack"><div><label class="fld">Proof <span class="req">*</span></label><input class="form-control" placeholder="Paste URL or enter proof details"></div></div>
+        </div>
+      </div>
+      <div class="err-alert" id="m-erralert"></div>
+    </div>
+    <div class="modal-footer">
+      <span style="margin-right:auto;font-size:.78rem;color:#64748b;">Total <b id="m-footTotal" style="color:#1e293b;">₱0.00</b></span>
+      <button class="btn btn-outline">Discard</button>
+      <button class="btn btn-primary" id="m-submit">Submit RFP</button>
+    </div>
+  </div></div>
+</div></div>
+
+<div id="sketch-tools">
+  <span style="color:#94a3b8;">view:</span>
+  <button id="vw-phone" onclick="setVw(390,'vw-phone')">Phone</button>
+  <button id="vw-tab" onclick="setVw(768,'vw-tab')">Tablet</button>
+  <button id="vw-desk" class="on" onclick="setVw(600,'vw-desk')">Desktop</button>
+  <span class="vw" id="vw-label">600px</span>
+</div>
+
+<script>
+  function peso(n){ return '₱' + (Number(n)||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function parseAmt(v){ const n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?NaN:n; }
+
+  function addMisc(label, val){
+    const wrap=document.getElementById('m-misc');
+    const row=document.createElement('div'); row.className='fee-fixed-row'; row.style.marginTop='.55rem';
+    row.innerHTML = `<div><input class="form-control" placeholder="Label (e.g. Notary)" value="${label||''}" oninput="recompute()"><div class="field-err">Amount must be greater than ₱0.</div></div><div class="fee-amount-wrap"><input class="form-control fee-amount" inputmode="decimal" placeholder="0.00" value="${val!=null?val:''}" oninput="recompute()"></div><button class="icon-x" onclick="this.closest('.fee-fixed-row').remove(); recompute()">&times;</button>`;
+    wrap.appendChild(row); recompute();
+  }
+  function revealFee(type){ document.getElementById('m-'+type+'-row').style.display='grid'; document.getElementById('m-chip-'+type).style.display='none'; recompute(); }
+  function hideFee(type){ const i=document.getElementById('m-'+type); i.value=''; i.classList.remove('err'); document.getElementById('m-'+type+'-row').style.display='none'; document.getElementById('m-chip-'+type).style.display='inline-block'; recompute(); }
+
+  function recompute(){
+    const base = parseAmt(document.getElementById('m-tranche').selectedOptions[0].dataset.amount) || 0;
+    document.getElementById('m-base').value = peso(base);
+    let fees=0, hasInvalid=false, hasFee=false;
+    document.querySelectorAll('#m-form .fee-amount').forEach(inp=>{
+      if(inp.offsetParent===null) return;
+      hasFee = true;
+      const raw = inp.value.trim();
+      const n = parseAmt(raw);
+      const errEl = inp.closest('.fee-fixed-row').querySelector('.field-err');
+      if(raw!=='' && (isNaN(n) || n<=0)){ inp.classList.add('err'); if(errEl) errEl.classList.add('show'); hasInvalid=true; }
+      else { inp.classList.remove('err'); if(errEl) errEl.classList.remove('show'); if(!isNaN(n)) fees+=Math.max(0,n); }
+    });
+    const anyRow = document.querySelectorAll('#m-misc .fee-fixed-row').length>0
+      || document.getElementById('m-transfer-row').style.display!=='none'
+      || document.getElementById('m-cashout-row').style.display!=='none';
+    const total = base + fees;
+    document.getElementById('m-baseEcho').textContent=peso(base);
+    document.getElementById('m-feesEcho').textContent=peso(fees);
+    document.getElementById('m-grand').textContent=peso(total);
+    document.getElementById('m-footTotal').textContent=peso(total);
+    document.getElementById('m-totalblock').style.display=anyRow?'block':'none';
+    document.getElementById('m-noFees').style.display=anyRow?'none':'block';
+
+    const alert=document.getElementById('m-erralert'), submit=document.getElementById('m-submit');
+    if(hasInvalid){ alert.textContent='Fix the highlighted fee — amounts must be greater than ₱0.'; alert.classList.add('show'); submit.disabled=true; }
+    else { alert.classList.remove('show'); if(!submit.dataset.lock) submit.disabled=false; }
+  }
+
+  const NOTES = {
+    empty: '<b>Empty (default).</b> Most RFPs have no fees — the section is just chips, total hidden, Submit enabled. This is the clean baseline.',
+    valid: '<b>Valid + fees.</b> Transfer fee + a Misc "Notary" line added; live total reflects base + fees; Submit enabled.',
+    invalid: '<b>Invalid fee (D-05 positive-only).</b> A 0 / negative amount flags the field inline, shows a footer alert, and disables Submit until fixed. Try changing the value to a positive number.',
+    dupDelivery: '<b>Blocked · delivery-fee exists.</b> Existing one-per-PO guard — red banner, form dimmed, Submit disabled. (Delivery-Fee modal.)',
+    allTranches: '<b>Blocked · all tranches used.</b> Existing guard — every tranche already has an RFP; banner shown, tranche locked, Submit disabled.'
+  };
+
+  function resetForm(){
+    document.getElementById('m-misc').innerHTML='';
+    hideFee('transfer'); hideFee('cashout');
+    document.getElementById('m-banner').classList.remove('show');
+    document.getElementById('m-form').classList.remove('body-dim');
+    document.getElementById('m-tranche').disabled=false;
+    document.getElementById('m-title').textContent='Create Request for Payment';
+    const s=document.getElementById('m-submit'); s.disabled=false; delete s.dataset.lock;
+  }
+
+  function setState(st){
+    document.querySelectorAll('.state-tab').forEach(t=>t.classList.toggle('active', t.dataset.s===st));
+    document.getElementById('state-note').innerHTML = NOTES[st];
+    resetForm();
+    if(st==='valid'){ revealFee('transfer'); document.getElementById('m-transfer').value='750'; addMisc('Notary','300'); }
+    else if(st==='invalid'){ revealFee('transfer'); document.getElementById('m-transfer').value='0'; }
+    else if(st==='dupDelivery'){
+      document.getElementById('m-title').textContent='Create Request for Payment (Delivery Fee)';
+      const b=document.getElementById('m-banner'); b.textContent='A Delivery Fee RFP already exists for this PO. You cannot create another one.'; b.classList.add('show');
+      document.getElementById('m-form').classList.add('body-dim');
+      const s=document.getElementById('m-submit'); s.disabled=true; s.dataset.lock='1';
+    }
+    else if(st==='allTranches'){
+      const b=document.getElementById('m-banner'); b.textContent='RFPs have already been submitted for all tranches on this PO. You cannot create another one.'; b.classList.add('show');
+      document.getElementById('m-tranche').disabled=true;
+      const s=document.getElementById('m-submit'); s.disabled=true; s.dataset.lock='1';
+    }
+    recompute();
+  }
+  function setVw(px,id){ document.getElementById('stage').style.maxWidth=px+'px'; document.getElementById('vw-label').textContent=px+'px'; ['vw-phone','vw-tab','vw-desk'].forEach(b=>document.getElementById(b).classList.toggle('on',b===id)); }
+
+  setState('empty');
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, query, where, getDocs } from './firebase.js';
-import { formatCurrency, downloadCSV, escapeHTML } from './utils.js';
+import { formatCurrency, downloadCSV, escapeHTML, getRFPTotal, getRFPFees } from './utils.js';
 
 /**
  * Show unified expense breakdown modal for a project or service.
@@ -18,6 +18,19 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     // Remove any existing instance of this modal
     const existingModal = document.getElementById('expenseBreakdownModal');
     if (existingModal) existingModal.remove();
+
+    // Phase 85 D-18: derive collectible status (Pending > Overdue > Partially Paid > Fully Paid priority).
+    // Defined inline here to avoid circular import from finance.js (Phase 71 pattern).
+    const deriveCollectibleStatus = (coll) => {
+        const totalPaid = (coll.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+        const isOverdue = coll.due_date && new Date(coll.due_date) < new Date();
+        if (totalPaid >= coll.amount_requested && coll.amount_requested > 0) return 'Fully Paid';
+        if (isOverdue) return 'Overdue';
+        if (totalPaid > 0) return 'Partially Paid';
+        return 'Pending';
+    };
 
     // -----------------------------------------------------------------------
     // Query branching — only this section differs between modes
@@ -69,9 +82,46 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     let totalRequested = 0;
     let totalPaid = 0;
     rfpsForPayable.forEach(rfp => {
-        totalRequested += parseFloat(rfp.amount_requested || 0);
+        totalRequested += getRFPTotal(rfp);
         totalPaid += (rfp.payment_records || []).filter(r => r.status !== 'voided').reduce((s, r) => s + parseFloat(r.amount || 0), 0);
     });
+
+    // -----------------------------------------------------------------------
+    // Phase 85 D-07: fetch collectibles for this project/service
+    // -----------------------------------------------------------------------
+    let collectiblesForTab = [];
+    // Phase 99.1 D-17 — approved billing_requests (Billed to Client). The modal never queried
+    // billing_requests before; fetched mode-aware, reusing projectCodeForColl in project mode.
+    let billingReqsForModal = [];
+    if (mode === 'service') {
+        const collSnap = await getDocs(
+            query(collection(db, 'collectibles'), where('service_code', '==', identifier))
+        );
+        collSnap.forEach(d => collectiblesForTab.push({ id: d.id, ...d.data() }));
+        const brSnap = await getDocs(
+            query(collection(db, 'billing_requests'), where('service_code', '==', identifier))
+        );
+        brSnap.forEach(d => billingReqsForModal.push({ id: d.id, ...d.data() }));
+    } else {
+        // project mode — need project_code (we already fetched the project doc above for budget;
+        // re-use the same lookup to extract project_code)
+        const projectSnapshot3 = await getDocs(
+            query(collection(db, 'projects'), where('project_name', '==', identifier))
+        );
+        const projectForColl = projectSnapshot3.docs[0]?.data() || {};
+        const projectCodeForColl = projectForColl.project_code || '';
+        if (projectCodeForColl) {
+            const collSnap = await getDocs(
+                query(collection(db, 'collectibles'), where('project_code', '==', projectCodeForColl))
+            );
+            collSnap.forEach(d => collectiblesForTab.push({ id: d.id, ...d.data() }));
+            // Phase 99.1 D-17 — reuse projectCodeForColl (no extra projects fetch)
+            const brSnap = await getDocs(
+                query(collection(db, 'billing_requests'), where('project_code', '==', projectCodeForColl))
+            );
+            brSnap.forEach(d => billingReqsForModal.push({ id: d.id, ...d.data() }));
+        }
+    }
     // -----------------------------------------------------------------------
     // All downstream logic is identical for both modes
     // -----------------------------------------------------------------------
@@ -239,7 +289,9 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         // Exclude Delivery Fee RFPs — they belong to a separate Delivery Fee row (D-01)
         const regularRFPs = poRfps.filter(r => r.tranche_label !== 'Delivery Fee');
 
-        const totalPayable = poTotalAmount;
+        // Fee-inclusive per D-11: payment records capture getRFPTotal (base + fees)
+        const totalFees = regularRFPs.reduce((s, r) => s + getRFPFees(r).feesTotal, 0);
+        const totalPayable = poTotalAmount + totalFees;
         const totalPaid = regularRFPs.reduce((s, r) => {
             return s + (r.payment_records || [])
                 .filter(p => p.status !== 'voided')
@@ -300,7 +352,9 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
 
     // TR status derivation (TRs are single-shot, simpler than PO tranches)
     function deriveStatusForTR(trRfps, trTotalAmount) {
-        const totalPayable = trTotalAmount;
+        // Fee-inclusive per D-11: payment records capture getRFPTotal (base + fees)
+        const totalFees = trRfps.reduce((s, r) => s + getRFPFees(r).feesTotal, 0);
+        const totalPayable = trTotalAmount + totalFees;
         const totalPaid = trRfps.reduce((s, r) => {
             return s + (r.payment_records || [])
                 .filter(p => p.status !== 'voided')
@@ -372,6 +426,27 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         }
     });
 
+    // Aggregate fee breakdown across an array of RFPs into labelled sub-rows.
+    // Labels from misc_fees are raw — must call escapeHTML at render time.
+    function computeFeeSubRows(rfps) {
+        let transferTotal = 0, cashOutTotal = 0;
+        const miscMap = {};
+        rfps.forEach(rfp => {
+            const { transfer, cashOut, misc } = getRFPFees(rfp);
+            transferTotal += transfer;
+            cashOutTotal += cashOut;
+            misc.forEach(m => {
+                const lbl = String(m?.label || 'Misc fee');
+                miscMap[lbl] = (miscMap[lbl] || 0) + (parseFloat(m?.amount) || 0);
+            });
+        });
+        const rows = [];
+        if (transferTotal > 0) rows.push({ label: 'Transfer fee', amount: transferTotal });
+        if (cashOutTotal > 0) rows.push({ label: 'Cash-out fee', amount: cashOutTotal });
+        Object.entries(miscMap).forEach(([lbl, amt]) => { if (amt > 0) rows.push({ label: lbl, amount: amt }); });
+        return rows;
+    }
+
     // Build payable rows: one per PO, one per Delivery Fee, one per Approved TR (D-01)
     const payablesRows = [];
 
@@ -379,13 +454,15 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         // PO row — total_amount minus delivery fee (delivery fee is its own separate row)
         const poTotalForRow = po.total_amount - po.delivery_fee;
         if (poTotalForRow > 0) {
-            const status = deriveStatusForPO(rfpsByPoId.get(po.po_id) || [], poTotalForRow);
+            const regularRFPs = (rfpsByPoId.get(po.po_id) || []).filter(r => r.tranche_label !== 'Delivery Fee');
+            const status = deriveStatusForPO(regularRFPs, poTotalForRow);
             payablesRows.push({
-                particulars: `${escapeHTML(po.po_id)} \u2014 ${escapeHTML(po.supplier_name || 'N/A')}`,
+                particulars: `${escapeHTML(po.po_id)} — ${escapeHTML(po.supplier_name || 'N/A')}`,
                 statusBucket: status.statusBucket,
                 statusLabel: status.statusLabel,
                 totalPayable: status.totalPayable,
                 totalPaid: status.totalPaid,
+                feeSubRows: computeFeeSubRows(regularRFPs),
                 kind: 'po',
             });
         }
@@ -393,24 +470,27 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         if (po.delivery_fee > 0) {
             const dfStatus = deriveStatusForDeliveryFee(deliveryFeeRfpsByPoId.get(po.po_id) || [], po.delivery_fee);
             payablesRows.push({
-                particulars: `${escapeHTML(po.po_id)} \u2014 Delivery Fee`,
+                particulars: `${escapeHTML(po.po_id)} — Delivery Fee`,
                 statusBucket: dfStatus.statusBucket,
                 statusLabel: dfStatus.statusLabel,
                 totalPayable: dfStatus.totalPayable,
                 totalPaid: dfStatus.totalPaid,
+                feeSubRows: [],
                 kind: 'delivery_fee',
             });
         }
     });
 
     payablesTRs.forEach(tr => {
-        const status = deriveStatusForTR(rfpsByTrId.get(tr.tr_id) || [], tr.total_amount);
+        const trRfps = rfpsByTrId.get(tr.tr_id) || [];
+        const status = deriveStatusForTR(trRfps, tr.total_amount);
         payablesRows.push({
-            particulars: `${escapeHTML(tr.tr_id)} \u2014 ${escapeHTML(tr.supplier_name || 'N/A')}`,
+            particulars: `${escapeHTML(tr.tr_id)} — ${escapeHTML(tr.supplier_name || 'N/A')}`,
             statusBucket: status.statusBucket,
             statusLabel: status.statusLabel,
             totalPayable: status.totalPayable,
             totalPaid: status.totalPaid,
+            feeSubRows: computeFeeSubRows(trRfps),
             kind: 'tr',
         });
     });
@@ -456,15 +536,34 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                         </tr>
                     </thead>
                     <tbody>
-                        ${payablesRows.map(row => {
+                        ${payablesRows.map((row, idx) => {
                             const color = statusColors[row.statusBucket] || '#64748b';
+                            const feeRows = row.feeSubRows || [];
+                            const hasFees = feeRows.length > 0;
+                            const accId = `em-fee-acc-${idx}`;
+                            const accIcon = hasFees
+                                ? `<span id='${accId}-icon' style='display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:3px;border:1px solid #e2e8f0;font-size:9px;color:#94a3b8;margin-right:6px;flex-shrink:0;background:#fff;cursor:pointer;'>&#9658;</span>`
+                                : '';
+                            const feeRowsHtml = feeRows.map(f => [
+                                `<tr style='background:linear-gradient(to right,#eff6ff 0px,#f8fafc 20px);`,
+                                `border-bottom:1px solid #dbeafe;'>`,
+                                `<td style='padding:0.4rem 1rem 0.4rem 2.5rem;font-size:12px;color:#1a73e8;font-weight:500;'>${escapeHTML(f.label)}</td>`,
+                                `<td style='font-size:12px;color:#1a73e8;'>fee</td>`,
+                                `<td style='text-align:right;font-size:12px;color:#1a73e8;font-weight:600;font-variant-numeric:tabular-nums;'>${formatCurrency(f.amount)}</td>`,
+                                `<td style='text-align:right;font-size:12px;color:#1a73e8;font-weight:600;font-variant-numeric:tabular-nums;'>${formatCurrency(f.amount)}</td>`,
+                                `</tr>`,
+                            ].join('')).join('');
+                            const feeDetail = hasFees
+                                ? `<tr id='${accId}' style='display:none;'><td colspan='4' style='padding:0;border:none;'><table style='width:100%;border-collapse:collapse;'>${feeRowsHtml}</table></td></tr>`
+                                : '';
+                            const clickAttr = hasFees ? `onclick='window._toggleEMFeeAcc("${accId}")'` : '';
                             return `
-                                <tr>
-                                    <td>${row.particulars}</td>
-                                    <td style="color: ${color}; font-weight: 600;">${row.statusLabel}</td>
-                                    <td style="text-align: right;">${formatCurrency(row.totalPayable)}</td>
-                                    <td style="text-align: right;">${formatCurrency(row.totalPaid)}</td>
-                                </tr>
+                                <tr ${clickAttr} style='${hasFees ? 'cursor:pointer;' : ''}'>
+                                    <td>${accIcon}${row.particulars}</td>
+                                    <td style='color: ${color}; font-weight: 600;'>${row.statusLabel}</td>
+                                    <td style='text-align: right;'>${formatCurrency(row.totalPayable)}</td>
+                                    <td style='text-align: right;'>${formatCurrency(row.totalPaid)}</td>
+                                </tr>${feeDetail}
                             `;
                         }).join('')}
                     </tbody>
@@ -472,6 +571,152 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
             </div>
         </div>
     ` : '<p style="color: #64748b; text-align: center; padding: 2rem;">No payables recorded.</p>';
+
+    // -----------------------------------------------------------------------
+    // Phase 85 D-07: Collectibles tab markup (parallel to Payables — D-17 history UI, D-18 status priority)
+    // -----------------------------------------------------------------------
+    const collStatusColors = {
+        'Pending': '#856404',           // amber
+        'Partially Paid': '#1d4ed8',    // blue
+        'Fully Paid': '#166534',        // green
+        'Overdue': '#991b1b'            // red
+    };
+    const collStatusPriority = {
+        'Pending': 1, 'Overdue': 2, 'Partially Paid': 3, 'Fully Paid': 4
+    };
+
+    // Sort: status priority asc, then due_date asc (earlier overdue first)
+    collectiblesForTab.sort((a, b) => {
+        const pa = collStatusPriority[deriveCollectibleStatus(a)] || 5;
+        const pb = collStatusPriority[deriveCollectibleStatus(b)] || 5;
+        if (pa !== pb) return pa - pb;
+        return (a.due_date || '').localeCompare(b.due_date || '');
+    });
+
+    const collTotalRequested = collectiblesForTab.reduce((s, c) => s + (parseFloat(c.amount_requested) || 0), 0);
+    const collTotalCollected = collectiblesForTab.reduce((s, c) => {
+        return s + (c.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((ss, r) => ss + (parseFloat(r.amount) || 0), 0);
+    }, 0);
+    const collRemaining = collTotalRequested - collTotalCollected;
+
+    // Phase 99.1 D-17 — Billed to Client = sum of approved billing_requests.amount_requested (advisory, D-01).
+    const billedToClient = billingReqsForModal.filter(r => r.status === 'approved').reduce((s, r) => s + (parseFloat(r.amount_requested) || 0), 0);
+    // Phase 99.1 D-19 — approved billing_requests with no collectible at the same tranche_index → ghost rows.
+    const ghosts = billingReqsForModal.filter(br => br.status === 'approved' && !collectiblesForTab.some(c => c.tranche_index === br.tranche_index));
+
+    // Phase 99.1 D-18 — 3-chip money-in summary (Total Billed / Cash Collected / Outstanding) + Billed-vs-Invoiced
+    // formula note. Renders whenever there is any money-in data (collectibles OR approved-but-uninvoiced ghosts).
+    const collMoneyInSummary = (collectiblesForTab.length > 0 || ghosts.length > 0) ? `
+        <div class="em-scorecard-3col" style="margin-bottom:0.75rem;">
+            <div style="padding:1rem;border-radius:8px;border:1px solid #93c5fd;background:#eff6ff;">
+                <div style="font-size:0.875rem;color:#1d4ed8;font-weight:600;margin-bottom:0.5rem;">Total Billed</div>
+                <div style="font-size:1.5rem;font-weight:700;color:#1e293b;">&#8369;${formatCurrency(billedToClient)}</div>
+            </div>
+            <div style="padding:1rem;border-radius:8px;border:1px solid #86efac;background:#f0fdf4;">
+                <div style="font-size:0.875rem;color:#166534;font-weight:600;margin-bottom:0.5rem;">Cash Collected</div>
+                <div style="font-size:1.5rem;font-weight:700;color:#166534;">&#8369;${formatCurrency(collTotalCollected)}</div>
+            </div>
+            <div style="padding:1rem;border-radius:8px;border:1px solid ${collRemaining > 0 ? '#fca5a5' : '#e2e8f0'};background:${collRemaining > 0 ? '#fef2f2' : '#ffffff'};">
+                <div style="font-size:0.875rem;color:${collRemaining > 0 ? '#991b1b' : '#64748b'};font-weight:600;margin-bottom:0.5rem;">Outstanding</div>
+                <div style="font-size:1.5rem;font-weight:700;color:${collRemaining > 0 ? '#ef4444' : '#059669'};">&#8369;${formatCurrency(collRemaining)}</div>
+            </div>
+        </div>
+        <div style="font-size:0.72rem;color:#64748b;margin-bottom:1rem;line-height:1.5;">
+            <strong>Billed</strong> = what ops requested to bill the client (billing_requests).
+            <strong>Invoiced</strong> = what Finance issued as COLL-xxx (collectibles): &#8369;${formatCurrency(collTotalRequested)}.
+            <strong>Outstanding</strong> = Invoiced &minus; Collected.
+        </div>
+    ` : '';
+
+    const collectiblesTableHTML = (collectiblesForTab.length > 0 || ghosts.length > 0) ? `
+        <div class="category-card collapsible">
+            <div class="category-header" onclick="window._toggleExpenseCategory(this)">
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="category-toggle">&#9654;</span>
+                    <span class="category-name">COLLECTIBLES</span>
+                </div>
+                <span class="category-amount" style="color:${collRemaining > 0 ? '#ef4444' : '#059669'};">
+                    Remaining: ${formatCurrency(collRemaining)} of ${formatCurrency(collTotalRequested)}
+                </span>
+            </div>
+            <div class="category-items" style="display: none;">
+                <table class="modal-items-table" style="min-width:600px;">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>TRANCHE</th>
+                            <th>STATUS</th>
+                            <th>DUE DATE</th>
+                            <th style="text-align:right;">AMOUNT</th>
+                            <th style="text-align:right;">PAID</th>
+                            <th style="text-align:right;">BALANCE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${collectiblesForTab.map(c => {
+                            const totalPaidColl = (c.payment_records || [])
+                                .filter(r => r.status !== 'voided')
+                                .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+                            const balance = (parseFloat(c.amount_requested) || 0) - totalPaidColl;
+                            const status = deriveCollectibleStatus(c);
+                            const color = collStatusColors[status] || '#64748b';
+                            // Build payment history sub-row content
+                            const records = (c.payment_records || [])
+                                .slice()
+                                .sort((a, b) => (a.recorded_at || '').localeCompare(b.recorded_at || ''));
+                            const historyHtml = records.length === 0
+                                ? '<em style="color:#94a3b8;">No payments recorded.</em>'
+                                : `
+                                    <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Payment History (${records.length})</div>
+                                    <div style="display:flex;flex-direction:column;gap:2px;">
+                                        ${records.map(r => {
+                                            const isVoided = r.status === 'voided';
+                                            const styleStr = isVoided ? 'text-decoration:line-through;color:#94a3b8;' : 'color:#1e293b;';
+                                            const voidLabel = isVoided ? ' <span style="font-style:italic;color:#991b1b;">(voided)</span>' : '';
+                                            return `<div style="${styleStr};font-size:0.8125rem;">${formatCurrency(r.amount)} on ${escapeHTML(r.date || '')} via ${escapeHTML(r.method || '')}${r.reference ? ' &mdash; ref ' + escapeHTML(r.reference) : ''}${voidLabel}</div>`;
+                                        }).join('')}
+                                    </div>
+                                `;
+                            return `
+                                <tr style="cursor:pointer;" onclick="window._toggleEMCollHistory('${escapeHTML(c.id)}')">
+                                    <td style="font-family:monospace;font-size:0.8125rem;"><strong>${escapeHTML(c.coll_id || '')}</strong></td>
+                                    <td>${escapeHTML(c.tranche_label || '')} (${(parseFloat(c.tranche_percentage)||0).toFixed(2).replace(/\.?0+$/, '')}%)</td>
+                                    <td style="color:${color};font-weight:600;">${status}</td>
+                                    <td>${escapeHTML(c.due_date || '')}</td>
+                                    <td style="text-align:right;">${formatCurrency(c.amount_requested || 0)}</td>
+                                    <td style="text-align:right;">${formatCurrency(totalPaidColl)}</td>
+                                    <td style="text-align:right;color:${balance > 0 ? '#ef4444' : '#059669'};">${formatCurrency(balance)}</td>
+                                </tr>
+                                <tr id="em-coll-history-${escapeHTML(c.id)}" style="display:none;background:#f8fafc;">
+                                    <td colspan="7" style="padding:0.5rem 0.75rem;">${historyHtml}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                        ${ghosts.map(br => {
+                            // Phase 99.1 D-19 — muted "awaiting COLL-xxx" ghost row for an approved-but-not-yet-invoiced tranche.
+                            const pct = (parseFloat(br.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+                            return `
+                                <tr style="opacity:0.6;font-style:italic;color:#94a3b8;">
+                                    <td style="font-family:monospace;font-size:0.8125rem;">awaiting COLL-xxx</td>
+                                    <td>${escapeHTML(br.tranche_label || '')} (${pct}%)</td>
+                                    <td style="color:#4f46e5;font-weight:600;">Approved &mdash; awaiting invoice</td>
+                                    <td>&mdash;</td>
+                                    <td style="text-align:right;">${formatCurrency(br.amount_requested || 0)}</td>
+                                    <td style="text-align:right;">&mdash;</td>
+                                    <td style="text-align:right;">&mdash;</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    ` : '<p style="color: #64748b; text-align: center; padding: 2rem;">No collectibles recorded.</p>';
+
+    // Phase 99.1 D-18/D-19 — 3-chip summary + formula note above the table (ghost rows inside it).
+    const collectiblesHTML = collMoneyInSummary + collectiblesTableHTML;
 
     // Calculate totals
     const transportCategoryTotal = transportCategoryItems.reduce((s, item) => s + item.subtotal, 0);
@@ -655,6 +900,31 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                     </div>
                     ` : ''}
 
+                    <!-- Phase 99.1 D-17 — Money-In header strip (5 chips): Expense / Rem. Payable / Billed to Client / Invoiced (COLLs) / Cash Received -->
+                    <div style="font-size:0.7rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin:0.5rem 0 0.5rem;">Money-In</div>
+                    <div class="em-scorecard-3col">
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Expense</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(totalCost)}</div>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Rem. Payable</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: ${remainingPayable > 0 ? '#ef4444' : '#059669'};">&#8369;${formatCurrency(remainingPayable)}</div>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #93c5fd; background:#eff6ff;">
+                            <div style="font-size: 0.875rem; color: #1d4ed8; font-weight: 600; margin-bottom: 0.5rem;">Billed to Client</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(billedToClient)}</div>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <div style="font-size: 0.875rem; color: #64748b; font-weight: 600; margin-bottom: 0.5rem;">Invoiced (COLLs)</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">&#8369;${formatCurrency(collTotalRequested)}</div>
+                        </div>
+                        <div style="padding: 1rem; border-radius: 8px; border: 1px solid #86efac; background:#f0fdf4;">
+                            <div style="font-size: 0.875rem; color: #166534; font-weight: 600; margin-bottom: 0.5rem;">Cash Received</div>
+                            <div style="font-size: 1.5rem; font-weight: 700; color: #166534;">&#8369;${formatCurrency(collTotalCollected)}</div>
+                        </div>
+                    </div>
+
                     <!-- Tab Navigation -->
                     <div class="em-tab-bar">
                         <button class="expense-tab active" onclick="window._switchExpenseBreakdownTab('category')" data-tab="category"
@@ -668,6 +938,10 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                         <button class="expense-tab" onclick="window._switchExpenseBreakdownTab('payables')" data-tab="payables"
                             style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #64748b;">
                             Payables
+                        </button>
+                        <button class="expense-tab" onclick="window._switchExpenseBreakdownTab('collectibles')" data-tab="collectibles"
+                            style="padding: 0.75rem 1.5rem; border: none; background: none; cursor: pointer; font-weight: 600; color: #64748b;">
+                            Collectibles
                         </button>
                     </div>
 
@@ -684,6 +958,11 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
                     <!-- Payables Tab -->
                     <div id="expBreakdownPayablesTab" style="display: none; margin-top: 1.5rem;">
                         ${payablesHTML}
+                    </div>
+
+                    <!-- Collectibles Tab -->
+                    <div id="expBreakdownCollectiblesTab" style="display: none; margin-top: 1.5rem;">
+                        ${collectiblesHTML}
                     </div>
                 </div>
             </div>
@@ -705,7 +984,8 @@ window._switchExpenseBreakdownTab = function(tab) {
     const categoryTab = document.getElementById('expBreakdownCategoryTab');
     const transportTab = document.getElementById('expBreakdownTransportTab');
     const payablesTab = document.getElementById('expBreakdownPayablesTab');
-    if (!categoryTab || !transportTab || !payablesTab) return;
+    const collectiblesTab = document.getElementById('expBreakdownCollectiblesTab');
+    if (!categoryTab || !transportTab || !payablesTab || !collectiblesTab) return;
 
     const buttons = document.querySelectorAll('#expenseBreakdownModal .expense-tab');
     buttons.forEach(btn => {
@@ -723,6 +1003,7 @@ window._switchExpenseBreakdownTab = function(tab) {
     categoryTab.style.display = tab === 'category' ? 'block' : 'none';
     transportTab.style.display = tab === 'transport' ? 'block' : 'none';
     payablesTab.style.display = tab === 'payables' ? 'block' : 'none';
+    collectiblesTab.style.display = tab === 'collectibles' ? 'block' : 'none';
 };
 
 window._toggleExpenseCategory = function(headerEl) {
@@ -735,6 +1016,27 @@ window._toggleExpenseCategory = function(headerEl) {
     } else {
         items.style.display = 'none';
         toggle.innerHTML = '&#9654;';
+    }
+};
+
+// Phase 85 D-07/D-17: toggle expandable payment-history sub-row for a collectible row
+window._toggleEMCollHistory = function(collId) {
+    const row = document.getElementById(`em-coll-history-${collId}`);
+    if (!row) return;
+    row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+};
+
+window._toggleEMFeeAcc = function(accId) {
+    const row = document.getElementById(accId);
+    const icon = document.getElementById(accId + '-icon');
+    if (!row) return;
+    const isOpen = row.style.display !== 'none';
+    row.style.display = isOpen ? 'none' : 'table-row';
+    if (icon) {
+        icon.style.background = isOpen ? '#fff' : '#1a73e8';
+        icon.style.borderColor = isOpen ? '#e2e8f0' : '#1a73e8';
+        icon.style.color = isOpen ? '#94a3b8' : '#fff';
+        icon.innerHTML = isOpen ? '&#9658;' : '&#9660;';
     }
 };
 

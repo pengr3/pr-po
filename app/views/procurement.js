@@ -5,9 +5,11 @@
    ======================================== */
 
 import { db, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, orderBy, limit, getAggregateFromServer, sum, count, serverTimestamp } from '../firebase.js';
-import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
+import { formatCurrency, formatDate, formatTimestamp, showLoading, showToast, generateSequentialId, getStatusClass, downloadCSV, escapeHTML, getRFPTotal } from '../utils.js';
 import { createStatusBadge, createModal, openModal, closeModal, createTimeline, getMRFLabel, getDeptBadgeHTML, skeletonTableRows } from '../components.js';
 import { showProofModal, saveProofUrl } from '../proof-modal.js';
+import { createNotification, createNotificationForRoles, createNotificationForUsers, NOTIFICATION_TYPES } from '../notifications.js';
+import * as mrfFormModule from './mrf-form.js';
 
 // ========================================
 // GLOBAL STATE
@@ -26,6 +28,8 @@ let poCurrentPage = 1;
 const poItemsPerPage = 15;
 
 let allPRPORecords = [];
+let cachedAllPRPORecords = [];  // Phase 91 — raw snapshot for re-filter on assignmentsChanged without re-fetch
+let cachedAllPOData = [];       // Phase 91 UAT Bug 3 — raw PO snapshot so scoreboard can be re-scoped on assignmentsChanged without a Firestore round-trip
 let filteredPRPORecords = [];
 let prpoCurrentPage = 1;
 const prpoItemsPerPage = 10;
@@ -36,6 +40,13 @@ let cachedRejectedTRs = []; // TRs with finance_status='Rejected' belonging to a
 
 // Department filter state for PO Tracking table
 let activePODeptFilter = ''; // '' = All, 'projects' = Projects only, 'services' = Services only
+
+// MRF Records scorecard filter state (Phase 91.2): null = show all, string = active PO status
+let activeMaterialsFilter = null;
+let activeSubconFilter = null;
+
+// Request sub-tab delegation flag — tracks whether mrf-form listeners are active
+let _requestSubTabActive = false;
 
 // Sort state for MRF Records table (Records tab)
 let prpoSortColumn = 'date_needed';
@@ -61,6 +72,259 @@ let _rfpListenerActive = false;
 let rfpsData = [];        // all RFP documents from onSnapshot
 let rfpsByPO = {};        // { po_id: [rfp, rfp, ...] } for O(1) lookup per PO row
 let rfpsByTR = {};        // { tr_id: [rfp, rfp, ...] } for O(1) lookup per TR row
+
+// ========================================
+// SUPPLIER CATEGORIES (Phase 91.1)
+// ========================================
+// Seed list of trade categories used as the default dropdown options
+// in the Supplier Add/Edit tag-pill control. Source ordering preserved
+// from D-03 for future-reader intent; UI sorts A-Z on render.
+const SEED_CATEGORIES = [
+  'Civil / Structural',
+  'Architectural Works',
+  'Flooring',
+  'Ceiling Systems',
+  'Wall Finishes',
+  'Doors, Windows & Glass',
+  'Joinery / Carpentry',
+  'Plumbing / Sanitary',
+  'Bathroom Fixtures & Accessories',
+  'Electrical',
+  'Lighting',
+  'Mechanical / HVAC',
+  'Fire Protection',
+  'Security Systems',
+  'Smart Technology & Automation',
+  'Landscaping',
+  'Roofing Systems',
+  'Hardware & General Construction Supplies',
+  'Construction Service',
+  'Professional Service',
+];
+
+// Max chars allowed on a user-entered "Add new..." category — guards against
+// pathologically long strings polluting the derived dropdown. (Threat T-91.1-02)
+const MAX_CATEGORY_LENGTH = 60;
+
+/**
+ * Returns the deduped, A-Z sorted union of SEED_CATEGORIES and every
+ * category currently present on any supplier document. Defensive
+ * against missing/null/non-array `categories` fields on legacy docs.
+ *
+ * @param {Array<{categories?: string[]}>} suppliersList
+ * @returns {string[]} sorted unique category strings
+ */
+function getKnownCategories(suppliersList) {
+  const fromSuppliers = (suppliersList || [])
+    .flatMap(s => Array.isArray(s.categories) ? s.categories : [])
+    .filter(c => typeof c === 'string' && c.trim().length > 0);
+  const all = [...new Set([...SEED_CATEGORIES, ...fromSuppliers])];
+  return all.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+
+// ========================================
+// CATEGORY TAG-PILL CONTROL (Phase 91.1)
+// ========================================
+// State map: containerId -> string[] of currently-selected categories.
+// One entry per simultaneously-rendered control (Add form has containerId
+// 'newCategoriesPills'; inline-edit row uses 'edit-categories-<supplierId>').
+const _categoryPillState = new Map();
+
+/**
+ * Render the tag-pill control as an HTML string. Caller is responsible for
+ * placing the returned string inside its layout AND calling
+ * setCategoryPillState(containerId, initialCategories) before/after insertion
+ * so removal handlers find the state slot.
+ *
+ * @param {string} containerId   Unique DOM id for the .pill-input-container element
+ * @param {string[]} selected    Currently selected categories (will be rendered as pills)
+ * @returns {string} HTML
+ */
+function renderCategoryPillControl(containerId, selected) {
+  const safeId = escapeHTML(containerId);
+  const pills = (selected || []).map((cat, idx) => `
+    <span class="personnel-pill" data-category="${escapeHTML(cat)}">
+      ${escapeHTML(cat)}
+      <button type="button" class="pill-remove"
+              onclick="window.removeCategoryPill('${safeId}', ${idx})"
+              aria-label="Remove ${escapeHTML(cat)}">×</button>
+    </span>
+  `).join('');
+
+  return `
+    <div class="pill-input-container" id="${safeId}">
+      ${pills}
+      <input type="text"
+             class="pill-search-input"
+             id="${safeId}-combo"
+             placeholder="Add category..."
+             maxlength="${MAX_CATEGORY_LENGTH}"
+             autocomplete="off"
+             oninput="window.filterCategoryCombo('${safeId}')"
+             onkeydown="window.categoryComboKeydown(event,'${safeId}')"
+             onfocus="window.filterCategoryCombo('${safeId}')"
+             onblur="setTimeout(function(){var d=document.getElementById('${safeId}-dropdown');if(d)d.style.display='none';},150)">
+      <div class="pill-dropdown" id="${safeId}-dropdown" style="display: none;"></div>
+    </div>
+  `;
+}
+
+/**
+ * Initialize/replace the state slot for a control. MUST be called before the
+ * control's DOM is interacted with (typically immediately after render).
+ */
+function setCategoryPillState(containerId, categories) {
+  _categoryPillState.set(containerId, Array.isArray(categories) ? [...categories] : []);
+}
+
+/**
+ * Read the current selection from a control's state slot. Used by addSupplier()
+ * and saveEdit() in Plan 02 to extract what to write to Firestore.
+ * Returns a defensive copy (callers may mutate).
+ */
+function getCategoryPillState(containerId) {
+  return [..._categoryPillState.get(containerId) || []];
+}
+
+function clearCategoryPillState(containerId) {
+  _categoryPillState.delete(containerId);
+  const dd = document.getElementById(`${containerId}-dropdown`);
+  if (dd) dd.style.display = 'none';
+}
+
+/**
+ * Remove the pill at index `idx` from the named control, then re-render the
+ * control in place. Wired to window for onclick handlers.
+ */
+function removeCategoryPill(containerId, idx) {
+  const arr = _categoryPillState.get(containerId) || [];
+  if (idx < 0 || idx >= arr.length) return;
+  arr.splice(idx, 1);
+  _categoryPillState.set(containerId, arr);
+  rerenderCategoryPillControl(containerId);
+}
+
+/**
+ * Filter the combobox dropdown for a control. Shows all known categories
+ * (seed ∪ all suppliers') minus those already selected, filtered by what
+ * the user has typed. Appends an "Add X" row when the typed value isn't
+ * an exact match.
+ */
+function filterCategoryCombo(containerId) {
+  const input = document.getElementById(`${containerId}-combo`);
+  const dd = document.getElementById(`${containerId}-dropdown`);
+  if (!input || !dd) return;
+
+  const term = input.value.trim().toLowerCase();
+  const selected = new Set(_categoryPillState.get(containerId) || []);
+  const known = getKnownCategories(suppliersData).filter(c => !selected.has(c));
+  const matches = term ? known.filter(c => c.toLowerCase().includes(term)) : known;
+
+  const items = matches.map(cat => `
+    <div class="pill-dropdown-item"
+         onmousedown="event.preventDefault();window.addCategoryPill('${escapeHTML(containerId)}','${escapeHTML(cat)}')">${escapeHTML(cat)}</div>
+  `).join('');
+
+  const exactMatch = term && known.some(c => c.toLowerCase() === term);
+  const rawDisplay = escapeHTML(input.value.trim());
+  const addNew = (term && !exactMatch && rawDisplay) ? `
+    <div class="pill-dropdown-item" style="border-top:1px solid var(--gray-300);font-style:italic;color:#64748b;"
+         onmousedown="event.preventDefault();window.commitCategoryCombo('${escapeHTML(containerId)}')"
+    >Add "${rawDisplay}"</div>
+  ` : '';
+
+  const html = items + addNew;
+  if (!html) { dd.style.display = 'none'; return; }
+
+  // Use position:fixed to escape table overflow clipping; calculate coords from viewport
+  const containerEl = document.getElementById(containerId);
+  if (containerEl) {
+    const rect = containerEl.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    dd.style.position = 'fixed';
+    dd.style.left = rect.left + 'px';
+    dd.style.width = rect.width + 'px';
+    dd.style.right = 'auto';
+    dd.style.zIndex = '9999';
+    if (spaceBelow < 210) {
+      dd.style.top = 'auto';
+      dd.style.bottom = (window.innerHeight - rect.top) + 'px';
+      dd.classList.add('pill-dropdown-up');
+    } else {
+      dd.style.top = rect.bottom + 'px';
+      dd.style.bottom = 'auto';
+      dd.classList.remove('pill-dropdown-up');
+    }
+  }
+
+  dd.innerHTML = html;
+  dd.style.display = 'block';
+}
+
+function categoryComboKeydown(event, containerId) {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    const dd = document.getElementById(`${containerId}-dropdown`);
+    const visibleItems = dd ? dd.querySelectorAll('.pill-dropdown-item') : [];
+    if (visibleItems.length === 1) {
+      visibleItems[0].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    } else {
+      window.commitCategoryCombo(containerId);
+    }
+  } else if (event.key === 'Escape') {
+    const dd = document.getElementById(`${containerId}-dropdown`);
+    if (dd) dd.style.display = 'none';
+  }
+}
+
+/**
+ * Add a known category (selected from the dropdown) as a pill.
+ */
+function addCategoryPill(containerId, category) {
+  const arr = _categoryPillState.get(containerId) || [];
+  if (!arr.includes(category)) {
+    arr.push(category);
+    _categoryPillState.set(containerId, arr);
+  }
+  const dd = document.getElementById(`${containerId}-dropdown`);
+  if (dd) dd.style.display = 'none';
+  rerenderCategoryPillControl(containerId);
+  const newInput = document.getElementById(`${containerId}-combo`);
+  if (newInput) { newInput.value = ''; newInput.focus(); }
+}
+
+/**
+ * Commit the combobox input value as a new pill. Reads the live combo input,
+ * trims, validates length, then delegates to addCategoryPill.
+ */
+function commitCategoryCombo(containerId) {
+  const input = document.getElementById(`${containerId}-combo`);
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) return;
+  if (raw.length > MAX_CATEGORY_LENGTH) {
+    showToast(`Category name must be ${MAX_CATEGORY_LENGTH} characters or fewer`, 'error');
+    return;
+  }
+  addCategoryPill(containerId, raw);
+}
+
+/**
+ * Re-render the pill control in place after a state mutation. Keeps the
+ * dropdown closed (caller can re-open via openCategoryDropdown).
+ */
+function rerenderCategoryPillControl(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const selected = _categoryPillState.get(containerId) || [];
+  // Replace container's innerHTML with a fresh render's inner contents.
+  const fresh = renderCategoryPillControl(containerId, selected);
+  // renderCategoryPillControl returns the outer container too; strip it.
+  const tmp = document.createElement('div');
+  tmp.innerHTML = fresh.trim();
+  const newInner = tmp.firstElementChild;
+  if (newInner) container.innerHTML = newInner.innerHTML;
+}
 
 // ========================================
 // TRANCHE BUILDER HELPERS
@@ -181,6 +445,25 @@ function removeTranche(button, poId) {
     recalculateTranches(poId);
 }
 
+function renderMRFScorecardActive() {
+    document.querySelectorAll('[data-group="materials"]').forEach(card => {
+        card.classList.toggle('project-scorecard-card--active', card.dataset.status === activeMaterialsFilter);
+    });
+    document.querySelectorAll('[data-group="subcon"]').forEach(card => {
+        card.classList.toggle('project-scorecard-card--active', card.dataset.status === activeSubconFilter);
+    });
+}
+
+function handleMRFScorecardClick(group, status) {
+    if (group === 'materials') {
+        activeMaterialsFilter = (activeMaterialsFilter === status) ? null : status;
+    } else if (group === 'subcon') {
+        activeSubconFilter = (activeSubconFilter === status) ? null : status;
+    }
+    renderMRFScorecardActive();
+    filterPRPORecords();
+}
+
 /**
  * Apply department filter to scoreboards and MRF Records table.
  * Called by the dept filter dropdown onchange handler.
@@ -269,7 +552,8 @@ function deriveRFPStatus(rfp) {
         .filter(r => r.status !== 'voided')
         .reduce((sum, r) => sum + (r.amount || 0), 0);
     const isOverdue = rfp.due_date && new Date(rfp.due_date) < new Date();
-    if (totalPaid >= rfp.amount_requested && rfp.amount_requested > 0) return 'Fully Paid';
+    const total = getRFPTotal(rfp);
+    if (totalPaid >= total && total > 0) return 'Fully Paid';
     if (isOverdue) return 'Overdue';
     if (totalPaid > 0) return 'Partially Paid';
     return 'Pending';
@@ -297,8 +581,8 @@ function getPOPaymentFill(poId) {
             .filter(r => r.status !== 'voided')
             .reduce((s, r) => s + (r.amount || 0), 0);
         totalPaidAllRFPs += paid;
-        totalRequested += (rfp.amount_requested || 0);
-        if (paid < rfp.amount_requested) allFullyPaid = false;
+        totalRequested += getRFPTotal(rfp);
+        if (paid < getRFPTotal(rfp)) allFullyPaid = false;
     }
     if (allFullyPaid && rfps.length > 0) {
         return { pct: 100, color: '#d4edda', opacity: 0.7, tooltip: `Fully paid: ${formatCurrency(totalPaidAllRFPs)}` };
@@ -331,7 +615,7 @@ function getTRPaymentFill(trId, trTotalAmount) {
             .filter(r => r.status !== 'voided')
             .reduce((s, r) => s + (r.amount || 0), 0);
         totalPaidAllRFPs += paid;
-        if (paid < rfp.amount_requested) allFullyPaid = false;
+        if (paid < getRFPTotal(rfp)) allFullyPaid = false;
     }
     if (allFullyPaid && rfps.length > 0) {
         return { pct: 100, color: '#d4edda', opacity: 0.7, tooltip: `Fully paid: ${formatCurrency(totalPaidAllRFPs)}` };
@@ -771,6 +1055,47 @@ async function cancelMRFPRs(mrfDocId) {
  * Open RFP creation modal pre-filled with PO data.
  * @param {string} poDocId - Firestore document ID of the PO
  */
+/* ===== Phase 91.3 — RFP fee modal fragments (shared by all 3 RFP modals) ===== */
+// Base amount the running total sits on. Set per modal open; PO updates it on tranche change.
+let _rfpModalBase = 0;
+
+function rfpSectionHead(num, title, suffix = '') {
+    return `<div class="section-head" style="display:flex;align-items:center;gap:8px;margin:1.25rem 0 0.75rem;">
+        <span style="width:20px;height:20px;border-radius:9999px;background:#1a73e8;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">${num}</span>
+        <span style="font-size:0.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;">${title}${suffix ? ` <span style="color:#94a3b8;text-transform:none;letter-spacing:0;font-weight:400;">${suffix}</span>` : ''}</span>
+        <span style="flex:1;height:1px;background:#e5e7eb;"></span>
+    </div>`;
+}
+
+// Section 3 (FEES) markup — identical in all 3 RFP modals (progressive disclosure, sketch 001-B).
+function rfpFeeSectionHTML() {
+    const chipStyle = 'padding:6px 12px;min-height:36px;background:#f0f9ff;color:#0369a1;border:1px dashed #bae6fd;border-radius:9999px;font-size:0.8rem;font-weight:600;cursor:pointer;';
+    const xStyle = 'background:none;border:none;color:#64748b;font-size:1.1rem;cursor:pointer;min-height:32px;';
+    return `${rfpSectionHead(3, 'FEES', '— optional')}
+                <div id="feeChips" style="display:flex;flex-wrap:wrap;gap:8px;">
+                    <button type="button" id="chipTransfer" class="btn-ghost-fee" onclick="window.revealFee('transfer')" style="${chipStyle}">+ Transfer fee</button>
+                    <button type="button" id="chipCashout" class="btn-ghost-fee" onclick="window.revealFee('cashout')" style="${chipStyle}">+ Cash-out fee</button>
+                    <button type="button" id="chipMisc" class="btn-ghost-fee" onclick="window.addMiscFeeRow()" style="${chipStyle}">+ Misc fee</button>
+                </div>
+                <div id="feeNoneHint" style="margin-top:8px;font-size:0.8rem;font-style:italic;color:#94a3b8;">No fees added — disbursement equals the base amount.</div>
+                <div id="rowTransfer" class="fee-row" style="display:none;grid-template-columns:1fr 150px 32px;gap:8px;align-items:center;margin-top:8px;">
+                    <label class="fld" style="font-size:0.875rem;font-weight:600;color:#475569;">Transfer Fee</label>
+                    <span class="fee-amount-wrap" style="position:relative;"><input type="text" id="feeTransferAmount" class="form-control fee-amount" inputmode="decimal" placeholder="0.00" oninput="window.recomputeRFPTotal()" style="text-align:right;padding-left:22px;"></span>
+                    <button type="button" onclick="window.removeFee('transfer')" aria-label="Remove transfer fee" style="${xStyle}">×</button>
+                </div>
+                <div id="rowCashout" class="fee-row" style="display:none;grid-template-columns:1fr 150px 32px;gap:8px;align-items:center;margin-top:8px;">
+                    <label class="fld" style="font-size:0.875rem;font-weight:600;color:#475569;">Cash-out Fee</label>
+                    <span class="fee-amount-wrap" style="position:relative;"><input type="text" id="feeCashoutAmount" class="form-control fee-amount" inputmode="decimal" placeholder="0.00" oninput="window.recomputeRFPTotal()" style="text-align:right;padding-left:22px;"></span>
+                    <button type="button" onclick="window.removeFee('cashout')" aria-label="Remove cash-out fee" style="${xStyle}">×</button>
+                </div>
+                <div id="miscFeesBody"></div>
+                <div id="rfpTotalBlock" style="display:none;margin-top:1rem;padding-top:0.75rem;border-top:1px dashed #bae6fd;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.875rem;"><span>Base amount</span><span id="rtBase" style="font-variant-numeric:tabular-nums;">₱0.00</span></div>
+                    <div style="display:flex;justify-content:space-between;font-size:0.875rem;"><span>Fees</span><span id="rtFees" style="font-variant-numeric:tabular-nums;color:#0369a1;">₱0.00</span></div>
+                    <div class="grand" style="display:flex;justify-content:space-between;align-items:baseline;margin-top:6px;"><span style="font-weight:700;">Grand total</span><span id="rtGrand" class="amt" style="font-size:1.3rem;font-weight:800;font-variant-numeric:tabular-nums;">₱0.00</span></div>
+                </div>`;
+}
+
 async function openRFPModal(poDocId) {
     // Close context menu if still open
     const ctx = document.getElementById('rfpContextMenu');
@@ -824,7 +1149,8 @@ async function openRFPModal(poDocId) {
                 <button class="modal-close" onclick="document.getElementById('rfpModal').remove()">&times;</button>
             </div>
             <div class="modal-body" style="padding:1.5rem;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                ${rfpSectionHead(1, 'REFERENCE')}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.5rem;">
                     <div>
                         <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(po.supplier_name)}</div>
@@ -839,18 +1165,24 @@ async function openRFPModal(poDocId) {
                     </div>
                 </div>
                 ${firstAvailable < 0 ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">RFPs have already been submitted for all tranches on this PO. You cannot create another one.</div>' : ''}
+                <div style="${firstAvailable < 0 ? 'opacity:.45;pointer-events:none;' : ''}">
+                ${rfpSectionHead(2, 'BASE AMOUNT')}
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Tranche</label>
-                        <select id="rfpTrancheSelect" class="form-control" onchange="window.updateRFPAmount('${poDocId}')" style="width:100%;">
+                        <select id="rfpTrancheSelect" class="form-control" onchange="window.updateRFPAmount('${poDocId}')" style="width:100%;" ${firstAvailable < 0 ? 'disabled' : ''}>
                             ${trancheOptions}
                         </select>
                     </div>
                     <div>
-                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested</label>
+                        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested <span style="color:#94a3b8;font-weight:400;">(auto from tranche %)</span></label>
                         <input type="text" id="rfpAmount" class="form-control" value="${formatCurrency(defaultAmount)}" readonly
                                style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                     </div>
+                </div>
+                ${rfpFeeSectionHTML()}
+                ${rfpSectionHead(4, 'PAYMENT DETAILS')}
+                <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Proof <span style="color:#ea4335;">*</span></label>
                         <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Paste URL or enter proof details" style="width:100%;" required>
@@ -911,11 +1243,14 @@ async function openRFPModal(poDocId) {
                         <input type="text" id="rfpPaymentModeOther" class="form-control" placeholder="Enter payment mode" style="width:100%;">
                     </div>
                 </div>
+                </div>
                 <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+                <div id="rfpFooterAlert" class="fee-footer-alert" style="display:none;">Fix the highlighted fee — amounts must be greater than ₱0.</div>
             </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+            <div class="modal-footer" style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <span id="rfpFooterTotal" style="margin-right:auto;font-size:0.875rem;font-weight:600;">Total <span id="rfpFooterAmt" style="font-variant-numeric:tabular-nums;">₱0.00</span> <span id="rfpFooterPill" style="display:none;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">incl. fees</span></span>
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
-                <button class="btn btn-primary" onclick="window.submitRFP('${poDocId}')" ${firstAvailable < 0 ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
+                <button id="rfpSubmitBtn" class="btn btn-primary" onclick="window.submitRFP('${poDocId}')" ${firstAvailable < 0 ? 'disabled data-locked="1" style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
             </div>
         </div>
     </div>`;
@@ -924,12 +1259,14 @@ async function openRFPModal(poDocId) {
     const existingModal = document.getElementById('rfpModal');
     if (existingModal) existingModal.remove();
 
+    _rfpModalBase = defaultAmount;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
 
     // Set the tranche select to the first available
     if (firstAvailable >= 0) {
         document.getElementById('rfpTrancheSelect').value = firstAvailable;
     }
+    recomputeRFPTotal();
 }
 
 /**
@@ -946,12 +1283,9 @@ async function openDeliveryFeeRFPModal(poDocId) {
     const deliveryFee = parseFloat(po.delivery_fee) || 0;
     if (deliveryFee <= 0) { showToast('No delivery fee on this PO', 'error'); return; }
 
-    // Double-check dedup
+    // Delivery-fee one-per-PO: render the modal in a LOCKED/dimmed state instead of blocking it (D-17).
     const existingRFPs = rfpsByPO[po.po_id] || [];
-    if (existingRFPs.some(r => r.tranche_label === 'Delivery Fee')) {
-        showToast('A Delivery Fee RFP already exists for this PO', 'error');
-        return;
-    }
+    const dfBlocked = existingRFPs.some(r => r.tranche_label === 'Delivery Fee');
 
     const deptLabel = po.service_code
         ? `Service: ${escapeHTML(po.service_code)}`
@@ -965,7 +1299,8 @@ async function openDeliveryFeeRFPModal(poDocId) {
                 <button class="modal-close" onclick="document.getElementById('rfpModal').remove()">&times;</button>
             </div>
             <div class="modal-body" style="padding:1.5rem;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                ${rfpSectionHead(1, 'REFERENCE')}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.5rem;">
                     <div>
                         <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(po.supplier_name)}</div>
@@ -979,12 +1314,19 @@ async function openDeliveryFeeRFPModal(poDocId) {
                         <div style="font-weight:600;color:#1e293b;">${deptLabel}</div>
                     </div>
                 </div>
+                ${dfBlocked ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">A Delivery Fee RFP already exists for this PO. You cannot create another one.</div>' : ''}
+                <div style="${dfBlocked ? 'opacity:.45;pointer-events:none;' : ''}">
+                ${rfpSectionHead(2, 'BASE AMOUNT')}
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested (Delivery Fee)</label>
                         <input type="text" id="rfpAmount" class="form-control" value="${formatCurrency(deliveryFee)}" readonly
                                style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                     </div>
+                </div>
+                ${rfpFeeSectionHTML()}
+                ${rfpSectionHead(4, 'PAYMENT DETAILS')}
+                <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Proof <span style="color:#ea4335;">*</span></label>
                         <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Paste URL or enter proof details" style="width:100%;" required>
@@ -1045,11 +1387,14 @@ async function openDeliveryFeeRFPModal(poDocId) {
                         <input type="text" id="rfpPaymentModeOther" class="form-control" placeholder="Enter payment mode" style="width:100%;">
                     </div>
                 </div>
+                </div>
                 <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+                <div id="rfpFooterAlert" class="fee-footer-alert" style="display:none;">Fix the highlighted fee — amounts must be greater than ₱0.</div>
             </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+            <div class="modal-footer" style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <span id="rfpFooterTotal" style="margin-right:auto;font-size:0.875rem;font-weight:600;">Total <span id="rfpFooterAmt" style="font-variant-numeric:tabular-nums;">₱0.00</span> <span id="rfpFooterPill" style="display:none;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">incl. fees</span></span>
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
-                <button class="btn btn-primary" onclick="window.submitDeliveryFeeRFP('${poDocId}')">Submit RFP</button>
+                <button id="rfpSubmitBtn" class="btn btn-primary" onclick="window.submitDeliveryFeeRFP('${poDocId}')" ${dfBlocked ? 'disabled data-locked="1" style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
             </div>
         </div>
     </div>`;
@@ -1058,7 +1403,9 @@ async function openDeliveryFeeRFPModal(poDocId) {
     const existingModal = document.getElementById('rfpModal');
     if (existingModal) existingModal.remove();
 
+    _rfpModalBase = deliveryFee;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    recomputeRFPTotal();
 }
 
 /**
@@ -1100,7 +1447,8 @@ async function openTRRFPModal(trDocId) {
                 <button class="modal-close" onclick="document.getElementById('rfpModal').remove()">&times;</button>
             </div>
             <div class="modal-body" style="padding:1.5rem;">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                ${rfpSectionHead(1, 'REFERENCE')}
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.5rem;">
                     <div>
                         <div class="modal-detail-label" style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(tr.supplier_name || '')}</div>
@@ -1115,12 +1463,17 @@ async function openTRRFPModal(trDocId) {
                     </div>
                 </div>
                 ${hasExistingRFP ? '<div style="margin-bottom:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">An RFP already exists for this TR. You cannot create another one.</div>' : ''}
+                ${rfpSectionHead(2, 'BASE AMOUNT')}
                 <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount Requested</label>
                         <input type="text" id="rfpAmount" class="form-control" value="${formatCurrency(trTotal)}" readonly
                                style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                     </div>
+                </div>
+                ${rfpFeeSectionHTML()}
+                ${rfpSectionHead(4, 'PAYMENT DETAILS')}
+                <div style="display:flex;flex-direction:column;gap:1rem;">
                     <div>
                         <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Proof <span style="color:#ea4335;">*</span></label>
                         <input type="text" id="rfpInvoiceNumber" class="form-control" placeholder="Paste URL or enter proof details" style="width:100%;" required>
@@ -1182,17 +1535,21 @@ async function openTRRFPModal(trDocId) {
                     </div>
                 </div>
                 <div id="rfpErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+                <div id="rfpFooterAlert" class="fee-footer-alert" style="display:none;">Fix the highlighted fee — amounts must be greater than ₱0.</div>
             </div>
-            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+            <div class="modal-footer" style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <span id="rfpFooterTotal" style="margin-right:auto;font-size:0.875rem;font-weight:600;">Total <span id="rfpFooterAmt" style="font-variant-numeric:tabular-nums;">₱0.00</span> <span id="rfpFooterPill" style="display:none;padding:2px 8px;border-radius:9999px;font-size:0.62rem;font-weight:700;background:#f0f9ff;color:#0369a1;border:1px solid #bae6fd;">incl. fees</span></span>
                 <button class="btn btn-outline" onclick="document.getElementById('rfpModal').remove()">Discard RFP</button>
-                <button class="btn btn-primary" onclick="window.submitTRRFP('${trDocId}')" ${hasExistingRFP ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
+                <button id="rfpSubmitBtn" class="btn btn-primary" onclick="window.submitTRRFP('${trDocId}')" ${hasExistingRFP ? 'disabled data-locked="1" style="opacity:0.5;cursor:not-allowed;"' : ''}>Submit RFP</button>
             </div>
         </div>
     </div>`;
 
     const existingModal = document.getElementById('rfpModal');
     if (existingModal) existingModal.remove();
+    _rfpModalBase = trTotal;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    recomputeRFPTotal();
 }
 
 /**
@@ -1211,6 +1568,8 @@ function updateRFPAmount(poDocId) {
     const poTotal = parseFloat(po.total_amount) || 0;
     const amount = tranche ? (tranche.percentage / 100 * poTotal) : 0;
     document.getElementById('rfpAmount').value = formatCurrency(amount);
+    _rfpModalBase = amount;
+    recomputeRFPTotal();
 }
 
 function showAltBank() {
@@ -1232,6 +1591,180 @@ function removeAltBank() {
     if (btn) btn.style.display = 'block';
 }
 window.removeAltBank = removeAltBank;
+
+/* ===== Phase 91.3 — RFP fee controls (progressive disclosure + live running total) ===== */
+
+// Reveal a fixed fee row (transfer/cashout), hide its chip, focus the input. Mirrors showAltBank().
+function revealFee(kind) {
+    const isTransfer = kind === 'transfer';
+    const row = document.getElementById(isTransfer ? 'rowTransfer' : 'rowCashout');
+    const chip = document.getElementById(isTransfer ? 'chipTransfer' : 'chipCashout');
+    const input = document.getElementById(isTransfer ? 'feeTransferAmount' : 'feeCashoutAmount');
+    if (row) row.style.display = 'grid';
+    if (chip) chip.style.display = 'none';
+    if (input) input.focus();
+    recomputeRFPTotal();
+    syncFeeSectionVisibility();
+}
+window.revealFee = revealFee;
+
+// Hide a fixed fee row, clear its value, restore the chip. Mirrors removeAltBank().
+function removeFee(kind) {
+    const isTransfer = kind === 'transfer';
+    const row = document.getElementById(isTransfer ? 'rowTransfer' : 'rowCashout');
+    const chip = document.getElementById(isTransfer ? 'chipTransfer' : 'chipCashout');
+    const input = document.getElementById(isTransfer ? 'feeTransferAmount' : 'feeCashoutAmount');
+    if (input) { input.value = ''; input.classList.remove('err'); }
+    if (row) row.style.display = 'none';
+    if (chip) chip.style.display = '';
+    recomputeRFPTotal();
+    syncFeeSectionVisibility();
+    if (typeof window.validateRFPFees === 'function') window.validateRFPFees(); // Plan 06 layer
+}
+window.removeFee = removeFee;
+
+// Append a repeatable misc fee row (label + amount + ×) and focus the label. Mirrors addLineItem().
+function addMiscFeeRow() {
+    const body = document.getElementById('miscFeesBody');
+    if (!body) return;
+    const row = document.createElement('div');
+    row.className = 'fee-row';
+    row.style.cssText = 'display:grid;grid-template-columns:1fr 150px 32px;gap:8px;align-items:center;margin-top:8px;';
+    row.innerHTML = `
+        <input type="text" class="fee-misc-label form-control" placeholder="Label (e.g. Notary, Courier)" style="font-size:0.875rem;">
+        <span class="fee-amount-wrap" style="position:relative;"><input type="text" class="fee-misc-amount fee-amount form-control" inputmode="decimal" placeholder="0.00" oninput="window.recomputeRFPTotal()" style="text-align:right;padding-left:22px;"></span>
+        <button type="button" onclick="window.removeMiscFeeRow(this)" aria-label="Remove misc fee" style="background:none;border:none;color:#64748b;font-size:1.1rem;cursor:pointer;min-height:32px;">×</button>`;
+    body.appendChild(row);
+    const labelInput = row.querySelector('.fee-misc-label');
+    if (labelInput) labelInput.focus();
+    recomputeRFPTotal();
+    syncFeeSectionVisibility();
+}
+window.addMiscFeeRow = addMiscFeeRow;
+
+function removeMiscFeeRow(btn) {
+    const row = btn.closest('.fee-row');
+    if (row) row.remove();
+    recomputeRFPTotal();
+    syncFeeSectionVisibility();
+    if (typeof window.validateRFPFees === 'function') window.validateRFPFees(); // Plan 06 layer
+}
+window.removeMiscFeeRow = removeMiscFeeRow;
+
+// Recompute Base / Fees / Grand total from the current visible fee inputs. Base comes from the
+// computed tranche math (_rfpModalBase), NOT the formatted #rfpAmount string (D-11).
+function recomputeRFPTotal() {
+    const base = parseFloat(_rfpModalBase) || 0;
+    let fees = 0;
+    const rowT = document.getElementById('rowTransfer');
+    if (rowT && rowT.style.display !== 'none') fees += parseFloat(document.getElementById('feeTransferAmount')?.value) || 0;
+    const rowC = document.getElementById('rowCashout');
+    if (rowC && rowC.style.display !== 'none') fees += parseFloat(document.getElementById('feeCashoutAmount')?.value) || 0;
+    document.querySelectorAll('#miscFeesBody .fee-misc-amount').forEach(el => { fees += parseFloat(el.value) || 0; });
+    const grand = base + fees;
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = `₱${formatCurrency(val)}`; };
+    setText('rtBase', base);
+    setText('rtFees', fees);
+    setText('rtGrand', grand);
+    setText('rfpFooterAmt', grand);
+    syncFeeSectionVisibility();
+    validateRFPFees(); // Plan 06: live positive-only gate on every fee input
+}
+window.recomputeRFPTotal = recomputeRFPTotal;
+
+// Show the running-total block + footer pill (hide the "No fees" hint) only when a fee has a value.
+function syncFeeSectionVisibility() {
+    let hasFee = false;
+    const rowT = document.getElementById('rowTransfer');
+    if (rowT && rowT.style.display !== 'none' && (parseFloat(document.getElementById('feeTransferAmount')?.value) || 0) !== 0) hasFee = true;
+    const rowC = document.getElementById('rowCashout');
+    if (rowC && rowC.style.display !== 'none' && (parseFloat(document.getElementById('feeCashoutAmount')?.value) || 0) !== 0) hasFee = true;
+    document.querySelectorAll('#miscFeesBody .fee-misc-amount').forEach(el => { if ((parseFloat(el.value) || 0) !== 0) hasFee = true; });
+    const block = document.getElementById('rfpTotalBlock');
+    const pill = document.getElementById('rfpFooterPill');
+    const hint = document.getElementById('feeNoneHint');
+    if (block) block.style.display = hasFee ? 'block' : 'none';
+    if (pill) pill.style.display = hasFee ? 'inline-block' : 'none';
+    if (hint) hint.style.display = hasFee ? 'none' : 'block';
+}
+window.syncFeeSectionVisibility = syncFeeSectionVisibility;
+
+// Read fee inputs from the open RFP modal → { transfer_fee, cash_out_fee, misc_fees, feesTotal }.
+// Reads by CSS class per CLAUDE.md DOM rule (never data attributes). Omits empty/≤0 misc rows (D-05).
+function readRFPFeesFromModal() {
+    const rowT = document.getElementById('rowTransfer');
+    const rowC = document.getElementById('rowCashout');
+    const transfer_fee = (rowT && rowT.style.display !== 'none') ? (parseFloat(document.getElementById('feeTransferAmount')?.value) || 0) : 0;
+    const cash_out_fee = (rowC && rowC.style.display !== 'none') ? (parseFloat(document.getElementById('feeCashoutAmount')?.value) || 0) : 0;
+    const misc_fees = [];
+    document.querySelectorAll('#miscFeesBody .fee-row').forEach(row => {
+        const label = (row.querySelector('.fee-misc-label')?.value || '').trim();
+        const amount = parseFloat(row.querySelector('.fee-misc-amount')?.value) || 0;
+        if (amount > 0) misc_fees.push({ label: label || 'Misc fee', amount });
+    });
+    const feesTotal = (transfer_fee > 0 ? transfer_fee : 0) + (cash_out_fee > 0 ? cash_out_fee : 0)
+        + misc_fees.reduce((s, m) => s + m.amount, 0);
+    return { transfer_fee: transfer_fee > 0 ? transfer_fee : 0, cash_out_fee: cash_out_fee > 0 ? cash_out_fee : 0, misc_fees, feesTotal };
+}
+
+/* ===== Phase 91.3 — positive-only fee validation + disabled-Submit gate (Plan 06) ===== */
+
+// Insert/update a .field-err message below the offending fee row (full-width, no grid disruption).
+function showFieldErr(el, msg) {
+    if (!el) return;
+    const anchor = el.closest('.fee-row') || el.closest('.fee-amount-wrap') || el;
+    let err = anchor.nextElementSibling;
+    if (!err || !err.classList || !err.classList.contains('field-err')) {
+        err = document.createElement('div');
+        err.className = 'field-err';
+        anchor.insertAdjacentElement('afterend', err);
+    }
+    err.textContent = msg;
+}
+function clearFieldErr(el) {
+    if (!el) return;
+    const anchor = el.closest('.fee-row') || el.closest('.fee-amount-wrap') || el;
+    const err = anchor.nextElementSibling;
+    if (err && err.classList && err.classList.contains('field-err')) err.remove();
+}
+
+// Toggle the Submit button, but a blocked-guard lock (data-locked="1") always wins.
+function setRFPSubmitEnabled(enabled) {
+    const btn = document.getElementById('rfpSubmitBtn');
+    if (!btn) return;
+    if (btn.dataset.locked === '1') { btn.disabled = true; return; }
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '' : '0.5';
+    btn.style.cursor = enabled ? '' : 'not-allowed';
+}
+window.setRFPSubmitEnabled = setRFPSubmitEnabled;
+
+// Live positive-only validation. Empty = ignored (D-05); ≤0/NaN = field error + footer alert + disabled Submit.
+function validateRFPFees() {
+    const inputs = [];
+    ['feeTransferAmount', 'feeCashoutAmount'].forEach(id => {
+        const row = document.getElementById(id === 'feeTransferAmount' ? 'rowTransfer' : 'rowCashout');
+        const el = document.getElementById(id);
+        if (el && row && row.style.display !== 'none') inputs.push(el);
+    });
+    document.querySelectorAll('#miscFeesBody .fee-misc-amount').forEach(el => inputs.push(el));
+
+    let hasError = false;
+    inputs.forEach(el => {
+        const raw = (el.value || '').trim();
+        if (raw === '') { el.classList.remove('err'); clearFieldErr(el); return; } // empty = ignored, not an error (D-05)
+        const n = parseFloat(raw);
+        if (!Number.isFinite(n) || n <= 0) {
+            el.classList.add('err'); showFieldErr(el, 'Amount must be greater than ₱0.'); hasError = true;
+        } else { el.classList.remove('err'); clearFieldErr(el); }
+    });
+
+    const alert = document.getElementById('rfpFooterAlert');
+    if (alert) alert.style.display = hasError ? 'block' : 'none';
+    setRFPSubmitEnabled(!hasError);
+    return !hasError;
+}
+window.validateRFPFees = validateRFPFees;
 
 /**
  * Show/hide bank fields or "Other" specifier based on selected payment mode.
@@ -1284,6 +1817,7 @@ async function submitRFP(poDocId) {
         if (errorEl) { errorEl.textContent = 'Please specify the payment mode.'; errorEl.style.display = 'block'; }
         return;
     }
+    if (!validateRFPFees()) { showToast('Fix the highlighted fee amounts', 'error'); return; }
 
     const tranches = Array.isArray(po.tranches) && po.tranches.length > 0
         ? po.tranches
@@ -1311,6 +1845,7 @@ async function submitRFP(poDocId) {
 
     const poTotal = parseFloat(po.total_amount) || 0;
     const amountRequested = tranche.percentage / 100 * poTotal;
+    const { transfer_fee, cash_out_fee, misc_fees, feesTotal } = readRFPFeesFromModal();
 
     try {
         const rfpId = await generateRFPId(po.po_id);
@@ -1330,6 +1865,10 @@ async function submitRFP(poDocId) {
             tranche_label: tranche.label,
             tranche_percentage: tranche.percentage,
             amount_requested: amountRequested,
+            transfer_fee,
+            cash_out_fee,
+            misc_fees,
+            total_with_fees: amountRequested + feesTotal,
             invoice_number: invoiceNumber,
             due_date: dueDate,
             mode_of_payment: paymentMode === 'Other' ? paymentModeOther : paymentMode,
@@ -1340,10 +1879,29 @@ async function submitRFP(poDocId) {
             alt_bank_account_name: paymentMode === 'Bank Transfer' ? altBankAccountName : '',
             alt_bank_details: paymentMode === 'Bank Transfer' ? altBankDetails : '',
             payment_records: [],
+            // Phase 84.1: track RFP creator (procurement actor) for NOTIF-16 routing
+            rfp_creator_user_id: window.getCurrentUser?.()?.uid ?? null,
+            rfp_creator_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
             date_submitted: serverTimestamp()
         };
 
         await addDoc(collection(db, 'rfps'), rfpDoc);
+
+        // Phase 84 NOTIF-08: notify Finance of new RFP needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.RFP_REVIEW_NEEDED,
+                message: `New RFP pending Finance review: ${rfpId} for PO ${po.po_id}`,
+                link: '#/finance/pending',
+                source_collection: 'rfps',
+                source_id: rfpId,
+                object_name: po.supplier_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitRFP notification failed:', notifErr);
+        }
 
         document.getElementById('rfpModal')?.remove();
         showToast(`RFP ${rfpId} submitted successfully`, 'success');
@@ -1404,8 +1962,10 @@ async function submitTRRFP(trDocId) {
         if (errorEl) { errorEl.textContent = 'Please specify the payment mode.'; errorEl.style.display = 'block'; }
         return;
     }
+    if (!validateRFPFees()) { showToast('Fix the highlighted fee amounts', 'error'); return; }
 
     const trTotal = parseFloat(tr.total_amount) || 0;
+    const { transfer_fee, cash_out_fee, misc_fees, feesTotal } = readRFPFeesFromModal();
 
     try {
         const rfpId = await generateTRRFPId(tr.tr_id);
@@ -1426,6 +1986,10 @@ async function submitTRRFP(trDocId) {
             tranche_label: 'Full Payment',
             tranche_percentage: 100,
             amount_requested: trTotal,
+            transfer_fee,
+            cash_out_fee,
+            misc_fees,
+            total_with_fees: trTotal + feesTotal,
             invoice_number: invoiceNumber,
             due_date: dueDate,
             mode_of_payment: paymentMode === 'Other' ? paymentModeOther : paymentMode,
@@ -1436,10 +2000,29 @@ async function submitTRRFP(trDocId) {
             alt_bank_account_name: paymentMode === 'Bank Transfer' ? altBankAccountName : '',
             alt_bank_details: paymentMode === 'Bank Transfer' ? altBankDetails : '',
             payment_records: [],
+            // Phase 84.1: track RFP creator (procurement actor) for NOTIF-16 routing
+            rfp_creator_user_id: window.getCurrentUser?.()?.uid ?? null,
+            rfp_creator_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
             date_submitted: serverTimestamp()
         };
 
         await addDoc(collection(db, 'rfps'), rfpDoc);
+
+        // Phase 84 NOTIF-08: notify Finance of new TR RFP needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.RFP_REVIEW_NEEDED,
+                message: `New TR RFP pending Finance review: ${rfpId} for TR ${tr.tr_id}`,
+                link: '#/finance/pending',
+                source_collection: 'rfps',
+                source_id: rfpId,
+                object_name: tr.supplier_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitTRRFP notification failed:', notifErr);
+        }
 
         document.getElementById('rfpModal')?.remove();
         showToast(`RFP ${rfpId} submitted successfully`, 'success');
@@ -1484,8 +2067,10 @@ async function submitDeliveryFeeRFP(poDocId) {
         if (errorEl) { errorEl.textContent = 'Please specify the payment mode.'; errorEl.style.display = 'block'; }
         return;
     }
+    if (!validateRFPFees()) { showToast('Fix the highlighted fee amounts', 'error'); return; }
 
     const deliveryFee = parseFloat(po.delivery_fee) || 0;
+    const { transfer_fee, cash_out_fee, misc_fees, feesTotal } = readRFPFeesFromModal();
 
     try {
         const rfpId = await generateRFPId(po.po_id);
@@ -1504,6 +2089,10 @@ async function submitDeliveryFeeRFP(poDocId) {
             tranche_label: 'Delivery Fee',
             tranche_percentage: 0,
             amount_requested: deliveryFee,
+            transfer_fee,
+            cash_out_fee,
+            misc_fees,
+            total_with_fees: deliveryFee + feesTotal,
             invoice_number: invoiceNumber,
             due_date: dueDate,
             mode_of_payment: paymentMode === 'Other' ? paymentModeOther : paymentMode,
@@ -1514,10 +2103,30 @@ async function submitDeliveryFeeRFP(poDocId) {
             alt_bank_account_name: paymentMode === 'Bank Transfer' ? altBankAccountName : '',
             alt_bank_details: paymentMode === 'Bank Transfer' ? altBankDetails : '',
             payment_records: [],
+            // Phase 84.1: track RFP creator (procurement actor) for NOTIF-16 routing
+            rfp_creator_user_id: window.getCurrentUser?.()?.uid ?? null,
+            rfp_creator_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
             date_submitted: serverTimestamp()
         };
 
         await addDoc(collection(db, 'rfps'), rfpDoc);
+
+        // Phase 84 NOTIF-08: notify Finance of new Delivery Fee RFP needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.RFP_REVIEW_NEEDED,
+                message: `New Delivery Fee RFP pending Finance review: ${rfpId} for PO ${po.po_id}`,
+                link: '#/finance/pending',
+                source_collection: 'rfps',
+                source_id: rfpId,
+                object_name: po.supplier_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitDeliveryFeeRFP notification failed:', notifErr);
+        }
+
         document.getElementById('rfpModal')?.remove();
         showToast(`RFP ${rfpId} (Delivery Fee) submitted successfully`, 'success');
     } catch (error) {
@@ -1567,9 +2176,17 @@ function attachWindowFunctions() {
     window.changeSuppliersPage = changeSuppliersPage;
     window.applySupplierSearch = applySupplierSearch;
 
+    // Category tag-pill control (Phase 91.1) — used by Add/Edit forms in Plan 02
+    window.filterCategoryCombo = filterCategoryCombo;
+    window.categoryComboKeydown = categoryComboKeydown;
+    window.commitCategoryCombo = commitCategoryCombo;
+    window.addCategoryPill = addCategoryPill;
+    window.removeCategoryPill = removeCategoryPill;
+
     // MRF Records Functions
     window.loadPRPORecords = loadPRPORecords;
     window.filterPRPORecords = filterPRPORecords;
+    window.handleMRFScorecardClick = handleMRFScorecardClick;
     window.goToPRPOPage = goToPRPOPage;
     window.viewPRDetails = viewPRDetails;
     window.viewTRDetails = viewTRDetails;
@@ -1656,25 +2273,31 @@ export function render(activeTab = 'mrfs') {
     const canEdit = window.canEditTab?.('procurement');
     const showEditControls = canEdit !== false;
 
+    // Sub-tab access flags — !==false so undefined (bootstrap) is treated as accessible
+    const canSeeRequest   = window.hasTabAccess?.('procurement_request') !== false;
+    const canSeeMrfs      = window.hasTabAccess?.('procurement_mrfs') !== false;
+    const canSeeSuppliers = window.hasTabAccess?.('procurement_suppliers') !== false;
+    const canSeeRecords   = window.hasTabAccess?.('procurement_records') !== false;
+
     return `
         <!-- Tab Navigation -->
         <div style="background: white; border-bottom: 1px solid var(--gray-200);">
             <div style="max-width: 1600px; margin: 0 auto; padding: 0 2rem;">
                 <div class="tabs-nav">
-                    <a href="#/procurement/mrfs" class="tab-btn ${activeTab === 'mrfs' ? 'active' : ''}">
-                        MRF Processing
-                    </a>
-                    <a href="#/procurement/suppliers" class="tab-btn ${activeTab === 'suppliers' ? 'active' : ''}">
-                        Supplier Management
-                    </a>
-                    <a href="#/procurement/records" class="tab-btn ${activeTab === 'records' ? 'active' : ''}">
-                        MRF Records
-                    </a>
+                    ${canSeeRequest ? `<a href="#/procurement/request" class="tab-btn ${activeTab === 'request' ? 'active' : ''}">Request</a>` : ''}
+                    ${canSeeMrfs ? `<a href="#/procurement/mrfs" class="tab-btn ${activeTab === 'mrfs' ? 'active' : ''}">MRF Processing</a>` : ''}
+                    ${canSeeSuppliers ? `<a href="#/procurement/suppliers" class="tab-btn ${activeTab === 'suppliers' ? 'active' : ''}">Supplier Management</a>` : ''}
+                    ${canSeeRecords ? `<a href="#/procurement/records" class="tab-btn ${activeTab === 'records' ? 'active' : ''}">MRF Records</a>` : ''}
                 </div>
             </div>
         </div>
 
         <div style="max-width: 1600px; margin: 2rem auto 0; padding: 0 2rem;">
+            <!-- Request Section -->
+            <section id="request-section" class="section ${activeTab === 'request' ? 'active' : ''}">
+                ${activeTab === 'request' ? mrfFormModule.render('form') : ''}
+            </section>
+
             <!-- MRF Processing Section -->
             <section id="mrfs-section" class="section ${activeTab === 'mrfs' ? 'active' : ''}">
                 ${!showEditControls ? '<div class="view-only-notice"><span class="notice-icon">👁️</span> <span>View-only mode: You can view MRF data but cannot create or process MRFs.</span></div>' : ''}
@@ -1743,6 +2366,11 @@ export function render(activeTab = 'mrfs') {
                             <label>Phone *</label>
                             <input type="text" id="newPhone" required>
                         </div>
+                        <div class="form-group">
+                            <label>Categories *</label>
+                            ${renderCategoryPillControl('newCategoriesPills', [])}
+                            <small style="display: block; margin-top: 0.25rem; color: var(--gray-600); font-size: 0.8125rem;">Add at least one category (e.g. Electrical, Plumbing / Sanitary).</small>
+                        </div>
                         <div class="form-actions">
                             <button class="btn btn-secondary" onclick="window.toggleAddForm()">Cancel</button>
                             <button class="btn btn-success" onclick="window.addSupplier()">Add Supplier</button>
@@ -1750,12 +2378,12 @@ export function render(activeTab = 'mrfs') {
                     </div>
 
                     <!-- Supplier Search Filter Bar -->
-                    <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
+                    <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
                         <div class="form-group" style="margin: 0; flex: 2; min-width: 200px;">
                             <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Search</label>
                             <input type="text"
                                    id="supplierSearchInput"
-                                   placeholder="Search by supplier name or contact person..."
+                                   placeholder="Search by name, contact, or category..."
                                    oninput="window.applySupplierSearch()"
                                    style="width: 100%;">
                         </div>
@@ -1767,6 +2395,7 @@ export function render(activeTab = 'mrfs') {
                         <thead>
                             <tr>
                                 <th>Supplier Name</th>
+                                <th>Categories</th>
                                 <th>Contact Person</th>
                                 <th>Email</th>
                                 <th>Phone</th>
@@ -1795,10 +2424,11 @@ export function render(activeTab = 'mrfs') {
                                 <option value="">All Departments</option>
                                 <option value="projects">Projects</option>
                                 <option value="services">Services</option>
+                                <option value="my_requests">My Requests</option>
                             </select>
                             <button class="btn btn-secondary" onclick="window.exportPOTrackingCSV()">Export PO CSV</button>
                             <button class="btn btn-secondary" onclick="window.exportPRPORecordsCSV()">Export MRF CSV</button>
-                            <button class="btn btn-primary" onclick="window.loadPRPORecords()">🔄 Refresh</button>
+                            <button class="btn btn-primary" onclick="window.loadPRPORecords(true)">🔄 Refresh</button>
                         </div>
                     </div>
 
@@ -1808,22 +2438,22 @@ export function render(activeTab = 'mrfs') {
                             <!-- Materials Scoreboards -->
                             <div>
                                 <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Materials Procurement</div>
-                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
-                                    <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Pending</div>
-                                        <div id="scoreMaterialsPending" style="font-size: 1.75rem; font-weight: 700; color: #dc2626;">0</div>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                                    <div class="project-scorecard-card" data-group="materials" data-status="Pending Procurement" style="border-left: 3px solid #dc2626" onclick="window.handleMRFScorecardClick('materials', 'Pending Procurement'); event.stopPropagation()">
+                                        <span class="scorecard-label">Pending</span>
+                                        <span class="scorecard-count" id="scoreMaterialsPending">0</span>
                                     </div>
-                                    <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Procuring</div>
-                                        <div id="scoreMaterialsProcuring" style="font-size: 1.75rem; font-weight: 700; color: #ca8a04;">0</div>
+                                    <div class="project-scorecard-card" data-group="materials" data-status="Procuring" style="border-left: 3px solid #eab308" onclick="window.handleMRFScorecardClick('materials', 'Procuring'); event.stopPropagation()">
+                                        <span class="scorecard-label">Procuring</span>
+                                        <span class="scorecard-count" id="scoreMaterialsProcuring">0</span>
                                     </div>
-                                    <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Procured</div>
-                                        <div id="scoreMaterialsProcured" style="font-size: 1.75rem; font-weight: 700; color: #16a34a;">0</div>
+                                    <div class="project-scorecard-card" data-group="materials" data-status="Procured" style="border-left: 3px solid #22c55e" onclick="window.handleMRFScorecardClick('materials', 'Procured'); event.stopPropagation()">
+                                        <span class="scorecard-label">Procured</span>
+                                        <span class="scorecard-count" id="scoreMaterialsProcured">0</span>
                                     </div>
-                                    <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Delivered</div>
-                                        <div id="scoreMaterialsDelivered" style="font-size: 1.75rem; font-weight: 700; color: #2563eb;">0</div>
+                                    <div class="project-scorecard-card" data-group="materials" data-status="Delivered" style="border-left: 3px solid #3b82f6" onclick="window.handleMRFScorecardClick('materials', 'Delivered'); event.stopPropagation()">
+                                        <span class="scorecard-label">Delivered</span>
+                                        <span class="scorecard-count" id="scoreMaterialsDelivered">0</span>
                                     </div>
                                 </div>
                             </div>
@@ -1831,18 +2461,18 @@ export function render(activeTab = 'mrfs') {
                             <!-- Subcon Scoreboards -->
                             <div>
                                 <div style="font-size: 0.85rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">Subcon Processing</div>
-                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
-                                    <div style="background: linear-gradient(135deg, #fee 0%, #fcc 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(220, 38, 38, 0.1); border-left: 4px solid #dc2626;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Pending</div>
-                                        <div id="scoreSubconPending" style="font-size: 1.75rem; font-weight: 700; color: #dc2626;">0</div>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                                    <div class="project-scorecard-card" data-group="subcon" data-status="Pending" style="border-left: 3px solid #dc2626" onclick="window.handleMRFScorecardClick('subcon', 'Pending'); event.stopPropagation()">
+                                        <span class="scorecard-label">Pending</span>
+                                        <span class="scorecard-count" id="scoreSubconPending">0</span>
                                     </div>
-                                    <div style="background: linear-gradient(135deg, #fef9e7 0%, #fef3c7 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(234, 179, 8, 0.1); border-left: 4px solid #eab308;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Processing</div>
-                                        <div id="scoreSubconProcessing" style="font-size: 1.75rem; font-weight: 700; color: #ca8a04;">0</div>
+                                    <div class="project-scorecard-card" data-group="subcon" data-status="Processing" style="border-left: 3px solid #eab308" onclick="window.handleMRFScorecardClick('subcon', 'Processing'); event.stopPropagation()">
+                                        <span class="scorecard-label">Processing</span>
+                                        <span class="scorecard-count" id="scoreSubconProcessing">0</span>
                                     </div>
-                                    <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); padding: 1rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e; grid-column: span 2;">
-                                        <div style="font-size: 0.7rem; font-weight: 600; color: #14532d; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.35rem;">Processed</div>
-                                        <div id="scoreSubconProcessed" style="font-size: 1.75rem; font-weight: 700; color: #16a34a;">0</div>
+                                    <div class="project-scorecard-card" data-group="subcon" data-status="Processed" style="grid-column: span 2; border-left: 3px solid #22c55e" onclick="window.handleMRFScorecardClick('subcon', 'Processed'); event.stopPropagation()">
+                                        <span class="scorecard-label">Processed</span>
+                                        <span class="scorecard-count" id="scoreSubconProcessed">0</span>
                                     </div>
                                 </div>
                             </div>
@@ -1930,6 +2560,36 @@ export function render(activeTab = 'mrfs') {
  * @param {string} activeTab - Active tab to display
  */
 export async function init(activeTab = 'mrfs') {
+    // Default-tab fallthrough (D-01): if request sub-tab is not accessible, fall to first accessible tab
+    const canSeeRequest   = window.hasTabAccess?.('procurement_request') !== false;
+    const canSeeMrfs      = window.hasTabAccess?.('procurement_mrfs') !== false;
+    const canSeeSuppliers = window.hasTabAccess?.('procurement_suppliers') !== false;
+    const canSeeRecords   = window.hasTabAccess?.('procurement_records') !== false;
+
+    if (activeTab === 'request' && !canSeeRequest) {
+        if (canSeeMrfs) {
+            activeTab = 'mrfs';
+        } else if (canSeeSuppliers) {
+            activeTab = 'suppliers';
+        } else if (canSeeRecords) {
+            activeTab = 'records';
+        }
+        // If none are accessible, leave as 'request' — mrf-form.js canEdit check will handle view-only
+    }
+
+    // If switching away from request tab, tear down embedded mrf-form to prevent listener leaks (CR-03)
+    if (_requestSubTabActive && activeTab !== 'request') {
+        try { await mrfFormModule.destroy(); } catch (e) { console.error('[Procurement] mrfFormModule.destroy on tab-switch failed:', e); }
+        _requestSubTabActive = false;
+    }
+
+    // Request sub-tab: delegate entirely to mrf-form module
+    if (activeTab === 'request') {
+        _requestSubTabActive = true;
+        await mrfFormModule.init('form');
+        return;
+    }
+
     // Re-attach all window functions (needed after tab navigation)
     attachWindowFunctions();
 
@@ -1941,6 +2601,18 @@ export async function init(activeTab = 'mrfs') {
         };
         window.addEventListener('assignmentsChanged', assignmentChangeHandler);
         window._procurementAssignmentHandler = assignmentChangeHandler;
+    }
+
+    // Phase 91 — re-filter MRF Records when assignments change.
+    // Guard: only register once (init() called on every tab switch without destroy).
+    if (!window._procurementRecordsAssignmentHandler) {
+        const recordsAssignmentHandler = () => {
+            if (typeof reFilterAndRenderPRPORecords === 'function') {
+                reFilterAndRenderPRPORecords();
+            }
+        };
+        window.addEventListener('assignmentsChanged', recordsAssignmentHandler);
+        window._procurementRecordsAssignmentHandler = recordsAssignmentHandler;
     }
 
     try {
@@ -2069,14 +2741,33 @@ function closeSupplierHistoryModal() {
  * Cleanup when leaving the view
  */
 export async function destroy() {
+    // Tear down embedded mrf-form module when the request sub-tab was active
+    if (_requestSubTabActive) {
+        try {
+            await mrfFormModule.destroy();
+        } catch (e) {
+            console.error('[Procurement] mrfFormModule.destroy failed:', e);
+        }
+        _requestSubTabActive = false;
+    }
+
     // Phase 7: Remove assignment change listener
     if (window._procurementAssignmentHandler) {
         window.removeEventListener('assignmentsChanged', window._procurementAssignmentHandler);
         delete window._procurementAssignmentHandler;
     }
 
+    // Phase 91 — Remove Records-tab assignment change listener
+    if (window._procurementRecordsAssignmentHandler) {
+        window.removeEventListener('assignmentsChanged', window._procurementRecordsAssignmentHandler);
+        delete window._procurementRecordsAssignmentHandler;
+    }
+
     // Phase 7: Clear cached MRF data
     cachedAllMRFs = [];
+    // Phase 91: Clear cached Records data
+    cachedAllPRPORecords = [];
+    cachedAllPOData = [];
 
     // Unsubscribe from all Firebase listeners
     listeners.forEach(unsubscribe => {
@@ -2133,8 +2824,14 @@ export async function destroy() {
     delete window.deleteSupplier;
     delete window.changeSuppliersPage;
     delete window.applySupplierSearch;
+    delete window.filterCategoryCombo;
+    delete window.categoryComboKeydown;
+    delete window.commitCategoryCombo;
+    delete window.addCategoryPill;
+    delete window.removeCategoryPill;
     delete window.loadPRPORecords;
     delete window.filterPRPORecords;
+    delete window.handleMRFScorecardClick;
     delete window.goToPRPOPage;
     delete window.viewPRDetails;
     delete window.viewTRDetails;
@@ -2177,7 +2874,10 @@ export async function destroy() {
     delete window.cancelMRFPRs;
     delete window.cancelRFPDocument;
     activePODeptFilter = '';
+    activeMaterialsFilter = null;
+    activeSubconFilter = null;
     cachedRejectedTRs = [];
+    _requestSubTabActive = false;
 }
 
 // ========================================
@@ -2192,11 +2892,27 @@ async function loadServicesForNewMRF() {
         return; // Use cached data
     }
     try {
-        const q = query(collection(db, 'services'), where('active', '==', true));
+        // operations_user is project-scoped — no service types in their MRF form
+        const assignedServiceCodes = window.getAssignedServiceCodes?.();
+        if (assignedServiceCodes !== null && assignedServiceCodes.length === 0) return;
+
+        let q;
+        if (assignedServiceCodes !== null) {
+            // services_user: scope to assigned codes (mirrors mrf-form.js loadServices pattern)
+            q = query(collection(db, 'services'), where('service_code', 'in', assignedServiceCodes));
+        } else {
+            // Admin/finance/procurement/operations_user with list access: unscoped active filter
+            const user = window.getCurrentUser?.();
+            if (user?.role === 'operations_user') return;
+            q = query(collection(db, 'services'), where('active', '==', true));
+        }
         const snapshot = await getDocs(q);
         cachedServicesForNewMRF = [];
         snapshot.forEach(docSnap => {
-            cachedServicesForNewMRF.push({ id: docSnap.id, ...docSnap.data() });
+            const data = docSnap.data();
+            // Phase 88 D-05 — Draft services are pre-proposal; not eligible for MRF operations.
+            if (data.project_status === 'Draft') return;
+            cachedServicesForNewMRF.push({ id: docSnap.id, ...data });
         });
         // Sort alphabetically A-Z by service code
         cachedServicesForNewMRF.sort((a, b) => (a.service_code || '').localeCompare(b.service_code || ''));
@@ -2219,7 +2935,10 @@ async function loadProjects() {
         const listener = onSnapshot(q, (snapshot) => {
             projectsData = [];
             snapshot.forEach(doc => {
-                projectsData.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                // Phase 88 D-05 — Draft projects are pre-proposal; not eligible for MRF/PR/PO operations.
+                if (data.project_status === 'Draft') return;
+                projectsData.push({ id: doc.id, ...data });
             });
 
             // Sort alphabetically A-Z by project code
@@ -2265,14 +2984,18 @@ async function loadMRFs() {
         // Cache raw data for re-filtering on assignment change (Phase 7)
         cachedAllMRFs = [...allMRFs];
 
-        // Phase 7: Scope MRF list to assigned projects for operations_user.
-        // Runs BEFORE the material/transport split so both lists are filtered.
+        // Scope MRF list to assigned projects/services before material/transport split.
         const assignedCodes = window.getAssignedProjectCodes?.();
         let scopedMRFs = allMRFs;
         if (assignedCodes !== null) {
             scopedMRFs = allMRFs.filter(mrf =>
-                // Defensively include legacy MRFs that lack project_code (pre-Phase-4 data)
-                !mrf.project_code || assignedCodes.includes(mrf.project_code)
+                assignedCodes.includes(mrf.project_code)
+            );
+        }
+        const assignedServiceCodes = window.getAssignedServiceCodes?.();
+        if (assignedServiceCodes !== null) {
+            scopedMRFs = scopedMRFs.filter(mrf =>
+                assignedServiceCodes.includes(mrf.service_code)
             );
         }
 
@@ -2339,7 +3062,13 @@ function reFilterAndRenderMRFs() {
     let scopedMRFs = cachedAllMRFs;
     if (assignedCodes !== null) {
         scopedMRFs = cachedAllMRFs.filter(mrf =>
-            !mrf.project_code || assignedCodes.includes(mrf.project_code)
+            assignedCodes.includes(mrf.project_code)
+        );
+    }
+    const assignedServiceCodes = window.getAssignedServiceCodes?.();
+    if (assignedServiceCodes !== null) {
+        scopedMRFs = scopedMRFs.filter(mrf =>
+            assignedServiceCodes.includes(mrf.service_code)
         );
     }
 
@@ -2356,6 +3085,31 @@ function reFilterAndRenderMRFs() {
     transportMRFs.sort(sortByDeadline);
 
     renderMRFList(materialMRFs, transportMRFs);
+}
+
+// Phase 91 — re-scope MRF Records on assignmentsChanged without a Firestore round-trip.
+function reFilterAndRenderPRPORecords() {
+    const assignedCodes = window.getAssignedProjectCodes?.();
+    const assignedServiceCodes = window.getAssignedServiceCodes?.();
+    let scoped = [...cachedAllPRPORecords];
+    if (assignedCodes !== null) {
+        scoped = scoped.filter(mrf =>
+            assignedCodes.includes(mrf.project_code)
+        );
+    }
+    if (assignedServiceCodes !== null) {
+        scoped = scoped.filter(mrf =>
+            assignedServiceCodes.includes(mrf.service_code)
+        );
+    }
+    allPRPORecords = scoped;
+    // Phase 91 UAT Bug 3 — keep the PO scoreboards in sync with the re-scoped
+    // MRF set so assignment changes refresh the visible counts without a
+    // Firestore round-trip. Set is built from mrf.mrf_id (human-readable
+    // code) to match po.mrf_id's join key.
+    const visibleMrfIds = new Set(allPRPORecords.map(m => m.mrf_id).filter(Boolean));
+    updatePOScoreboards(cachedAllPOData.filter(po => visibleMrfIds.has(po.mrf_id)));
+    filterPRPORecords();
 }
 
 /**
@@ -3796,8 +4550,9 @@ async function saveNewMRF() {
             service_code: hasService ? serviceCode : '',
             service_name: hasService ? serviceName : '',
             requestor_name: requestorName,
+            requestor_user_id: window.getCurrentUser?.()?.uid ?? null,   // Phase 84 D-01
             date_needed: dateNeeded,
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             delivery_address: deliveryAddress,
             items_json: JSON.stringify(items),
             status: 'Pending',
@@ -3807,6 +4562,24 @@ async function saveNewMRF() {
         // Save to Firebase
         await addDoc(mrfsRef, mrfDoc);
         _prpoRecordsCachedAt = 0; // Invalidate Records tab cache so new MRF appears immediately
+
+        // Phase 84.1 NOTIF-14: broadcast new MRF to all active procurement users (fire-and-forget)
+        try {
+            const projectOrServiceLabel = mrfDoc.project_name || mrfDoc.service_name || 'Unknown';
+            await createNotificationForRoles({
+                roles: ['procurement'],
+                type: NOTIFICATION_TYPES.MRF_SUBMITTED,
+                message: `New MRF ${mrfId} for ${projectOrServiceLabel} needs processing`,
+                link: '#/procurement/mrfs',
+                source_collection: 'mrfs',
+                source_id: mrfId,
+                object_name: projectOrServiceLabel,
+                actor_name: window.getCurrentUser?.()?.full_name || 'System',
+                excludeActor: true
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-14 broadcast failed:', notifErr);
+        }
 
         showToast(`New MRF created successfully! MRF ID: ${mrfId}`, 'success');
 
@@ -4116,6 +4889,25 @@ async function deleteMRF() {
 };
 
 /**
+ * Resolve the requestor UID for notification delivery (Phase 84 D-02).
+ * Returns mrf.requestor_user_id if present (stamped on new MRFs by Plan 01).
+ * Returns null for legacy MRFs that lack the field — name-based lookup is
+ * intentionally omitted because full_name is non-unique (CR-02).
+ * @param {object} mrf - MRF document data with optional requestor_user_id
+ * @returns {Promise<string|null>}
+ */
+async function resolveRequestorUid(mrf) {
+    if (mrf.requestor_user_id) return mrf.requestor_user_id;
+    // CR-02: Do NOT fall back to full_name lookup — full_name is non-unique and
+    // returning snap.docs[0] could deliver a notification to the wrong user.
+    // Legacy MRFs (pre-Phase 84) that lack requestor_user_id will silently skip
+    // the notification. This is preferable to a privacy mis-delivery.
+    console.warn('[Procurement] resolveRequestorUid: no requestor_user_id on MRF', mrf.mrf_id,
+        '— notification suppressed. This MRF predates Phase 84 D-01 stamping.');
+    return null;
+}
+
+/**
  * Reject MRF - soft-reject by setting status='Rejected' with a reason.
  * Preserves the MRF and all linked PRs/TRs in Firestore for audit trail.
  */
@@ -4144,6 +4936,9 @@ async function rejectMRF() {
 
     showLoading(true);
     try {
+        // Capture MRF fields BEFORE nullification (Phase 84 — NOTIF-07 needs these)
+        const rejectedMrfSnap = { ...currentMRF };
+
         const mrfRef = doc(db, 'mrfs', currentMRF.id);
         await updateDoc(mrfRef, {
             status: 'Rejected',
@@ -4151,6 +4946,25 @@ async function rejectMRF() {
             rejected_by: 'Procurement',
             rejected_at: new Date().toISOString()
         });
+
+        // Phase 84 NOTIF-07: notify requestor of MRF rejection (D-03: fire-and-forget)
+        try {
+            const requestorUid = await resolveRequestorUid(rejectedMrfSnap);
+            if (requestorUid) {
+                await createNotification({
+                    user_id: requestorUid,
+                    type: NOTIFICATION_TYPES.MRF_REJECTED,
+                    message: `Your MRF ${rejectedMrfSnap.mrf_id} has been rejected by Procurement${reason && reason.trim() ? `: ${reason.trim()}` : ''}`,
+                    link: '#/procurement/mrfs',
+                    source_collection: 'mrfs',
+                    source_id: rejectedMrfSnap.mrf_id,
+                    object_name: rejectedMrfSnap.project_name || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-07 rejectMRF notification failed:', notifErr);
+        }
 
         currentMRF = null;
 
@@ -4225,7 +5039,7 @@ function renderSuppliersTable() {
         const message = term
             ? 'No suppliers match your search.'
             : 'No suppliers yet. Add your first supplier!';
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem;">${message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem;">${message}</td></tr>`;
         const paginationDiv = document.getElementById('suppliersPagination');
         if (paginationDiv) paginationDiv.style.display = 'none';
         return;
@@ -4237,17 +5051,37 @@ function renderSuppliersTable() {
     const endIndex = Math.min(startIndex + suppliersItemsPerPage, filteredSuppliersData.length);
     const pageItems = filteredSuppliersData.slice(startIndex, endIndex);
 
+    // Display-only category pills: reuse .personnel-pill class for visual parity with
+    // inline-edit row, but omit the .pill-remove button (read-only context).
+    // Em-dash for empty/missing per D-06.
+    const renderCategoryDisplay = (cats) => {
+        if (!Array.isArray(cats) || cats.length === 0) {
+            return '<span style="color: #94a3b8;">—</span>';
+        }
+        return cats.map(c =>
+            `<span class="personnel-pill" style="margin: 0.125rem; max-width: none;">${escapeHTML(c)}</span>`
+        ).join('');
+    };
+
     tbody.innerHTML = pageItems.map(supplier => {
         if (editingSupplier === supplier.id) {
+            const editStateId = `edit-categories-${supplier.id}`;
+            // Initialize state for this row's pill control. Idempotent — re-init on every
+            // re-render is safe because the user can only edit one row at a time and
+            // cancelEdit clears it. Legacy rows without a categories array land as [].
+            setCategoryPillState(editStateId, Array.isArray(supplier.categories) ? supplier.categories : []);
             return `
                 <tr class="edit-row">
                     <td><input type="text" value="${escapeHTML(supplier.supplier_name)}" id="edit-name"></td>
+                    <td style="vertical-align: middle;">${renderCategoryPillControl(editStateId, _categoryPillState.get(editStateId) || [])}</td>
                     <td><input type="text" value="${escapeHTML(supplier.contact_person)}" id="edit-contact"></td>
                     <td><input type="email" value="${escapeHTML(supplier.email)}" id="edit-email"></td>
                     <td><input type="text" value="${escapeHTML(supplier.phone)}" id="edit-phone"></td>
                     <td class="actions">
-                        <button class="btn btn-success" onclick="window.saveEdit('${supplier.id}')">Save</button>
-                        <button class="btn btn-secondary" onclick="window.cancelEdit()">Cancel</button>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-success" onclick="window.saveEdit('${supplier.id}')">Save</button>
+                            <button class="btn btn-secondary" onclick="window.cancelEdit()">Cancel</button>
+                        </div>
                     </td>
                 </tr>
             `;
@@ -4255,14 +5089,16 @@ function renderSuppliersTable() {
             return `
                 <tr>
                     <td class="clickable-supplier" onclick="window.showSupplierPurchaseHistory('${escapeHTML(supplier.supplier_name)}')">${escapeHTML(supplier.supplier_name)}</td>
+                    <td>${renderCategoryDisplay(supplier.categories)}</td>
                     <td>${escapeHTML(supplier.contact_person)}</td>
                     <td>${escapeHTML(supplier.email)}</td>
                     <td>${escapeHTML(supplier.phone)}</td>
                     <td class="actions">
                         ${showEditControls ? `
-                        <button class="icon-btn" onclick="window.editSupplier('${supplier.id}')">Edit</button>
-                        <button class="icon-btn" onclick="window.deleteSupplier('${supplier.id}', '${escapeHTML(supplier.supplier_name)}')">Delete</button>
-                        ` : '<span class="view-only-badge">View Only</span>'}
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="icon-btn" onclick="window.editSupplier('${supplier.id}')">Edit</button>
+                            <button class="icon-btn" onclick="window.deleteSupplier('${supplier.id}', '${escapeHTML(supplier.supplier_name)}')">Delete</button>
+                        </div>` : '<span class="view-only-badge">View Only</span>'}
                     </td>
                 </tr>
             `;
@@ -4278,6 +5114,8 @@ function toggleAddForm() {
     const form = document.getElementById('addSupplierForm');
     if (form.style.display === 'none') {
         form.style.display = 'block';
+        setCategoryPillState('newCategoriesPills', []);
+        rerenderCategoryPillControl('newCategoriesPills');
     } else {
         form.style.display = 'none';
         clearAddForm();
@@ -4289,6 +5127,9 @@ function clearAddForm() {
     document.getElementById('newContactPerson').value = '';
     document.getElementById('newEmail').value = '';
     document.getElementById('newPhone').value = '';
+    clearCategoryPillState('newCategoriesPills');
+    setCategoryPillState('newCategoriesPills', []);
+    rerenderCategoryPillControl('newCategoriesPills');
 }
 
 async function addSupplier() {
@@ -4307,6 +5148,13 @@ async function addSupplier() {
         return;
     }
 
+    // D-02: Add form requires ≥1 category pill
+    const categories = getCategoryPillState('newCategoriesPills');
+    if (categories.length === 0) {
+        showToast('Please add at least one category', 'error');
+        return;
+    }
+
     showLoading(true);
 
     try {
@@ -4315,6 +5163,7 @@ async function addSupplier() {
             contact_person,
             email,
             phone,
+            categories,
             created_at: new Date().toISOString()
         });
 
@@ -4339,6 +5188,9 @@ function editSupplier(supplierId) {
 };
 
 function cancelEdit() {
+    if (editingSupplier) {
+        clearCategoryPillState(`edit-categories-${editingSupplier}`);
+    }
     editingSupplier = null;
     renderSuppliersTable();
 };
@@ -4359,6 +5211,9 @@ async function saveEdit(supplierId) {
         return;
     }
 
+    // D-02: Edit allows empty categories (legacy rows can be saved without forced encoding)
+    const categories = getCategoryPillState(`edit-categories-${supplierId}`);
+
     showLoading(true);
 
     try {
@@ -4368,10 +5223,12 @@ async function saveEdit(supplierId) {
             contact_person,
             email,
             phone,
+            categories,
             updated_at: new Date().toISOString()
         });
 
         showToast('Supplier updated successfully', 'success');
+        clearCategoryPillState(`edit-categories-${supplierId}`);
         editingSupplier = null;
         renderSuppliersTable();
     } catch (error) {
@@ -4407,12 +5264,15 @@ async function deleteSupplier(supplierId, supplierName) {
 
 function applySupplierSearch() {
     const term = document.getElementById('supplierSearchInput')?.value?.toLowerCase() || '';
+
     filteredSuppliersData = !term
         ? [...suppliersData]
         : suppliersData.filter(s =>
             (s.supplier_name && s.supplier_name.toLowerCase().includes(term)) ||
-            (s.contact_person && s.contact_person.toLowerCase().includes(term))
+            (s.contact_person && s.contact_person.toLowerCase().includes(term)) ||
+            (Array.isArray(s.categories) && s.categories.some(c => typeof c === 'string' && c.toLowerCase().includes(term)))
           );
+
     suppliersCurrentPage = 1;
     renderSuppliersTable();
 }
@@ -4484,12 +5344,21 @@ function updateSuppliersPaginationControls(totalPages, startIndex, endIndex, tot
 /**
  * Load MRF Records (combines MRFs, PRs, and POs)
  */
-async function loadPRPORecords() {
+async function loadPRPORecords(force = false) {
     // If records are cached and fresh, render from cache (no Firestore fetch, no loading overlay)
-    if (allPRPORecords.length > 0 && (Date.now() - _prpoRecordsCachedAt) < CACHE_TTL_MS) {
-        filteredPRPORecords = [...allPRPORecords];
-        prpoCurrentPage = 1;
-        await renderPRPORecords();
+    if (!force && cachedAllPRPORecords.length > 0 && (Date.now() - _prpoRecordsCachedAt) < CACHE_TTL_MS) {
+        // Re-apply scope filters from cache so stale assignment data does not leak
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        const assignedServiceCodes = window.getAssignedServiceCodes?.();
+        let scoped = [...cachedAllPRPORecords];
+        if (assignedCodes !== null) {
+            scoped = scoped.filter(mrf => assignedCodes.includes(mrf.project_code));
+        }
+        if (assignedServiceCodes !== null) {
+            scoped = scoped.filter(mrf => assignedServiceCodes.includes(mrf.service_code));
+        }
+        allPRPORecords = scoped;
+        filterPRPORecords();
         return;
     }
 
@@ -4530,6 +5399,23 @@ async function loadPRPORecords() {
             return prpoSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
         });
 
+        // Phase 91 — cache raw set before applying project-scope filter
+        cachedAllPRPORecords = [...allPRPORecords];
+
+        // Apply project-scope for operations_user; service-scope for services_user
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        if (assignedCodes !== null) {
+            allPRPORecords = allPRPORecords.filter(mrf =>
+                assignedCodes.includes(mrf.project_code)
+            );
+        }
+        const assignedServiceCodes = window.getAssignedServiceCodes?.();
+        if (assignedServiceCodes !== null) {
+            allPRPORecords = allPRPORecords.filter(mrf =>
+                assignedServiceCodes.includes(mrf.service_code)
+            );
+        }
+
         // Fetch all POs for scoreboard
         const posRef = collection(db, 'pos');
         const posSnapshot = await getDocs(posRef);
@@ -4537,15 +5423,20 @@ async function loadPRPORecords() {
         posSnapshot.forEach((doc) => {
             allPOData.push({ id: doc.id, ...doc.data() });
         });
+        // Phase 91 UAT Bug 3 — cache the raw PO set so reFilterAndRenderPRPORecords
+        // can re-scope without re-fetching.
+        cachedAllPOData = allPOData;
 
-        // Update scoreboards
-        updatePOScoreboards(allPOData);
+        // Scope scoreboard input to POs tied to MRFs the user can see.
+        // POs join to MRFs via the human-readable mrf_id string (see
+        // procurement.js:915, 3380, 4395, 5313, 5531 — every PO↔MRF query
+        // uses where('mrf_id', '==', mrf.mrf_id)), so build the Set from
+        // mrf.mrf_id, NOT the Firestore doc id.
+        const visibleMrfIds = new Set(allPRPORecords.map(m => m.mrf_id).filter(Boolean));
+        updatePOScoreboards(allPOData.filter(po => visibleMrfIds.has(po.mrf_id)));
 
-        filteredPRPORecords = [...allPRPORecords];
-        prpoCurrentPage = 1;
         _prpoRecordsCachedAt = Date.now();
-
-        renderPRPORecords();
+        filterPRPORecords();
     } catch (error) {
         console.error('Error loading PR-PO records:', error);
         showToast('Error loading PR-PO records', 'error');
@@ -4615,10 +5506,27 @@ function filterPRPORecords() {
     const mrfStatusFilter = document.getElementById('histStatusFilter')?.value || '';
     const poStatusFilter = document.getElementById('poStatusFilter')?.value || '';
 
+    const materialFilterMrfIds = activeMaterialsFilter
+        ? new Set(cachedAllPOData
+            .filter(po => !po.is_subcon && (po.procurement_status || 'Pending Procurement') === activeMaterialsFilter)
+            .map(po => po.mrf_id).filter(Boolean))
+        : null;
+    const subconFilterMrfIds = activeSubconFilter
+        ? new Set(cachedAllPOData
+            .filter(po => po.is_subcon && (po.procurement_status || 'Pending') === activeSubconFilter)
+            .map(po => po.mrf_id).filter(Boolean))
+        : null;
+
     filteredPRPORecords = allPRPORecords.filter(mrf => {
-        // Department filter
-        const mrfDept = mrf.department || (mrf.service_code ? 'services' : 'projects');
-        const matchesDept = !activePODeptFilter || mrfDept === activePODeptFilter;
+        // Department filter — includes my_requests branch (Phase 91)
+        let matchesDept;
+        if (activePODeptFilter === 'my_requests') {
+            const uid = window.getCurrentUser?.()?.uid;
+            matchesDept = uid ? mrf.requestor_user_id === uid : false;
+        } else {
+            const mrfDept = mrf.department || (mrf.service_code ? 'services' : 'projects');
+            matchesDept = !activePODeptFilter || mrfDept === activePODeptFilter;
+        }
 
         // Search filter
         const matchesSearch = !searchInput ||
@@ -4630,9 +5538,19 @@ function filterPRPORecords() {
         // MRF status filter
         const matchesMRFStatus = !mrfStatusFilter || mrf.status === mrfStatusFilter;
 
-        return matchesDept && matchesSearch && matchesMRFStatus;
+        // Scorecard filters (Phase 91.2 — OR semantics across groups: when both
+        // Materials and Subcon cards are active, an MRF matches if it belongs to
+        // EITHER filtered set, not both. Non-scorecard filters (dept/search/status)
+        // still AND with this union.)
+        const anyScorecardActive = materialFilterMrfIds || subconFilterMrfIds;
+        const matchesScorecards = !anyScorecardActive ||
+            (materialFilterMrfIds && materialFilterMrfIds.has(mrf.mrf_id)) ||
+            (subconFilterMrfIds && subconFilterMrfIds.has(mrf.mrf_id));
+
+        return matchesDept && matchesSearch && matchesMRFStatus && matchesScorecards;
     });
 
+    renderMRFScorecardActive();
     prpoCurrentPage = 1;
     renderPRPORecords();
 }
@@ -5166,7 +6084,7 @@ async function renderPRPORecords() {
                                 const dfTotalPaid = (dfRFPs[0].payment_records || [])
                                     .filter(r => r.status !== 'voided')
                                     .reduce((sum, r) => sum + (r.amount || 0), 0);
-                                const dfPaid = dfTotalPaid >= dfRFPs[0].amount_requested && dfRFPs[0].amount_requested > 0;
+                                const dfPaid = dfTotalPaid >= getRFPTotal(dfRFPs[0]) && getRFPTotal(dfRFPs[0]) > 0;
                                 chipDotColor = dfPaid ? '#059669' : '#f59e0b';
                                 chipDotLabel = dfPaid ? 'Paid' : 'RFP submitted, not yet paid';
                             }
@@ -5684,6 +6602,9 @@ async function submitTransportRequest() {
             service_name: mrfData.service_name || '',
             department: mrfData.department || 'projects',
             requestor_name: mrfData.requestor_name,
+            // Phase 84.1: track TR creator (procurement actor) for NOTIF-17 routing
+            tr_creator_user_id: window.getCurrentUser?.()?.uid ?? null,
+            tr_creator_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
             urgency_level: mrfData.urgency_level || 'Low',
             supplier_name: primarySupplier,
             delivery_address: deliveryAddress,
@@ -5692,7 +6613,7 @@ async function submitTransportRequest() {
             cost: totalCost,
             total_amount: totalCost,
             finance_status: 'Pending',
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             created_at: new Date().toISOString()
         });
 
@@ -5704,6 +6625,22 @@ async function submitTransportRequest() {
             items_json: JSON.stringify(trItems),
             updated_at: new Date().toISOString()
         });
+
+        // Phase 84 NOTIF-08: notify Finance of new TR needing review (D-03: fire-and-forget)
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.TR_REVIEW_NEEDED,
+                message: `New TR pending Finance review for MRF ${mrfData.mrf_id}: ${trId}`,
+                link: '#/finance/pending',
+                source_collection: 'transport_requests',
+                source_id: trId,
+                object_name: mrfData.project_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 submitTransportRequest notification failed:', notifErr);
+        }
 
         showToast(`Transport Request submitted successfully! TR ID: ${trId}`, 'success');
 
@@ -5986,6 +6923,43 @@ async function generatePR() {
             rejected_pr_id: null,
             is_rejected: false
         });
+
+        // Phase 84 NOTIF-07: notify requestor of MRF approval (D-03: fire-and-forget)
+        try {
+            const requestorUid = await resolveRequestorUid(mrfData);
+            if (requestorUid) {
+                const firstPrId = generatedPRIds[0] || '';
+                await createNotification({
+                    user_id: requestorUid,
+                    type: NOTIFICATION_TYPES.MRF_APPROVED,
+                    message: `Your MRF ${mrfData.mrf_id} has been approved${firstPrId ? ` — ${firstPrId} created` : ''}`,
+                    link: '#/procurement/records',
+                    source_collection: 'mrfs',
+                    source_id: mrfData.mrf_id,
+                    object_name: mrfData.project_name || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-07 generatePR notification failed:', notifErr);
+        }
+
+        // Phase 84 NOTIF-08: notify Finance of new PR(s) needing review (D-03: fire-and-forget)
+        try {
+            const prListStr = generatedPRIds.join(', ') || 'PR';
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.PR_REVIEW_NEEDED,
+                message: `New PR(s) pending Finance review for MRF ${mrfData.mrf_id}: ${prListStr}`,
+                link: '#/finance/pending',
+                source_collection: 'prs',
+                source_id: generatedPRIds[0] || '',
+                object_name: mrfData.project_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 generatePR notification failed:', notifErr);
+        }
 
         // Build success message
         const msgParts = [];
@@ -6299,6 +7273,9 @@ async function generatePRandTR() {
             service_name: mrfData.service_name || '',
             department: mrfData.department || 'projects',
             requestor_name: mrfData.requestor_name,
+            // Phase 84.1: track TR creator (procurement actor) for NOTIF-17 routing
+            tr_creator_user_id: window.getCurrentUser?.()?.uid ?? null,
+            tr_creator_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
             urgency_level: mrfData.urgency_level || 'Low',
             supplier_name: primarySupplier,
             delivery_address: deliveryAddress,
@@ -6307,7 +7284,7 @@ async function generatePRandTR() {
             cost: trTotalCost,
             total_amount: trTotalCost,
             finance_status: 'Pending',
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             created_at: new Date().toISOString()
         });
 
@@ -6323,6 +7300,57 @@ async function generatePRandTR() {
             rejected_pr_id: null,
             is_rejected: false
         });
+
+        // Phase 84 NOTIF-07: notify requestor of MRF approval (D-03: fire-and-forget)
+        try {
+            const requestorUid = await resolveRequestorUid(mrfData);
+            if (requestorUid) {
+                const firstPrId = generatedPRIds[0] || '';
+                await createNotification({
+                    user_id: requestorUid,
+                    type: NOTIFICATION_TYPES.MRF_APPROVED,
+                    message: `Your MRF ${mrfData.mrf_id} has been approved${firstPrId ? ` — ${firstPrId} + TR ${trId} created` : ''}`,
+                    link: '#/procurement/records',
+                    source_collection: 'mrfs',
+                    source_id: mrfData.mrf_id,
+                    object_name: mrfData.project_name || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-07 generatePRandTR notification failed:', notifErr);
+        }
+
+        // Phase 84 NOTIF-08: notify Finance of new PR(s) and TR needing review (D-03: fire-and-forget)
+        try {
+            const prListStr = generatedPRIds.join(', ') || 'PR';
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.PR_REVIEW_NEEDED,
+                message: `New PR(s) pending Finance review for MRF ${mrfData.mrf_id}: ${prListStr}`,
+                link: '#/finance/pending',
+                source_collection: 'prs',
+                source_id: generatedPRIds[0] || '',
+                object_name: mrfData.project_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 generatePRandTR PR notification failed:', notifErr);
+        }
+        try {
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.TR_REVIEW_NEEDED,
+                message: `New TR pending Finance review for MRF ${mrfData.mrf_id}: ${trId}`,
+                link: '#/finance/pending',
+                source_collection: 'transport_requests',
+                source_id: trId,
+                object_name: mrfData.project_name || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
+            });
+        } catch (notifErr) {
+            console.error('[Procurement] NOTIF-08 generatePRandTR TR notification failed:', notifErr);
+        }
 
         // Build success message
         const prMsg = generatedPRIds.length === 1
@@ -6360,10 +7388,13 @@ async function generatePRandTR() {
  */
 async function loadPOTracking() {
     if (_poTrackingListenerActive) {
-        // Listener already registered — re-render from cached data
+        // Listener already registered — re-render from cached data.
+        // renderPOTrackingTable also writes the scoreboard DOM (and applies
+        // the MRF-scope filter when on the Records tab), so no separate
+        // updatePOScoreboards call is needed here — it would only undo the
+        // scope by passing the full unscoped poData.
         if (poData.length > 0) {
             renderPOTrackingTable(poData);
-            updatePOScoreboards(poData);
         }
         return;
     }
@@ -6497,9 +7528,21 @@ function renderPOTrackingTable(pos) {
     const showEditControls = canEdit !== false;
 
     // Filter POs by department if active, then calculate scoreboard counts
-    const scoreboardPos = activePODeptFilter
+    let scoreboardPos = activePODeptFilter
         ? pos.filter(po => (po.department || 'projects') === activePODeptFilter)
         : pos;
+
+    // Phase 91 UAT Bug 3 — when rendering for the MRF Records tab (no PO
+    // table body, scoreboards only), scope the scoreboard input to POs tied
+    // to MRFs the current user can see. allPRPORecords is the source of
+    // truth for "visible MRFs" — it was populated and scoped by
+    // loadPRPORecords/reFilterAndRenderPRPORecords before this function ran.
+    // Skip scoping on the PO Tracking tab (tbody present) — that tab has
+    // its own access-control contract and lists all POs.
+    if (!tbody) {
+        const visibleMrfIds = new Set(allPRPORecords.map(m => m.mrf_id).filter(Boolean));
+        scoreboardPos = scoreboardPos.filter(po => visibleMrfIds.has(po.mrf_id));
+    }
 
     const materialCounts = {
         pending: 0,      // Pending Procurement
@@ -6648,7 +7691,7 @@ function renderPOTrackingTable(pos) {
                 const dfTotalPaid = (dfRfp.payment_records || [])
                     .filter(r => r.status !== 'voided')
                     .reduce((sum, r) => sum + (r.amount || 0), 0);
-                const dfPaid = dfTotalPaid >= dfRfp.amount_requested && dfRfp.amount_requested > 0;
+                const dfPaid = dfTotalPaid >= getRFPTotal(dfRfp) && getRFPTotal(dfRfp) > 0;
                 dotColor = dfPaid ? '#059669' : '#f59e0b';
                 dotLabel = dfPaid ? 'Paid' : 'RFP submitted, not yet paid';
             }
@@ -6854,6 +7897,124 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
         }
 
         await updateDoc(poRef, updateData);
+
+        // Cache coherency — mirror the Firestore write into the in-memory caches
+        // that feed the MRF Records render. Without this, the 🔄 button's cache-hit
+        // path serves a stale snapshot and the dropdown reverts to the pre-update
+        // value. Mirrors the precedents at procurement.js cancelPRorTR (~1041) and
+        // _proofOnSaved (~1930).
+        const cachedPO = cachedAllPOData.find(p => p.id === poId);
+        if (cachedPO) {
+            Object.assign(cachedPO, updateData);
+        }
+        for (const [, sub] of _prpoSubDataCache) {
+            const subPO = sub.poDataArray?.find(p => p.docId === poId);
+            if (subPO) {
+                subPO.procurement_status = newStatus;
+                if (updateData.delivery_fee !== undefined) {
+                    subPO.delivery_fee = updateData.delivery_fee;
+                }
+                break;
+            }
+        }
+
+        // Phase 84.1 NOTIF-18: notify MRF requestor + PO creator on Delivered (material POs only;
+        // subcon POs terminate at 'Processed' and are out of NOTIF-18 scope by design). Fire-and-forget per D-03.
+        // Local variable named poDataFresh (not poData) to avoid shadowing the module-scope poData array.
+        if (newStatus === 'Delivered' && !isSubcon) {
+            try {
+                // Re-fetch PO to get pristine post-update fields (po_creator_user_id, mrf_id)
+                const poDocFresh = await getDoc(poRef);
+                const poDataFresh = poDocFresh.data() || {};
+                const recipients = [];
+
+                // Recipient 1: PO creator (procurement user who originally generated the PR)
+                if (poDataFresh.po_creator_user_id) recipients.push(poDataFresh.po_creator_user_id);
+
+                // Recipient 2: MRF requestor (resolved via existing helper)
+                if (poDataFresh.mrf_id) {
+                    const mrfQ = query(collection(db, 'mrfs'), where('mrf_id', '==', poDataFresh.mrf_id));
+                    const mrfSnap = await getDocs(mrfQ);
+                    if (!mrfSnap.empty) {
+                        const mrfDocSnap = mrfSnap.docs[0];
+                        const requestorUid = await resolveRequestorUid({ ...mrfDocSnap.data() });
+                        if (requestorUid) recipients.push(requestorUid);
+                    }
+                }
+
+                if (recipients.length > 0) {
+                    await createNotificationForUsers({
+                        user_ids: recipients,
+                        type: NOTIFICATION_TYPES.PO_DELIVERED,
+                        message: `PO ${poDataFresh.po_id} for MRF ${poDataFresh.mrf_id || ''} has been Delivered`,
+                        link: '#/procurement/records',
+                        source_collection: 'pos',
+                        source_id: poDataFresh.po_id || '',
+                        object_name: poDataFresh.supplier_name || '',
+                        actor_name: 'System',
+                        excludeActor: true
+                    });
+                }
+            } catch (notifErr) {
+                console.error('[Procurement] NOTIF-18 PO Delivered notification failed:', notifErr);
+            }
+
+            // Phase 101 D-08: auto-post system Feed entry to the owning project's activity_entries.
+            // POs carry NO project_id — resolve the project by traversal:
+            //   poDataFresh.mrf_id → mrfs query → MRF.project_name → projects query → projectDocId
+            try {
+                if (poDataFresh.mrf_id) {
+                    const mrfQ = query(collection(db, 'mrfs'), where('mrf_id', '==', poDataFresh.mrf_id));
+                    const mrfSnap = await getDocs(mrfQ);
+                    if (!mrfSnap.empty) {
+                        const mrfData = mrfSnap.docs[0].data();
+                        const projectName = mrfData.project_name;
+                        if (projectName) {
+                            const projQ = query(collection(db, 'projects'), where('project_name', '==', projectName));
+                            const projSnap = await getDocs(projQ);
+                            if (!projSnap.empty) {
+                                const projectDocId = projSnap.docs[0].id;
+                                await addDoc(collection(db, 'projects', projectDocId, 'activity_entries'), {
+                                    type: 'system',
+                                    is_system: true,
+                                    text: `PO ${escapeHTML(poDataFresh.po_id || poId)} from ${escapeHTML(poDataFresh.supplier_name || 'Unknown Supplier')} marked Delivered`,
+                                    created_by_uid: window.getCurrentUser?.()?.uid ?? '',
+                                    created_by_name: window.getCurrentUser?.()?.full_name || 'System',
+                                    created_at: serverTimestamp(),
+                                });
+                            }
+                        }
+
+                        // Phase 104 D-12: also post to the owning SERVICE's activity_entries (services join on service_code).
+                        // mrfData is already fetched above. An MRF belongs to either a project OR a service — the two branches
+                        // are mutually exclusive in practice but both run defensively (own try/catch, never block status update).
+                        try {
+                            const serviceCode = mrfData?.service_code;
+                            if (serviceCode) {
+                                const svcQ = query(collection(db, 'services'), where('service_code', '==', serviceCode));
+                                const svcSnap = await getDocs(svcQ);
+                                if (!svcSnap.empty) {
+                                    const serviceDocId = svcSnap.docs[0].id;
+                                    await addDoc(collection(db, 'services', serviceDocId, 'activity_entries'), {
+                                        type: 'system',
+                                        is_system: true,
+                                        text: `PO ${escapeHTML(poDataFresh.po_id || poId)} from ${escapeHTML(poDataFresh.supplier_name || 'Unknown Supplier')} marked Delivered`,
+                                        created_by_uid: window.getCurrentUser?.()?.uid ?? '',
+                                        created_by_name: window.getCurrentUser?.()?.full_name || 'System',
+                                        created_at: serverTimestamp(),
+                                    });
+                                }
+                            }
+                        } catch (svcJournalErr) {
+                            console.error('[Procurement] Phase 104 PO Delivered SERVICE journal entry failed:', svcJournalErr);
+                        }
+                    }
+                }
+            } catch (journalErr) {
+                console.error('[Procurement] Phase 101 PO Delivered journal entry failed:', journalErr);
+                // Never block the status update — swallow
+            }
+        }
 
         const successMsg = isSubcon
             ? `SUBCON status updated to ${newStatus}`

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 038 — Tranche Re-basing Model (A / B / C)</title>
+<style>
+  :root{
+    --primary:#1a73e8; --primary-dark:#1557b0;
+    --text:#1e293b; --muted:#64748b; --faint:#94a3b8;
+    --border:#e2e8f0; --bg:#f1f5f9;
+    --green:#059669; --green-bg:#dcfce7; --green-bd:#bbf7d0;
+    --red:#ef4444; --red-bg:#fee2e2; --red-bd:#fecaca;
+    --amber:#f59e0b; --amber-bg:#fef3c7; --amber-bd:#fde68a;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:var(--bg);color:var(--text);padding:24px 16px 220px;}
+  .wrap{max-width:820px;margin:0 auto;}
+  .appbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .appbar .title{font-size:15px;font-weight:700;}
+  .appbar .code{font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;}
+  .pill.ongoing{background:#dbeafe;color:#1e40af;}
+
+  .context{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px;
+           display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;}
+  .context .cv{font-size:13px;}
+  .context .cv b{font-size:18px;}
+  .context .arrow{color:var(--faint);}
+  .context .dchip{font-size:12px;font-weight:700;padding:3px 9px;border-radius:8px;background:var(--green-bg);color:var(--green);}
+  .scenario{font-size:12px;color:var(--muted);background:#f8fafc;border:1px dashed var(--border);border-radius:8px;padding:8px 11px;}
+  .scenario b{color:var(--text);}
+
+  /* switcher */
+  .switch{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+  .switch button{flex:1 1 0;min-width:200px;text-align:left;padding:11px 13px;border:2px solid var(--border);background:#fff;
+                 border-radius:10px;cursor:pointer;font-family:inherit;}
+  .switch button .k{font-size:11px;font-weight:800;color:var(--faint);letter-spacing:.04em;}
+  .switch button .n{font-size:13px;font-weight:700;margin-top:2px;}
+  .switch button.active{border-color:var(--primary);background:#f5f9ff;}
+  .switch button.active .k{color:var(--primary);}
+
+  .callout{border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;line-height:1.5;}
+  .callout.good{background:var(--green-bg);border:1px solid var(--green-bd);}
+  .callout.warn{background:var(--red-bg);border:1px solid var(--red-bd);}
+  .callout.neutral{background:#eff6ff;border:1px solid #bfdbfe;}
+  .callout .h{font-weight:800;margin-bottom:3px;}
+
+  .card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;}
+  .card-h{padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);font-weight:700;padding:8px 14px;border-bottom:1px solid var(--border);}
+  th.r,td.r{text-align:right;font-variant-numeric:tabular-nums;}
+  td{padding:11px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  .tname{font-weight:600;}
+  .ret-tag{font-size:10px;font-weight:700;color:#92400e;background:var(--amber-bg);padding:1px 7px;border-radius:6px;margin-left:6px;}
+  .frozen-tag{font-size:10px;font-weight:700;color:#065f46;background:var(--green-bg);padding:1px 7px;border-radius:6px;margin-left:6px;}
+  .orig-amt{color:var(--muted);}
+  .new-amt{font-weight:800;}
+  .dbadge{font-size:11px;font-weight:700;padding:1px 7px;border-radius:6px;margin-left:6px;}
+  .dbadge.up{background:var(--green-bg);color:var(--green);}
+  .dbadge.down{background:var(--red-bg);color:var(--red);}
+  .dbadge.flat{background:#f1f5f9;color:var(--faint);}
+  tr.danger{background:#fff5f5;}
+  tr.vorow{background:#eff6ff;}
+  .rownote{font-size:11px;margin-top:3px;}
+  .rownote.bad{color:var(--red);} .rownote.ok{color:var(--green);}
+  tfoot td{font-weight:800;border-top:2px solid var(--border);}
+
+  .btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;}
+  .btn.ghost{background:#fff;border:1px solid var(--border);color:var(--text);}
+
+  .controls{position:fixed;left:16px;bottom:150px;background:#fff;border:1px solid var(--border);border-radius:12px;
+            box-shadow:0 6px 24px rgba(15,23,42,.14);padding:12px;width:220px;z-index:50;}
+  .controls h4{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);}
+  .controls .row{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:8px;}
+  .controls .hint{font-size:11px;color:var(--muted);line-height:1.4;}
+  .controls button{width:100%;margin-top:6px;}
+
+  .log{position:fixed;left:0;right:0;bottom:0;height:140px;background:#0f172a;color:#e2e8f0;
+       font-family:ui-monospace,Menlo,monospace;font-size:11.5px;overflow-y:auto;padding:8px 14px;z-index:40;}
+  .log .ln{padding:1px 0;white-space:pre-wrap;}
+  .log .t{color:#475569;} .log .switch-l{color:#60a5fa;} .log .calc{color:#94a3b8;} .log .toggle-l{color:#fbbf24;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="appbar">
+    <span class="title">Acme Warehouse Extension</span>
+    <span class="code">PRJ-CLMC-ACME-001</span>
+    <span class="pill ongoing">On-going</span>
+  </div>
+
+  <div class="context">
+    <div class="cv">
+      Original <b id="ctxOrig"></b> <span class="arrow">→</span> Revised <b id="ctxRev"></b>
+      <span class="dchip" id="ctxDelta"></span>
+    </div>
+    <div class="scenario" id="ctxScenario"></div>
+  </div>
+
+  <div class="switch" id="switcher"></div>
+
+  <div class="callout" id="callout"></div>
+
+  <div class="card">
+    <div class="card-h">Collection Tranches under this model</div>
+    <table>
+      <thead><tr><th>Tranche</th><th class="r">%</th><th class="r">Original</th><th class="r">New amount</th><th class="r">Δ</th></tr></thead>
+      <tbody id="trbody"></tbody>
+      <tfoot id="trfoot"></tfoot>
+    </table>
+  </div>
+</div>
+
+<div class="controls">
+  <h4>Spike Controls</h4>
+  <div class="row">
+    <input type="checkbox" id="mobCollected" checked onchange="render()">
+    <label for="mobCollected">Mobilization already billed &amp; collected</label>
+  </div>
+  <div class="hint">Toggle this off and re-pick <b>Model A</b> vs <b>Model C</b> — when nothing is billed yet they're identical. The difference only appears once a tranche is closed. That gap is the whole point.</div>
+  <button class="btn ghost" onclick="logCompare()">Σ Log all-three compare</button>
+</div>
+
+<div class="log" id="log"></div>
+
+<script>
+const ORIGINAL = 4200000;
+const APPROVED_VO_DELTA = 405000;            // from Spike 037: +180k +320k -95k
+const REVISED = ORIGINAL + APPROVED_VO_DELTA; // 4,605,000
+
+// shared tranche set (percentages) — same as 037 series
+const TRANCHES = [
+  { label:'Mobilization',          pct:20, is_retention:false },
+  { label:'Progress Billing 1',    pct:30, is_retention:false },
+  { label:'Progress Billing 2',    pct:30, is_retention:false },
+  { label:'Final / Retention',     pct:20, is_retention:true  },
+];
+
+const MODELS = {
+  A:{ key:'A', name:'Auto-rebase all', tone:'warn',
+      desc:'Every tranche % re-applied to the Revised Sum. Simplest formula — but it silently re-prices tranches that are already billed and collected.' },
+  B:{ key:'B', name:'VO billed separately', tone:'neutral',
+      desc:'Original tranches stay frozen on the original sum. The net of approved VOs becomes its own collectible line, billed on its own terms.' },
+  C:{ key:'C', name:'Freeze billed + rebase remaining', tone:'good',
+      desc:'Billed/collected tranches are locked at what was actually invoiced. The revised value left over is redistributed across the remaining tranches by their original weights.' },
+};
+let current = 'A';
+
+const peso = n => '₱' + Math.round(n).toLocaleString('en-PH');
+
+function mobCollected(){ return document.getElementById('mobCollected').checked; }
+function isFrozen(i){ return i===0 && mobCollected(); } // tranche 0 = Mobilization
+
+// ---- model math ----
+function computeRows(model){
+  const rows = TRANCHES.map((t,i)=>({ ...t, idx:i, orig: ORIGINAL*t.pct/100 }));
+  if(model==='A'){
+    rows.forEach(r=>{ r.neu = REVISED*r.pct/100; });
+  } else if(model==='B'){
+    rows.forEach(r=>{ r.neu = r.orig; }); // unchanged
+  } else { // C — freeze billed, rebase remaining by original weight
+    const frozen = rows.filter(r=>isFrozen(r.idx));
+    const remaining = rows.filter(r=>!isFrozen(r.idx));
+    const frozenAmt = frozen.reduce((s,r)=>s+r.orig,0);
+    const remPctSum = remaining.reduce((s,r)=>s+r.pct,0) || 1;
+    const remValue = REVISED - frozenAmt;
+    rows.forEach(r=>{ r.neu = isFrozen(r.idx) ? r.orig : remValue*(r.pct/remPctSum); });
+  }
+  return rows;
+}
+
+function render(){
+  document.getElementById('ctxOrig').textContent = peso(ORIGINAL);
+  document.getElementById('ctxRev').textContent  = peso(REVISED);
+  document.getElementById('ctxDelta').textContent= 'Δ +'+peso(APPROVED_VO_DELTA)+' · 3 approved VOs';
+  document.getElementById('ctxScenario').innerHTML = mobCollected()
+    ? '<b>Mobilization</b> (tranche 1) was already billed &amp; collected at <b>'+peso(ORIGINAL*0.20)+'</b>.'
+    : 'No tranche billed yet — nothing is locked.';
+
+  // switcher
+  document.getElementById('switcher').innerHTML = Object.values(MODELS).map(m=>`
+    <button class="${m.key===current?'active':''}" onclick="pick('${m.key}')">
+      <div class="k">MODEL ${m.key}</div><div class="n">${m.name}</div>
+    </button>`).join('');
+
+  const m = MODELS[current];
+  const rows = computeRows(current);
+
+  // callout
+  let cText = m.desc;
+  if(current==='A'){
+    cText += mobCollected()
+      ? ' <b>⚠ Here it under-bills the collected Mobilization tranche by '+peso(REVISED*0.20 - ORIGINAL*0.20)+'</b> — a closed tranche is reopened with a phantom shortfall, and retention silently grows too.'
+      : ' (Right now nothing is billed, so this looks harmless — flip the toggle to see why it isn\'t.)';
+  }
+  if(current==='B'){ cText += ' Retention on VO value becomes a separate question, and VO cash is decoupled from the milestone schedule.'; }
+  if(current==='C'){ cText += mobCollected()
+      ? ' The collected Mobilization stays exactly as invoiced; the extra '+peso(APPROVED_VO_DELTA)+' is absorbed into the remaining milestones, and retention grows naturally with the revised sum.'
+      : ' (With nothing billed yet this is identical to Model A — the divergence only appears once a tranche is closed.)'; }
+  const calloutEl = document.getElementById('callout');
+  calloutEl.className = 'callout '+m.tone;
+  calloutEl.innerHTML = `<div class="h">Model ${m.key}: ${m.name}</div>${cText}`;
+
+  // table rows
+  let bodyHtml = rows.map(r=>{
+    const d = r.neu - r.orig;
+    const dCls = Math.abs(d)<1 ? 'flat' : (d>0?'up':'down');
+    const dTxt = Math.abs(d)<1 ? '—' : (d>0?'+':'−')+peso(Math.abs(d));
+    const frozen = isFrozen(r.idx);
+    const danger = current==='A' && frozen;
+    let note='';
+    if(danger) note = `<div class="rownote bad">⚠ already collected at ${peso(r.orig)} — this model now bills ${peso(r.neu)}, a ${peso(r.neu-r.orig)} reopen</div>`;
+    else if(current==='C' && frozen) note = `<div class="rownote ok">✓ locked at invoiced amount — untouched by the VO</div>`;
+    else if(current==='B') note='';
+    return `<tr class="${danger?'danger':''}">
+      <td><span class="tname">${r.label}</span>${r.is_retention?'<span class="ret-tag">◆ Retention</span>':''}${frozen?'<span class="frozen-tag">Collected</span>':''}${note}</td>
+      <td class="r">${r.pct}%</td>
+      <td class="r orig-amt">${peso(r.orig)}</td>
+      <td class="r new-amt">${peso(r.neu)}</td>
+      <td class="r"><span class="dbadge ${dCls}">${dTxt}</span></td>
+    </tr>`;
+  }).join('');
+
+  // model B extra VO settlement row
+  if(current==='B'){
+    bodyHtml += `<tr class="vorow">
+      <td><span class="tname">VO Settlement (net, 3 approved VOs)</span><div class="rownote ok">↳ new collectible line, billed separately from milestones</div></td>
+      <td class="r">—</td><td class="r orig-amt">—</td>
+      <td class="r new-amt">+${peso(APPROVED_VO_DELTA)}</td>
+      <td class="r"><span class="dbadge up">new</span></td>
+    </tr>`;
+  }
+  document.getElementById('trbody').innerHTML = bodyHtml;
+
+  const totNew = rows.reduce((s,r)=>s+r.neu,0) + (current==='B'?APPROVED_VO_DELTA:0);
+  const totOrig = rows.reduce((s,r)=>s+r.orig,0);
+  document.getElementById('trfoot').innerHTML = `<tr>
+    <td>Total billable</td><td class="r">100%</td>
+    <td class="r orig-amt">${peso(totOrig)}</td>
+    <td class="r new-amt">${peso(totNew)}</td>
+    <td class="r">${Math.abs(totNew-REVISED)<1?'<span class="dbadge up">= Revised ✓</span>':'<span class="dbadge down">≠ Revised</span>'}</td>
+  </tr>`;
+
+  log('calc', `Model ${current} · total billable ${peso(totNew)} ${Math.abs(totNew-REVISED)<1?'= revised ✓':'≠ revised ✗'}`);
+}
+
+function pick(k){ current=k; log('switch-l', `→ Model ${k}: ${MODELS[k].name}`); render(); }
+
+function logCompare(){
+  ['A','B','C'].forEach(k=>{
+    const rows = computeRows(k);
+    const t = rows.map(r=>peso(r.neu)).join(' / ') + (k==='B'?` + VO ${peso(APPROVED_VO_DELTA)}`:'');
+    log('calc', `Model ${k}: ${t}`);
+  });
+}
+
+document.getElementById('mobCollected').addEventListener('change',()=>log('toggle-l', 'Mobilization collected = '+mobCollected()));
+log('calc','spike 038 ready — Original '+peso(ORIGINAL)+' → Revised '+peso(REVISED)+' (3 approved VOs, +'+peso(APPROVED_VO_DELTA)+')');
+render();
+</script>
+</body>
+</html>

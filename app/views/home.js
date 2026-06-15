@@ -1,23 +1,23 @@
 /* ========================================
    HOME / HERO PAGE VIEW
-   Landing page with navigation cards and quick stats
+   Landing page with navigation cards and quick stats.
+   Phase 87.1 D-01/D-07/D-08: gains Overview | Engagements | Proposals sub-tabs.
    ======================================== */
 
-import { db, collection, query, where, onSnapshot } from '../firebase.js';
-
-// Unified status list — canonical source: app/views/projects.js (Phase 81 D-02)
-const UNIFIED_STATUS_OPTIONS = [
-    'For Inspection',
-    'For Proposal',
-    'Proposal for Internal Approval',
-    'Proposal Under Client Review',
-    'For Revision',
-    'Client Approved',
-    'For Mobilization',
-    'On-going',
-    'Completed',
-    'Loss'
-];
+import { db, collection, doc, query, where, onSnapshot, getDocs, getDoc } from '../firebase.js';
+import { renderEngagementForm, initEngagementForm, destroyEngagementForm } from '../engagement-create.js';
+import {
+    STAGE_ORDER,
+    PROPOSAL_RANGE_STATUSES,
+    getProposalStatusBadge,
+    renderAgeBadge,
+    getAgeInStageDays,
+    isOverdueInStage,
+    _applyProposalStateTransition
+} from './proposals.js';
+import { openProposalModal } from '../proposal-modal.js';
+import { showLoading, showToast, formatCurrency, escapeHTML } from '../utils.js';
+import { createNotification, NOTIFICATION_TYPES } from '../notifications.js';
 
 // View state
 let statsListeners = [];
@@ -26,46 +26,18 @@ let cachedStats = {
     // Procurement pipeline (D-01)
     activeMRFs: null,
     pendingPRs: null,
-    activePOs: null,
-    // Phase 81 D-05 — unified status breakdown (one map per entity type)
-    projectsByStatus: null,
-    servicesByStatusOneTime: null,
-    servicesByStatusRecurring: null
+    activePOs: null
 };
 
-// Phase 77.1 — Chart.js instance registry: containerId → Chart instance
-// Used so onSnapshot callbacks can call .update() on existing charts (vs recreating)
-// and destroy() can tear them all down on view exit.
-const chartInstances = new Map();
-
-// Phase 81 — color palette for the 10 unified statuses.
-// Highlighted = active workflow stages (brand-color muted); non-highlighted = transitional/terminal (slate gradient).
-const HIGHLIGHTED_STATUS_COLORS = {
-    'For Inspection':              'rgba(26, 115, 232, 0.55)',  // muted --primary
-    'For Proposal':                'rgba(52, 168, 83, 0.55)',   // muted --success
-    'Proposal Under Client Review':'rgba(251, 188, 4, 0.65)',   // muted --warning
-    'On-going':                    'rgba(26, 115, 232, 0.55)'   // shared brand hue
-};
-const MONOCHROMATIC_STATUS_COLORS = {
-    'Proposal for Internal Approval': 'rgba(148, 163, 184, 0.38)',
-    'For Revision':                   'rgba(148, 163, 184, 0.50)',
-    'Client Approved':                'rgba(148, 163, 184, 0.60)',
-    'For Mobilization':               'rgba(148, 163, 184, 0.55)',
-    'Completed':                      'rgba(148, 163, 184, 0.68)',
-    'Loss':                           'rgba(100, 116, 139, 0.55)'
-};
-const MONOCHROMATIC_FALLBACK = 'rgba(148, 163, 184, 0.55)'; // fallback for unknown statuses
-
-function getBarColor(statusLabel) {
-    return HIGHLIGHTED_STATUS_COLORS[statusLabel]
-        || MONOCHROMATIC_STATUS_COLORS[statusLabel]
-        || MONOCHROMATIC_FALLBACK;
-}
-
-// Phase 81 — single chart class for unified status (10 bars).
-function getChartSizeClass(containerId) {
-    return 'hs-chart-status';
-}
+// Phase 87.1 — last fetched proposals for the home Proposals sub-tab (one-time getDocs cache,
+// scoped to the current session/view). Used by the local approval queue to look up
+// titles/projects when opening the action mini-modal without a re-fetch.
+let _homeProposalsCache = [];
+let _homeCanApproveQueue = false;
+let _homeProposalStatusFilter = null; // null = active-only (default); string = specific status key (single-select)
+const ACTIVE_PROPOSAL_STAGES = ['draft', 'pending_internal', 'pending_client', 'for_revision'];
+let _homeProposalPage = 1;
+let _proposalListener = null; // onSnapshot unsubscribe handle for proposals collection
 
 /**
  * Determine dashboard mode based on current user role
@@ -79,19 +51,38 @@ function getDashboardMode() {
 }
 
 /**
- * Build HTML wrapper for a status breakdown chart.
- * Phase 77.1: emits a <canvas> inside a sized wrapper instead of a text-row grid.
- * Chart.js initialization happens later in renderStatusBreakdown(), called from
- * the onSnapshot callbacks in loadStats(). Skeleton loading state is just an
- * empty wrapper — the chart fills in on first snapshot fire (typically <500ms).
- * @param {string} containerId - ID assigned to the <canvas> element
- * @param {Object|null} countsMap - cached counts (unused here; kept for signature parity with Phase 77)
- * @param {number} rowCount - bar count, used to pick chart size class (unused param kept for signature parity)
- * @returns {string}
+ * Phase 87.1 D-01/D-08 — Home sub-tab visibility config based on role.
+ * Finance and procurement_staff users see no sub-nav (Overview is the only content).
+ * @returns {{ showSubNav: boolean, canEngagements: boolean, canProposals: boolean, canApproveQueue: boolean }}
  */
-function buildStatusBreakdownContainer(containerId, countsMap, rowCount) {
-    const sizeClass = getChartSizeClass(containerId);
-    return `<div class="hs-chart-canvas ${sizeClass}"><canvas id="${containerId}"></canvas></div>`;
+function getHomeSubTabConfig() {
+    const role = window.getCurrentUser?.()?.role || '';
+    if (['finance', 'procurement_staff'].includes(role)) {
+        return { showSubNav: false, canEngagements: false, canProposals: false, canApproveQueue: false };
+    }
+    const canEngagements = ['super_admin', 'operations_admin', 'services_admin'].includes(role);
+    const canProposals = true; // all remaining (non-finance, non-procurement) roles
+    const canApproveQueue = ['super_admin', 'operations_admin'].includes(role);
+    return { showSubNav: true, canEngagements, canProposals, canApproveQueue };
+}
+
+/**
+ * Phase 87.1 D-08 — Role-filter the proposals list for the Proposals sub-tab dashboard.
+ * super_admin: all proposals
+ * operations_admin / operations_user: proposals where parent_collection (default 'projects') === 'projects'
+ * services_admin / services_user: proposals where parent_collection (default 'projects') === 'services'
+ * Default (unknown role): empty list
+ */
+function filterProposalsForUser(allProposals) {
+    const role = window.getCurrentUser?.()?.role || '';
+    if (role === 'super_admin') return allProposals;
+    if (role === 'operations_admin' || role === 'operations_user') {
+        return allProposals.filter(p => (p.parent_collection || 'projects') === 'projects');
+    }
+    if (role === 'services_admin' || role === 'services_user') {
+        return allProposals.filter(p => (p.parent_collection || 'projects') === 'services');
+    }
+    return [];
 }
 
 /**
@@ -122,141 +113,6 @@ function procurementCardHtml() {
 }
 
 /**
- * Build Projects card HTML (D-02) — shown when mode === 'projects' || mode === 'both'
- * @returns {string}
- */
-function projectsCardHtml() {
-    return `
-        <div class="hs-stat-card">
-            <h4 class="hs-stat-card-title">Projects</h4>
-            <div class="hs-section-group">
-                <div class="hs-section-heading">Status</div>
-                ${buildStatusBreakdownContainer('stat-projects-status', cachedStats.projectsByStatus, 10)}
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Build Services card HTML (D-03) — shown when mode === 'services' || mode === 'both'
- * Stacked sections: One-time above, Recurring below, separated by <hr class="hs-divider">.
- * @returns {string}
- */
-function servicesCardHtml() {
-    return `
-        <div class="hs-stat-card">
-            <h4 class="hs-stat-card-title">Services</h4>
-            <div class="hs-type-section">
-                <span class="hs-type-label">One-time</span>
-                <div class="hs-section-group">
-                    <div class="hs-section-heading">Status</div>
-                    ${buildStatusBreakdownContainer('stat-services-ot-status', cachedStats.servicesByStatusOneTime, 10)}
-                </div>
-            </div>
-            <hr class="hs-divider">
-            <div class="hs-type-section">
-                <span class="hs-type-label">Recurring</span>
-                <div class="hs-section-group">
-                    <div class="hs-section-heading">Status</div>
-                    ${buildStatusBreakdownContainer('stat-services-rec-status', cachedStats.servicesByStatusRecurring, 10)}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Render or update a 100% stacked horizontal bar chart for a status breakdown.
- * Each status is one segment; all segments together fill 100% width.
- * - First call: creates Chart instance (one dataset per status), stores in chartInstances.
- * - Subsequent calls: updates each dataset's percentage value in place via chart.update().
- * chart._rawCounts stores the original counts for tooltip display.
- * @param {string} containerId - ID of the <canvas> element
- * @param {Object} countsMap - { statusName: count, ... }
- */
-function renderStatusBreakdown(containerId, countsMap) {
-    const canvas = document.getElementById(containerId);
-    if (!canvas) return;
-    if (typeof window.Chart !== 'function') {
-        console.error('[Home] Chart.js not loaded — verify CDN script tag in index.html');
-        return;
-    }
-
-    const labels = Object.keys(countsMap);
-    const total = Object.values(countsMap).reduce((s, v) => s + v, 0);
-    const toPercent = (count) => total > 0 ? parseFloat(((count / total) * 100).toFixed(1)) : 0;
-
-    const existing = chartInstances.get(containerId);
-    if (existing) {
-        // Update in place — update each dataset's percentage and refresh raw counts for tooltip
-        existing._rawCounts = { ...countsMap };
-        labels.forEach((label, i) => {
-            if (existing.data.datasets[i]) {
-                existing.data.datasets[i].data = [toPercent(countsMap[label])];
-            }
-        });
-        existing.update();
-        return;
-    }
-
-    // First render — one dataset per status, stacked to 100%
-    const datasets = labels.map(label => ({
-        label,
-        data: [toPercent(countsMap[label])],
-        backgroundColor: getBarColor(label),
-        borderWidth: 0,
-        barThickness: 28,
-    }));
-
-    const chart = new window.Chart(canvas, {
-        type: 'bar',
-        data: {
-            labels: [''],
-            datasets
-        },
-        options: {
-            indexAxis: 'y',
-            animation: false,
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true,
-                    position: 'bottom',
-                    // Phase 77.2 — bumped legend font + box from 10px to 12px to match the
-                    // tightened card height (180px desktop / 220px mobile in views.css).
-                    labels: {
-                        boxWidth: 12,
-                        boxHeight: 12,
-                        font: { size: 12 },
-                        padding: 4,
-                        color: '#64748b'
-                    }
-                },
-                tooltip: {
-                    enabled: true,
-                    callbacks: {
-                        label: (ctx) => {
-                            const rawCounts = ctx.chart._rawCounts || {};
-                            const lbl = ctx.dataset.label;
-                            const count = rawCounts[lbl] ?? 0;
-                            const pct = ctx.parsed.x.toFixed(1);
-                            return ` ${lbl}: ${count} (${pct}%)`;
-                        }
-                    }
-                }
-            },
-            scales: {
-                x: { stacked: true, max: 100, display: false, grid: { display: false } },
-                y: { stacked: true, display: false, grid: { display: false } }
-            }
-        }
-    });
-    chart._rawCounts = { ...countsMap };
-    chartInstances.set(containerId, chart);
-}
-
-/**
  * Render the home page
  * @returns {string} HTML string for home page
  */
@@ -269,46 +125,544 @@ export function render() {
     // - 'both' (super_admin/finance/procurement_staff/unknown) → all 3 cards
     // Procurement card always shown regardless of mode.
     let statsContent = procurementCardHtml();
-    if (mode === 'projects' || mode === 'both') {
-        statsContent += projectsCardHtml();
-    }
-    if (mode === 'services' || mode === 'both') {
-        statsContent += servicesCardHtml();
-    }
 
     return `
         <div class="hero-section">
             <h1 class="hero-title">🏗️ CLMC</h1>
             <p class="hero-subtitle">Management System Portal</p>
 
-            <div class="navigation-cards">
-                <div class="nav-card" onclick="location.hash='#/mrf-form'">
-                    <div class="nav-card-icon">📝</div>
-                    <h3>Material Request</h3>
-                    <p>Submit MRF forms and track status</p>
-                    <button class="btn btn-primary">Enter →</button>
+            <div class="dept-cards">
+                <div class="dept-cards-row dept-cards-row--top">
+                    <div class="nav-card" onclick="location.hash='#/clients'">
+                        <div class="nav-card-icon">📋</div>
+                        <h3>Clients</h3>
+                        <p>Manage client records, contacts, and engagement history</p>
+                        <button class="btn btn-primary">Enter →</button>
+                    </div>
+                    <div class="nav-card" onclick="location.hash='#/projects'">
+                        <div class="nav-card-icon">🏗️</div>
+                        <h3>Projects</h3>
+                        <p>Track projects, budgets, Gantt schedules, and financials</p>
+                        <button class="btn btn-primary">Enter →</button>
+                    </div>
+                    <div class="nav-card" onclick="location.hash='#/services'">
+                        <div class="nav-card-icon">🔧</div>
+                        <h3>Services</h3>
+                        <p>Manage recurring service contracts and work tracking</p>
+                        <button class="btn btn-primary">Enter →</button>
+                    </div>
                 </div>
-
-                <div class="nav-card" onclick="location.hash='#/procurement'">
-                    <div class="nav-card-icon">🛒</div>
-                    <h3>Procurement</h3>
-                    <p>Manage MRFs, suppliers & procurement</p>
-                    <button class="btn btn-primary">Enter →</button>
-                </div>
-
-                <div class="nav-card" onclick="location.hash='#/finance'">
-                    <div class="nav-card-icon">💰</div>
-                    <h3>Finance Dashboard</h3>
-                    <p>Approve PRs and track purchase orders</p>
-                    <button class="btn btn-primary">Enter →</button>
+                <div class="dept-cards-row dept-cards-row--bottom">
+                    <div class="nav-card" onclick="location.hash='#/procurement'">
+                        <div class="nav-card-icon">🛒</div>
+                        <h3>Procurement</h3>
+                        <p>Submit MRFs, manage suppliers, track orders and RFPs</p>
+                        <button class="btn btn-primary">Enter →</button>
+                    </div>
+                    <div class="nav-card" onclick="location.hash='#/finance'">
+                        <div class="nav-card-icon">💰</div>
+                        <h3>Finance</h3>
+                        <p>Approve PRs, manage payables, collectibles, and RFPs</p>
+                        <button class="btn btn-primary">Enter →</button>
+                    </div>
                 </div>
             </div>
 
-            <div class="quick-stats">
-                ${statsContent}
+            <!-- Phase 87.1 D-01 — Home sub-nav; init() reveals it for eligible roles -->
+            <div class="home-sub-nav" id="homeSubNav" style="display:none;">
+                <div class="home-sub-nav-tabs">
+                    <button class="home-sub-nav-tab home-sub-nav-tab--active" id="homeTabOverview"
+                            onclick="window.switchHomeTab('overview')">Overview</button>
+                    <button class="home-sub-nav-tab" id="homeTabEngagements" style="display:none;"
+                            onclick="window.switchHomeTab('engagements')">Engagements</button>
+                    <button class="home-sub-nav-tab" id="homeTabProposals" style="display:none;"
+                            onclick="window.switchHomeTab('proposals')">Proposals</button>
+                </div>
+            </div>
+            <div id="homeEngagementsContent" style="display:none;"></div>
+            <div id="homeProposalsContent" style="display:none;"></div>
+
+            <!-- Phase 93: Overview wrapper — tiles shown above (always visible); stats card shown/hidden by switchHomeTab -->
+            <div id="homeOverviewContent">
+                <div class="quick-stats">
+                    ${statsContent}
+                </div>
             </div>
         </div>
     `;
+}
+
+/**
+ * Phase 87.1 D-01/D-07/D-08 — Switch the active home sub-tab (overview | engagements | proposals).
+ * Guards each show/hide against null because finance/procurement_staff render with no sub-nav,
+ * so calling this with a missing tab id should be a no-op rather than throwing.
+ */
+function switchHomeTab(tab) {
+    const overviewEl = document.getElementById('homeOverviewContent');
+    const engEl = document.getElementById('homeEngagementsContent');
+    const propEl = document.getElementById('homeProposalsContent');
+
+    [overviewEl, engEl, propEl].forEach(el => { if (el) el.style.display = 'none'; });
+    ['homeTabOverview', 'homeTabEngagements', 'homeTabProposals'].forEach(id => {
+        document.getElementById(id)?.classList.remove('home-sub-nav-tab--active');
+    });
+
+    if (tab === 'engagements') {
+        if (engEl) engEl.style.display = '';
+        document.getElementById('homeTabEngagements')?.classList.add('home-sub-nav-tab--active');
+    } else if (tab === 'proposals') {
+        if (propEl) propEl.style.display = '';
+        document.getElementById('homeTabProposals')?.classList.add('home-sub-nav-tab--active');
+    } else {
+        if (overviewEl) overviewEl.style.display = '';
+        document.getElementById('homeTabOverview')?.classList.add('home-sub-nav-tab--active');
+    }
+}
+
+/**
+ * Phase 87.1 D-01 — Render the home approval queue (super_admin + operations_admin only).
+ * This is a LOCAL home-only minimal queue (per RESEARCH.md Pitfall 7) — it intentionally
+ * does NOT import the proposals.js approval-queue renderer because that function depends
+ * on proposalsData module state that home.js does not maintain.
+ *
+ * Inputs `pending` are already filtered to status==='pending_internal' and sorted oldest-first.
+ */
+function _renderHomeApprovalQueueHtml(pending) {
+    if (pending.length === 0) {
+        return `
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div class="card-body" style="padding: 1.25rem 1.5rem;">
+                    <h3 style="margin: 0 0 0.75rem 0; font-size: 1.05rem; color: #1e293b;">Proposal Approval Queue</h3>
+                    <p style="color: #64748b; margin: 0; font-size: 0.9375rem;">No proposals awaiting approval.</p>
+                </div>
+            </div>`;
+    }
+
+    const rows = pending.map(p => {
+        const submittedEntry = (p.audit_log || []).find(e => e.action === 'SUBMITTED');
+        const submitterName = submittedEntry?.actor_name || p.created_by_name || '—';
+        const projectLabel = [p.project_code, p.project_name].filter(Boolean).join(' — ') || '—';
+        const amount = typeof p.amount === 'number' ? formatCurrency(p.amount) : '—';
+        const ageDays = getAgeInStageDays(p);
+        const ageLabel = ageDays < 1 ? 'Today' : ageDays === 1 ? '1 day' : `${ageDays} days`;
+        const ageStyle = isOverdueInStage(p)
+            ? 'color:#856404;font-size:13px;font-weight:500;'
+            : 'color:#64748b;font-size:13px;';
+
+        return `
+            <tr style="cursor:pointer;"
+                onclick="window.openProposalModal && window.openProposalModal('${escapeHTML(p.id)}')"
+                onmouseenter="this.style.background='#f8fafc'"
+                onmouseleave="this.style.background=''">
+                <td style="padding: 0.75rem 1rem; vertical-align: middle;">
+                    <div style="font-weight: 600; color: #1e293b; font-size: 0.9375rem;">${escapeHTML(p.title || '—')}</div>
+                    <div style="color: #64748b; font-size: 0.8125rem; margin-top: 2px;">${escapeHTML(projectLabel)}</div>
+                </td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle; color: #475569; font-size: 0.9rem;">${escapeHTML(submitterName)}</td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle; color: #475569; font-size: 0.9rem;">${escapeHTML(p.target_client_name || '—')}</td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle; color: #475569; font-size: 0.9rem;">${escapeHTML(amount)}</td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle;">
+                    <span style="${ageStyle}">${escapeHTML(ageLabel)}</span>
+                </td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle;">
+                    ${p.attachment_url ? `<a href="${escapeHTML(p.attachment_url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" style="font-size:0.8125rem;color:#3b82f6;">📎 ${escapeHTML(p.attachment_filename || 'View Attachment')}</a>` : '<span style="color:#94a3b8;">—</span>'}
+                </td>
+                <td style="padding: 0.75rem 1rem; vertical-align: middle; white-space: nowrap;">
+                    <button class="btn btn-success" style="padding: 0.35rem 0.85rem; font-size: 0.8125rem; margin-right: 6px;"
+                            onclick="event.stopPropagation(); window.homeQueueOpenApproveModal('${escapeHTML(p.id)}')">Approve</button>
+                    <button class="btn btn-danger" style="padding: 0.35rem 0.85rem; font-size: 0.8125rem;"
+                            onclick="event.stopPropagation(); window.homeQueueOpenRejectModal('${escapeHTML(p.id)}')">Reject</button>
+                </td>
+            </tr>`;
+    }).join('');
+
+    return `
+        <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card-body" style="padding: 0;">
+                <div style="padding: 1.25rem 1.5rem 0.75rem 1.5rem; border-bottom: 1px solid #e5e7eb;">
+                    <h3 style="margin: 0; font-size: 1.05rem; color: #1e293b;">
+                        Proposal Approval Queue
+                        <span style="font-size: 0.8125rem; font-weight: 400; color: #64748b; margin-left: 0.5rem;">${pending.length} awaiting</span>
+                    </h3>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f8fafc;">
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Proposal</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Submitted By</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Client</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Amount</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Age in Stage</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Attachment</th>
+                                <th style="padding: 0.6rem 1rem; text-align: left; font-size: 0.8125rem; color: #64748b; font-weight: 600; border-bottom: 1px solid #e5e7eb;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            </div>
+        </div>`;
+}
+
+/**
+ * Phase 87.1 D-01 — Open the home-local approve/reject mini-modal.
+ * Uses a fresh getDoc to confirm the proposal is still in pending_internal, then
+ * builds the modal HTML that calls window.homeQueueConfirmAction on confirm.
+ *
+ * Modal element id 'home-queue-action-modal' is distinct from proposals.js modal ids.
+ */
+async function _openHomeQueueModal(proposalDocId, mode) {
+    try {
+        const snap = await getDoc(doc(db, 'proposals', proposalDocId));
+        if (!snap.exists()) { showToast('Proposal not found.', 'error'); return; }
+        const proposal = { id: snap.id, ...snap.data() };
+        if (proposal.status !== 'pending_internal') {
+            showToast('This proposal is no longer pending approval.', 'error');
+            return;
+        }
+
+        const existing = document.getElementById('home-queue-action-modal');
+        if (existing) existing.remove();
+
+        const isApprove = mode === 'approve';
+        const heading = isApprove ? 'Approve Proposal' : 'Reject Proposal';
+        const bodyText = isApprove
+            ? "Approving will advance the project status to 'Proposal Under Client Review'. This action is recorded in the audit trail."
+            : "Rejecting will move the proposal back to 'For Revision'. The submitter will be notified.";
+        const label = isApprove ? 'Approval Notes' : 'Rejection Reason';
+        const placeholder = isApprove ? 'Describe your review decision...' : 'Explain what needs to be changed...';
+        const confirmLabel = isApprove ? 'Confirm Approval' : 'Confirm Rejection';
+        const confirmClass = isApprove ? 'btn-success' : 'btn-danger';
+
+        const html = `
+        <div id="home-queue-action-modal" class="modal" style="display:flex;z-index:1001;">
+            <div class="modal-content" style="max-width:480px;margin:auto;">
+                <div class="modal-header">
+                    <h2 style="font-size:1.125rem;font-weight:600;margin:0;">${escapeHTML(heading)}</h2>
+                    <button class="modal-close" aria-label="Close" onclick="window.homeQueueCancelModal()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding:1.5rem;">
+                    <p style="color:#475569;font-size:13px;line-height:1.5;margin:0 0 0.75rem 0;">
+                        <strong>${escapeHTML(proposal.title || '—')}</strong>
+                    </p>
+                    <p style="color:#475569;font-size:13px;line-height:1.5;margin:0 0 1rem 0;">${escapeHTML(bodyText)}</p>
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">
+                        ${escapeHTML(label)} <span style="color:#ef4444;">*</span>
+                    </label>
+                    <textarea id="homeQueueActionComment" rows="4"
+                        placeholder="${escapeHTML(placeholder)}"
+                        style="width:100%;min-height:80px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
+                    <div id="homeQueueActionCommentError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
+                </div>
+                <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                    <button class="btn btn-outline" onclick="window.homeQueueCancelModal()">Cancel</button>
+                    <button class="btn ${confirmClass}" onclick="window.homeQueueConfirmAction('${escapeHTML(proposalDocId)}', '${mode}')">${escapeHTML(confirmLabel)}</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    } catch (err) {
+        console.error('[Home] _openHomeQueueModal failed:', err);
+        showToast(err?.message || 'Failed to open approval modal.', 'error');
+    }
+}
+
+/**
+ * Phase 87.1 D-01 — Confirm the queue action (approve or reject).
+ * Per RESEARCH.md Open Question 2 + Pitfall 7: fetches the proposal FRESH via getDoc
+ * (not from any cached array) then calls _applyProposalStateTransition directly so
+ * lifecycle behavior matches the /proposals route exactly.
+ */
+async function _homeQueueConfirmAction(proposalDocId, mode) {
+    try {
+        const snap = await getDoc(doc(db, 'proposals', proposalDocId));
+        if (!snap.exists()) { showToast('Proposal not found.', 'error'); return; }
+        const proposal = { id: snap.id, ...snap.data() };
+        if (proposal.status !== 'pending_internal') {
+            showToast('Proposal status changed. Please reload.', 'error');
+            document.getElementById('home-queue-action-modal')?.remove();
+            return;
+        }
+
+        const commentEl = document.getElementById('homeQueueActionComment');
+        const errEl = document.getElementById('homeQueueActionCommentError');
+        const comment = (commentEl?.value || '').trim();
+        const fieldLabel = (mode === 'approve') ? 'Approval Notes' : 'Rejection Reason';
+        if (comment.length < 10) {
+            if (errEl) {
+                errEl.textContent = `${fieldLabel} is required (minimum 10 characters).`;
+                errEl.style.display = 'block';
+            }
+            return;
+        }
+
+        const newStatus = (mode === 'approve') ? 'pending_client' : 'for_revision';
+        const newProjectStatus = (mode === 'approve') ? 'Proposal Under Client Review' : 'For Revision';
+        const auditAction = (mode === 'approve') ? 'APPROVED' : 'REJECTED';
+        const successToast = (mode === 'approve')
+            ? 'Proposal approved. Project status updated.'
+            : 'Proposal rejected. Submitter has been notified.';
+
+        showLoading(true);
+        try {
+            await _applyProposalStateTransition({
+                proposal,
+                newStatus,
+                newProjectStatus,
+                auditAction,
+                auditComment: comment
+            });
+
+            // NOTIF-10 — notify proposal submitter of decision (mirrors proposals.js queue handler)
+            try {
+                if (proposal.created_by) {
+                    const actionVerb = (mode === 'approve') ? 'approved' : 'rejected';
+                    const excerpt = comment.length > 60 ? comment.slice(0, 60) + '…' : comment;
+                    await createNotification({
+                        user_id: proposal.created_by,
+                        type: NOTIFICATION_TYPES.PROPOSAL_DECIDED,
+                        message: `Proposal "${proposal.title}" ${actionVerb}: ${excerpt}`,
+                        link: `#/`,
+                        source_collection: 'proposals',
+                        source_id: proposal.proposal_id,
+                        object_name: proposal.title,
+                        actor_name: window.getCurrentUser?.()?.full_name || 'System'
+                    });
+                }
+            } catch (notifErr) {
+                console.error('[Home] NOTIF-10 failed (queue):', notifErr);
+            }
+
+            document.getElementById('home-queue-action-modal')?.remove();
+            showToast(successToast, 'success');
+            // onSnapshot fires automatically after Firestore write — no manual re-fetch needed.
+        } catch (err) {
+            console.error('[Home] _homeQueueConfirmAction transition failed:', err);
+            showToast(err?.message || 'Failed to record decision. Please try again.', 'error');
+        } finally {
+            showLoading(false);
+        }
+    } catch (err) {
+        console.error('[Home] _homeQueueConfirmAction outer failure:', err);
+        showToast(err?.message || 'Failed to record decision.', 'error');
+        showLoading(false);
+    }
+}
+
+/**
+ * Phase 93.1 D-11/D-12/D-13 — Render five scorecard tiles above the unified proposals table.
+ * One tile per STAGE_ORDER entry. Active tile gets project-scorecard-card--active class.
+ * @param {Array} proposals - All scoped proposals (not filtered by active status)
+ * @param {string|null} activeFilter - The currently active status key, or null for all
+ * @returns {string} HTML string
+ */
+function _renderHomeProposalScorecards(proposals, activeFilter) {
+    const colorMap = {
+        pending_internal: '#f59e0b',
+        pending_client:   '#3b82f6',
+        for_revision:     '#ef4444',
+        client_approved:  '#059669',
+        loss:             '#6b7280'
+    };
+    const tiles = STAGE_ORDER.map(stage => {
+        const color = colorMap[stage.key] || '#6b7280';
+        const count = proposals.filter(p => p.status === stage.key).length;
+        const isActive = activeFilter === stage.key;
+        return `<div class="project-scorecard-card${isActive ? ' project-scorecard-card--active' : ''}"
+            data-status="${stage.key}"
+            style="flex:1;min-width:140px;height:72px;border-left:3px solid ${color};"
+            onclick="window.handleHomeProposalScorecardClick('${stage.key}')">
+            <span class="scorecard-label">${escapeHTML(stage.label)}</span>
+            <span class="scorecard-count">${count}</span>
+        </div>`;
+    }).join('');
+    return `<div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;">${tiles}</div>`;
+}
+
+/**
+ * Phase 93.1 D-06/D-08/D-09 — Render the unified proposals table covering all five stages.
+ * Each row is clickable and opens the proposal detail modal.
+ * @param {Array} proposals - Proposals to display (may be filtered by active status)
+ * @returns {string} HTML string
+ */
+function _renderHomeProposalTable(proposals, page = 1) {
+    // Sort by updated_at descending: newest first
+    const sorted = [...proposals].sort((a, b) => {
+        const tsA = a.updated_at?.toMillis?.() ?? (a.updated_at?.seconds != null ? a.updated_at.seconds * 1000 : 0);
+        const tsB = b.updated_at?.toMillis?.() ?? (b.updated_at?.seconds != null ? b.updated_at.seconds * 1000 : 0);
+        return tsB - tsA;
+    });
+
+    if (sorted.length === 0) {
+        return `<div class="card" style="margin-bottom:1rem;width:100%;"><div class="card-body" style="padding:1.25rem 1.5rem;"><p style="color:#64748b;margin:0;font-size:0.9375rem;">No proposals match the selected filter. Click the active tile to show all.</p></div></div>`;
+    }
+
+    // Pagination
+    const totalItems = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / 10));
+    const safePage = Math.min(Math.max(1, page), totalPages);
+    const startIdx = (safePage - 1) * 10;
+    const endIdx = Math.min(startIdx + 10, totalItems);
+    const pageItems = sorted.slice(startIdx, endIdx);
+
+    const rows = pageItems.map(p => {
+        const titleTruncated = (p.title || '').length > 40
+            ? escapeHTML((p.title || '').slice(0, 40)) + '…'
+            : escapeHTML(p.title || '—');
+        const amountDisplay = (p.amount != null && p.amount !== '')
+            ? '₱' + formatCurrency(p.amount)
+            : '—';
+        return `<tr style="cursor:pointer;"
+            onclick="window.openProposalModal && window.openProposalModal('${escapeHTML(p.id)}')"
+            onmouseenter="this.style.background='#f8fafc'"
+            onmouseleave="this.style.background=''">
+            <td style="padding:0.6rem 1rem;vertical-align:middle;">${getProposalStatusBadge(p.status)}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;font-size:0.875rem;color:#475569;">${escapeHTML(p.proposal_id || p.id)}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;font-size:0.9rem;color:#1e293b;">${titleTruncated}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;font-size:0.875rem;color:#475569;">${escapeHTML(p.project_code || '—')}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;font-size:0.875rem;color:#475569;">${escapeHTML(p.target_client_name || '(none)')}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;font-size:0.875rem;color:#475569;text-align:right;">${amountDisplay}</td>
+            <td style="padding:0.6rem 1rem;vertical-align:middle;">${renderAgeBadge(p)}</td>
+        </tr>`;
+    }).join('');
+
+    // Build pagination HTML (omitted when everything fits on one page)
+    let paginationHtml = '';
+    if (totalPages > 1) {
+        let pageButtons = '';
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= safePage - 1 && i <= safePage + 1)) {
+                pageButtons += `<button class="pagination-btn${i === safePage ? ' active' : ''}" onclick="window.handleHomeProposalPageChange(${i})">${i}</button>`;
+            } else if (i === safePage - 2 || i === safePage + 2) {
+                pageButtons += '<span class="pagination-ellipsis">...</span>';
+            }
+        }
+        paginationHtml = `
+            <div class="pagination-container">
+                <div class="pagination-info">Showing <strong>${startIdx + 1}–${endIdx}</strong> of <strong>${totalItems}</strong> Proposals</div>
+                <div class="pagination-controls">
+                    <button class="pagination-btn" onclick="window.handleHomeProposalPageChange(${safePage - 1})" ${safePage === 1 ? 'disabled' : ''}>← Previous</button>
+                    ${pageButtons}
+                    <button class="pagination-btn" onclick="window.handleHomeProposalPageChange(${safePage + 1})" ${safePage === totalPages ? 'disabled' : ''}>Next →</button>
+                </div>
+            </div>`;
+    }
+
+    return `<div class="card" style="margin-bottom:1rem;"><div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f8f9fa;border-bottom:1px solid #e5e7eb;">
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Status</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Proposal ID</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Title</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Project</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Client</th>
+                    <th style="padding:0.6rem 1rem;text-align:right;font-size:0.8125rem;color:#64748b;font-weight:600;">Amount</th>
+                    <th style="padding:0.6rem 1rem;text-align:left;font-size:0.8125rem;color:#64748b;font-weight:600;">Age</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    </div></div>${paginationHtml}`;
+}
+
+/**
+ * Phase 93.1 D-13/D-14 — Re-render the proposals table section from cache without a Firestore round-trip.
+ * Called by window.handleHomeProposalScorecardClick after toggling _homeProposalStatusFilter.
+ */
+function _rerenderProposalTable() {
+    const mount = document.getElementById('homeProposalsContent');
+    if (!mount) return;
+    const tableContainerId = 'homeProposalTableSection';
+    const existing = document.getElementById(tableContainerId);
+    if (!existing) return;
+    const filtered = (_homeProposalStatusFilter && _homeProposalStatusFilter !== 'active_only')
+        ? _homeProposalsCache.filter(p => p.status === _homeProposalStatusFilter)
+        : _homeProposalsCache.filter(p => ACTIVE_PROPOSAL_STAGES.includes(p.status));
+    existing.innerHTML = _renderHomeProposalScorecards(_homeProposalsCache, _homeProposalStatusFilter)
+        + _renderHomeProposalTable(filtered, _homeProposalPage);
+    // Safety-net: sync active class on re-rendered tiles (already set via template literal above)
+    document.querySelectorAll('#homeProposalTableSection .project-scorecard-card').forEach(card => {
+        card.classList.toggle('project-scorecard-card--active', card.dataset.status === _homeProposalStatusFilter);
+    });
+}
+
+/**
+ * Phase 87.1 D-01/D-08 — Load and render the home Proposals sub-tab content.
+ * Phase 93.2 — Upgraded from one-time getDocs to real-time onSnapshot listener.
+ * Unsubscribe handle stored in _proposalListener; cancelled in destroy() and on re-call.
+ *
+ * Builds:
+ *   - Approval Queue card (only if canApproveQueue) — local home-only queue per Pitfall 7
+ *   - Scorecard tiles + unified proposals table
+ *
+ * Active proposals = status NOT in {'client_approved','loss'}.
+ */
+function _loadHomeProposalsTab(canApproveQueue) {
+    _homeCanApproveQueue = !!canApproveQueue;
+    _homeProposalStatusFilter = 'active_only';
+
+    // Cancel any existing proposals listener before registering a new one (T-93.2-04)
+    _proposalListener?.();
+    _proposalListener = null;
+
+    _proposalListener = onSnapshot(
+        collection(db, 'proposals'),
+        (snap) => {
+            const mount = document.getElementById('homeProposalsContent');
+            if (!mount) return; // T-93.2-03: navigated away — discard update
+
+            const all = [];
+            snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+
+            const scoped = filterProposalsForUser(all);
+            _homeProposalsCache = scoped;
+            _homeProposalPage = 1;
+
+            // Queue section — only for approvers (super_admin + operations_admin)
+            let queueHtml = '';
+            if (_homeCanApproveQueue) {
+                const pending = scoped
+                    .filter(p => p.status === 'pending_internal')
+                    .sort((a, b) => {
+                        const tsA = a.current_status_since?.toMillis?.() ?? (a.current_status_since?.seconds != null ? a.current_status_since.seconds * 1000 : 0);
+                        const tsB = b.current_status_since?.toMillis?.() ?? (b.current_status_since?.seconds != null ? b.current_status_since.seconds * 1000 : 0);
+                        return tsA - tsB;
+                    });
+                queueHtml = _renderHomeApprovalQueueHtml(pending);
+            }
+
+            // Apply active-only filter before building the table
+            const filtered = (_homeProposalStatusFilter && _homeProposalStatusFilter !== 'active_only')
+                ? scoped.filter(p => p.status === _homeProposalStatusFilter)
+                : scoped.filter(p => ACTIVE_PROPOSAL_STAGES.includes(p.status));
+
+            // Unified proposals table with scorecard tiles above
+            const tableSection = `<div id="homeProposalTableSection" style="width:100%;">
+                ${_renderHomeProposalScorecards(scoped, _homeProposalStatusFilter)}
+                ${_renderHomeProposalTable(filtered, _homeProposalPage)}
+            </div>`;
+
+            mount.innerHTML = `
+                <div style="margin-top:1rem;width:100%;">
+                    ${queueHtml}
+                    ${tableSection}
+                </div>
+            `;
+        },
+        (err) => {
+            console.error('[Home] proposals onSnapshot error:', err);
+            const mount = document.getElementById('homeProposalsContent');
+            if (!mount) return;
+            mount.innerHTML = `
+                <div class="card" style="margin-top:1rem;">
+                    <div class="card-body" style="padding: 1.25rem 1.5rem;">
+                        <p style="color: #ea4335; margin: 0; font-size: 0.9375rem;">Failed to load proposals. Please refresh.</p>
+                    </div>
+                </div>`;
+        }
+    );
 }
 
 /**
@@ -324,6 +678,52 @@ export async function init() {
         if (cachedStats.activeMRFs !== null) {
             document.querySelectorAll('.stat-value').forEach(el => el.classList.add('stat-refreshing'));
         }
+
+        // Phase 87.1 D-01/D-07/D-08 — home sub-tabs
+        const { showSubNav, canEngagements, canProposals, canApproveQueue } = getHomeSubTabConfig();
+        if (showSubNav) {
+            const navEl = document.getElementById('homeSubNav');
+            if (navEl) navEl.style.display = '';
+
+            if (canEngagements) {
+                const engTabBtn = document.getElementById('homeTabEngagements');
+                if (engTabBtn) engTabBtn.style.display = '';
+                const engEl = document.getElementById('homeEngagementsContent');
+                if (engEl) engEl.innerHTML = renderEngagementForm();
+                // initEngagementForm registers its own window functions + clients/users listeners.
+                // It is idempotent (calls destroyEngagementForm first) — safe across re-inits.
+                await initEngagementForm();
+            }
+
+            if (canProposals) {
+                const propTabBtn = document.getElementById('homeTabProposals');
+                if (propTabBtn) propTabBtn.style.display = '';
+                // _loadHomeProposalsTab is async but we don't await it here so the rest of
+                // init() can finish (stats listeners + sub-nav reveal) without blocking on
+                // network. Errors are caught inside the function.
+                _loadHomeProposalsTab(canApproveQueue);
+            }
+        }
+
+        // Register window functions for sub-nav + proposal modal + home-local queue handlers.
+        // Counterpart deletions live in destroy() below.
+        window.switchHomeTab = switchHomeTab;
+        window.openProposalModal = openProposalModal;
+        window.homeQueueConfirmAction = _homeQueueConfirmAction;
+        window.homeQueueCancelModal = () => { document.getElementById('home-queue-action-modal')?.remove(); };
+        window.homeQueueOpenApproveModal = (id) => _openHomeQueueModal(id, 'approve');
+        window.homeQueueOpenRejectModal = (id) => _openHomeQueueModal(id, 'reject');
+        window.handleHomeProposalScorecardClick = (statusKey) => {
+            // Toggle: clicking the active tile resets to null (reverts to active-only default);
+            // clicking a different tile filters to that specific status.
+            _homeProposalStatusFilter = (_homeProposalStatusFilter === statusKey) ? null : statusKey;
+            _homeProposalPage = 1;
+            _rerenderProposalTable();
+        };
+        window.handleHomeProposalPageChange = (page) => {
+            _homeProposalPage = page;
+            _rerenderProposalTable();
+        };
     } catch (error) {
         console.error('Error initializing home view:', error);
     }
@@ -382,58 +782,6 @@ function loadStats(mode) {
         (error) => { console.error('[Home] Error loading PO stats:', error); }
     );
     statsListeners.push(poListener);
-
-    // ---- Projects card (D-02) ----
-    if (mode === 'projects' || mode === 'both') {
-        const projectsListener = onSnapshot(
-            collection(db, 'projects'),
-            (snapshot) => {
-                const byStatus = {};
-                UNIFIED_STATUS_OPTIONS.forEach(s => { byStatus[s] = 0; });
-                snapshot.forEach(doc => {
-                    const d = doc.data();
-                    if (d.project_status && byStatus[d.project_status] !== undefined) {
-                        byStatus[d.project_status]++;
-                    }
-                });
-                cachedStats.projectsByStatus = byStatus;
-                renderStatusBreakdown('stat-projects-status', byStatus);
-            },
-            (error) => { console.error('[Home] Error loading projects stats:', error); }
-        );
-        statsListeners.push(projectsListener);
-    }
-
-    // ---- Services card (D-03) ----
-    if (mode === 'services' || mode === 'both') {
-        const servicesListener = onSnapshot(
-            collection(db, 'services'),
-            (snapshot) => {
-                const otStatus = {};
-                const recStatus = {};
-                UNIFIED_STATUS_OPTIONS.forEach(s => {
-                    otStatus[s] = 0;
-                    recStatus[s] = 0;
-                });
-                snapshot.forEach(doc => {
-                    const d = doc.data();
-                    const isOneTime = d.service_type === 'one-time';
-                    const isRecurring = d.service_type === 'recurring';
-                    if (isOneTime && d.project_status && otStatus[d.project_status] !== undefined) {
-                        otStatus[d.project_status]++;
-                    } else if (isRecurring && d.project_status && recStatus[d.project_status] !== undefined) {
-                        recStatus[d.project_status]++;
-                    }
-                });
-                cachedStats.servicesByStatusOneTime = otStatus;
-                cachedStats.servicesByStatusRecurring = recStatus;
-                renderStatusBreakdown('stat-services-ot-status', otStatus);
-                renderStatusBreakdown('stat-services-rec-status', recStatus);
-            },
-            (error) => { console.error('[Home] Error loading services stats:', error); }
-        );
-        statsListeners.push(servicesListener);
-    }
 }
 
 /**
@@ -452,10 +800,33 @@ function updateStatDisplay(elementId, value) {
 
 /**
  * Cleanup when leaving the view
- * Phase 77.1: also tears down Chart.js instances so canvases can be garbage-collected
- * and re-creating the view doesn't leave orphaned charts bound to detached DOM nodes.
  */
 export async function destroy() {
+    // Phase 87.1 D-01/D-07 — clean up sub-tab window functions and the engagement form.
+    // destroyEngagementForm() is idempotent and the canonical owner of the 6 engagement
+    // window functions (CR-01-safe by construction — see 87.1-03-SUMMARY.md).
+    delete window.switchHomeTab;
+    delete window.openProposalModal;
+    delete window.homeQueueConfirmAction;
+    delete window.homeQueueCancelModal;
+    delete window.homeQueueOpenApproveModal;
+    delete window.homeQueueOpenRejectModal;
+    delete window.handleHomeProposalScorecardClick;
+    delete window.handleHomeProposalPageChange;
+    try {
+        destroyEngagementForm();
+    } catch (err) {
+        console.error('[Home] destroyEngagementForm failed:', err);
+    }
+    _homeProposalsCache = [];
+    _homeCanApproveQueue = false;
+    _homeProposalStatusFilter = null;
+    _homeProposalPage = 1;
+
+    // Cancel proposals real-time listener (Phase 93.2)
+    _proposalListener?.();
+    _proposalListener = null;
+
     // Unsubscribe from all Firestore listeners
     statsListeners.forEach(unsubscribe => {
         if (typeof unsubscribe === 'function') {
@@ -463,14 +834,6 @@ export async function destroy() {
         }
     });
     statsListeners = [];
-
-    // Phase 77.1 — destroy Chart.js instances and clear the registry
-    chartInstances.forEach(chart => {
-        if (chart && typeof chart.destroy === 'function') {
-            chart.destroy();
-        }
-    });
-    chartInstances.clear();
 
     // cachedStats intentionally NOT reset — stale-while-revalidate pattern:
     // preserved values shown immediately on next visit while fresh data loads

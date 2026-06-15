@@ -15,7 +15,12 @@
       "Bash(cat:*)",
       "Bash(python3:*)",
       "Bash(readlink:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\ndocs\\(06\\): complete role-infrastructure-real-time-permissions phase\n\nPhase 6 verified: 5/5 plans executed, 6/6 must-haves confirmed.\n14 requirements marked complete \\(PERM-01 through PERM-07, PERM-13\nthrough PERM-19\\). Permission system operational across all views.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\ndocs\\(06\\): complete role-infrastructure-real-time-permissions phase\n\nPhase 6 verified: 5/5 plans executed, 6/6 must-haves confirmed.\n14 requirements marked complete \\(PERM-01 through PERM-07, PERM-13\nthrough PERM-19\\). Permission system operational across all views.\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs config-get workflow._auto_chain_active)",
+      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs config-get workflow.auto_advance)",
+      "Bash(node *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git *)"
     ]
   }
 }

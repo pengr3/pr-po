@@ -340,15 +340,19 @@ async function handleSave() {
     try {
         // Create batch write
         const batch = writeBatch(db);
-        const changedRoles = [];
 
         // For each role with changes
         for (const roleId in pendingChanges) {
-            changedRoles.push(roleId);
             const roleRef = doc(db, 'role_templates', roleId);
             const roleChanges = pendingChanges[roleId];
 
-            // Build update object with dot notation
+            // Build update object using dot-notation field paths.
+            // IMPORTANT: dot-notation keys like "permissions.tabs.dashboard.edit" are
+            // correctly interpreted as nested Firestore field paths by batch.update().
+            // batch.set() with merge:true does NOT expand dot-notation — it writes a
+            // literal top-level key named "permissions.tabs.dashboard.edit", leaving
+            // the actual nested permissions.tabs structure untouched (silent no-op).
+            // Always use batch.update() for partial nested field writes.
             const updateObj = {
                 updated_at: serverTimestamp()
             };
@@ -360,8 +364,7 @@ async function handleSave() {
                 }
             }
 
-            // Add to batch (set with merge handles missing docs in dev DB)
-            batch.set(roleRef, updateObj, { merge: true });
+            batch.update(roleRef, updateObj);
         }
 
         // Commit batch

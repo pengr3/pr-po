@@ -1,239 +1,53 @@
-# Roadmap: CLMC Procurement System
+**Plans**: 4 plans / 4 waves (decomposed by gsd-planner 2026-06-13). projects.js and services.js are separate files; CSS lands first; projects.js plans are sequential among themselves (same file).
+- [x] 103-01-PLAN.md — Shared `styles/views.css` block (view-mode toggle, feed urgency sections, feed/browse rows, stage-aware finance cells, collapsible stage groups; literal hex palette, no `var(--*)`) [Wave 1] ✅ `bb94453`
+- [x] 103-02-PLAN.md — projects.js view-mode toggle (`vmSwitch`) + shared helpers (`normalizeUpdatedAt` D-08, `getProjectSignal`/`computeUrgencySignals` D-07, stage-aware `renderFinancial` D-06, `getDlpState` reuse D-05) + Priority Feed render; replaces flat table [Wave 2] ✅ `3a05b92`+`fd4374f`
+- [x] 103-03-PLAN.md — projects.js Browse All stage-grouped collapsible (`STAGE_GROUPS` all 10 statuses, collapse persistence Completed+Loss default-collapsed D-03) + filter/scope/scorecard sharing across both modes [Wave 3] ✅ `961a36f`+`6f26ab5`
+- [x] 103-04-PLAN.md — services.js mirror of the full D+B hybrid, coexisting with the one-time/recurring `service_type` sub-tab (outer filter) + Draft stage group; own localStorage keys [Wave 4] ✅ `5f1e81b`+`e350fcb`
+**Status**: ✅ COMPLETE 2026-06-13 — 4/4 plans / 4 waves, inline sequential on v3.3. VERIFICATION passed (static gates + 3 browser-UAT gates approved). No new Firestore listener; no schema/rules change. W-2 (empty On-going mini-bar) accepted, deferred to a future billing-aware phase.
+**Spike**: `.planning/spikes/033-project-table-redesign/` (README + `index.html` — all 5 options + D+B combo; authoritative visual contract). Blueprint: `.claude/skills/spike-findings-pr-po/references/project-portfolio-view.md`.
+**UI hint**: yes — spike `index.html` (D+B combo tab) is the visual reference.
 
-## Milestones
+---
 
-- ✅ **v1.0 Core Projects Foundation** — Phases 1-4 (shipped 2026-01-30)
-- ✅ **v2.0 Authentication & Permissions** — Phases 5-10 (shipped 2026-02-04)
-- ✅ **v2.1 System Refinement** — Phases 11-13 (shipped 2026-02-06)
-- ✅ **v2.2 Workflow & UX Enhancements** — Phases 15-25 (shipped 2026-02-10)
-- ✅ **v2.3 Services Department Support** — Phases 26-40 (shipped 2026-02-26)
-- ✅ **v2.4 Productivity & Polish** — Phases 41-48 (shipped 2026-03-01)
-- ✅ **v2.5 Data & Application Security** — Phases 49-53 (shipped 2026-03-02)
-- ✅ **v3.0 Fixes** — Phases 54-56 (shipped 2026-03-04)
-- ✅ **v3.1 PR/TR Routing Fix & Procurement Workflow Improvements** — Phases 57-62.2 (shipped 2026-03-10)
-- ✅ **v3.2 Supplier Search, Proof of Procurement & Payables Tracking** — Phases 63-82 (shipped 2026-04-28)
+## Phase 103.1 — Priority Feed Signal Accuracy
+**Goal**: Make the Phase 103 Priority Feed trustworthy. Its urgency rests on "days since `updated_at`", which (verified) is the wrong clock — corruptible by edits, blind to real activity, and absent for 3 statuses. Fix: two purpose-built clocks + a coherent two-tier funnel matrix.
+- [ ] **`status_changed_at` spine** (both views) — stamp on every status transition (gates + proposal-modal + service-detail + status dropdown); all stage-duration signals read `status_changed_at ?? updated_at`; +1 `firestore.rules` allow-list field. Makes the existing For Inspection / Client Review / For Revision signals accurate too [D-01/D-02]
+- [ ] `last_activity_at` for On-going (projects) — journal handlers fire-and-forget stamp the parent; +1 rules field [D-03]
+- [ ] Two-tier funnel matrix + scoped ambient day-counts — fills the 3 silent statuses (For Proposal, Internal Approval, Client Approved) + retunes the existing ones; Internal Approval is the loudest/shortest-fuse; On-Track funnel rows show "In {stage} · {d}d" subtext [D-04]
+- [ ] Tame services On-going-quiet (no journal; recurring quiet by design) [D-05 — pending nod]
+- [ ] (opt) DLP "expiring soon" watch (both views) [D-06 — pending include/defer]
+**Plans**: 4 plans / 3 waves (gsd-planner + gsd-plan-checker, 2026-06-13). Plan-checker: 1 blocker + 1 warning found and fixed in revision; all 13 reqs (SC-1..7, D-01..06) covered.
+- [x] 103.1-01-PLAN.md — `status_changed_at` spine (proposal funnel + 4 gates + manual status) + firestore.rules +status_changed_at/+last_activity_at + dev deploy [Wave 1] ✅ `d8aa4d1`+`ab6540c`
+- [x] 103.1-02-PLAN.md — `last_activity_at` (projects): fire-and-forget bump on the 3 journal handlers; postActivityEntry success-gated [Wave 2] ✅ `4e90171`
+- [x] 103.1-03-PLAN.md — projects.js two-tier funnel matrix + On-going 7/14 on last_activity_at + DLP-soon + scoped ambient [Wave 2] ✅ `ef4957e`
+- [x] 103.1-04-PLAN.md — services.js mirror + D-05 conservative On-going + DLP-soon [Wave 3] ✅ `af4d503`
+**Status**: ✅ COMPLETE 2026-06-13 — 4/4 plans / 3 waves, inline sequential on v3.3. VERIFICATION passed; all 3 human gates approved (dev rules deploy + projects UAT + services UAT). Dev seed: `scripts/seed-dev-projects.js`. **Prod `firebase deploy --only firestore:rules` still pending at v3.3 → main merge** (carries the 103.1 allow-list + standing 87.4/99/100/101/102 debt). NO new portfolio listener. Cash/collection-risk signal deferred to a future billing-aware phase.
 
-> Full details for each shipped milestone live in `.planning/milestones/v[X.Y]-ROADMAP.md`. User-facing changelogs live in `.planning/changelogs/v[X.Y].md`.
+---
 
-## Phases
+## Phase 104 — Service Detail Parity (Lifecycle · Journal · DLP)
+**Goal**: Bring `service-detail.js` to functional parity with the overhauled `project-detail.js` for the three detail-page subsystems services currently lack. Full flow per surface (UI + submit + listeners + Finance/back-office side), not display-only. Project-side origins: Phase 100 (lifecycle), Phase 101 (journal), Phase 102 (DLP). The other detail features (info card, financial summary, personnel, collection tranches, billing-request modal, proposal inline card, edit history, status dropdown, CSV export) are already at parity.
+**Scope (locked in `/gsd-discuss-phase 104` — D-01..D-15 in 104-CONTEXT.md):**
+- [ ] **Lifecycle accordion** (D-01..D-07) — full 8-stage track + 4 doc gates for BOTH service types; replaces the manual `project_status` dropdown; Completion gate `services_admin`-only; Draft handled by the existing proposal-card fall-through; gates stamp `status_changed_at` + audit + activity + `last_activity_at`.
+- [ ] **Activity Journal** (D-10..D-12, D-14) — 3-tab panel (Activity feed · Progress updates · Issues) on services; new `services/{id}/activity_entries|progress_updates|issues` subcollections; status-gated; fire-and-forget `last_activity_at` bump; PO-Delivered auto-entry.
+- [ ] **DLP / retention** (D-07..D-09, D-15) — inline tranche editor + Ret? toggle + Completion-gate DLP capture + 4-state finance bar + Finance-only Record Release on `service-detail.js`; DLP fields on the service doc; detail-page only (portfolio done in 103).
+- [ ] **Cross-cutting** (D-13) — one-time On-going priority-feed signal upgraded to two-tier on `last_activity_at`; recurring stays conservative. firestore.rules service subcollection + Finance branch (D-15).
+**Plans**: 5 plans / 4 waves (gsd-planner 2026-06-13). Copy-then-adapt parity (Phase-26 pattern); all analogs verified in 104-PATTERNS.md. CSS unchanged (Phase 100/101/102 classes reused verbatim). The three service-detail.js subsystems share one file → sequential (Waves 2→3→4); cross-cutting independent-file work parallelizes in Wave 2.
+- [x] 104-01-PLAN.md — `firestore.rules`: 3 service journal subcollection blocks + `audit_log` block + Finance Record-Release branch under `match /services/{serviceId}` + DEV deploy. Foundation for all journal/DLP writes [D-15/D-04/D-10] [Wave 1]
+- [x] 104-02-PLAN.md — service-detail.js Activity Journal: `orderBy`/`limit` imports, shared write primitives (`_addServiceActivityEntry` boolean + `addServiceAuditEntry`), 3 onSnapshot listeners, status-gated 3-tab panel, post/progress/issue handlers, D-14 fire-and-forget bump [D-10/D-11/D-12/D-14] [Wave 2]
+- [x] 104-03-PLAN.md — service-detail.js Lifecycle accordion: LC_STAGES + track/card/badge/toggle + attach zone + 10 body branches (incl. DLP fieldset + Draft fall-through) + `_canAdvanceServiceStatus` (Completion services_admin-only) + 4 gate transitions (status_changed_at + audit + activity + bump) + dropdown→pill; adds `computeDlpFields` [D-01..D-07/D-12/D-14] [Wave 3]
+- [x] 104-04-PLAN.md — service-detail.js DLP: `getDlpState`/`isRetentionCollected` + 4-state finance bar + inline tranche editor (Ret? toggle) in the Financial card + Finance-only `recordServiceRetentionRelease`; service-doc DLP fields `|| null` [D-07/D-08/D-09/D-15] [Wave 4]
+- [x] 104-05-PLAN.md — procurement.js PO-Delivered service auto-entry (join on `service_code`) + services.js one-time On-going two-tier signal on `last_activity_at`; recurring conservative [D-12/D-13] [Wave 2, parallel with 02]
+**Deferred:** Service Plan / Gantt → Phase 105 (separate; needs a service task data model).
+**Status**: ✅ COMPLETE 2026-06-13 — 5/5 plans, inline sequential on v3.3. DEV rules deployed; **12/12 browser UAT approved**. VERIFICATION `passed`. `service-detail.js` now at functional parity with `project-detail.js` (lifecycle accordion + activity journal + DLP/retention). All `node --check`/grep gates green; firestore.rules braces 77/77; 33/33 window fns symmetric. **Carry:** prod `firebase deploy --only firestore:rules` rides the standing v3.3 → main debt (87.4/99/100/101/102/103.1 + now 104).
 
-<details>
-<summary>✅ v1.0 Core Projects Foundation (Phases 1-4) — SHIPPED 2026-01-30</summary>
+---
 
-- [x] Phase 1: Clients Management Foundation (3/3 plans) — completed 2026-01-30
-- [x] Phase 2: Projects Tab Structure (3/3 plans) — completed 2026-01-30
-- [x] Phase 3: Project Detail & Inline Editing (2/2 plans) — completed 2026-01-30
-- [x] Phase 4: MRF-Project Integration (2/2 plans) — completed 2026-01-30
-
-</details>
-
-<details>
-<summary>✅ v2.0 Authentication & Permissions (Phases 5-10) — SHIPPED 2026-02-04</summary>
-
-- [x] Phase 5: Authentication Foundation (4/4 plans) — completed 2026-02-04
-- [x] Phase 6: Role-Based Access Control (4/4 plans) — completed 2026-02-04
-- [x] Phase 7: Project Assignment System (3/3 plans) — completed 2026-02-04
-- [x] Phase 8: Firebase Security Rules (5/5 plans) — completed 2026-02-04
-- [x] Phase 9: Super Admin Dashboard (4/4 plans) — completed 2026-02-04
-- [x] Phase 10: Route Protection (6/6 plans) — completed 2026-02-04
-
-</details>
-
-<details>
-<summary>✅ v2.1 System Refinement (Phases 11-13) — SHIPPED 2026-02-06</summary>
-
-- [x] Phase 11: Security Foundation Fixes (3/3 plans) — completed 2026-02-06
-- [x] Phase 12: Finance Review Workflow Restoration (3/3 plans) — completed 2026-02-06
-- [x] Phase 13: Finance Dashboard Features (5/5 plans) — completed 2026-02-06
-
-</details>
-
-<details>
-<summary>✅ v2.2 Workflow & UX Enhancements (Phases 15-25) — SHIPPED 2026-02-10</summary>
-
-- [x] Phase 15: MRF Form Efficiency (2/2 plans) — completed 2026-02-10
-- [x] Phase 16: Project Detail Restructure (2/2 plans) — completed 2026-02-10
-- [x] Phase 17: Comprehensive Status Tracking (3/3 plans) — completed 2026-02-10
-- [x] Phase 18: Finance Signature Capture (2/2 plans) — completed 2026-02-10
-- [x] Phase 19: Consolidated Admin Navigation (2/2 plans) — completed 2026-02-10
-- [x] Phase 20: Multi-Personnel Selection (3/3 plans) — completed 2026-02-10
-- [x] Phase 21: Automatic Personnel-to-Assignment Sync (2/2 plans) — completed 2026-02-10
-- [x] Phase 22: Project Edit History Foundation (3/3 plans) — completed 2026-02-10
-- [x] Phase 23: Rejection Reason Passthrough (2/2 plans) — completed 2026-02-10
-- [x] Phase 24: Edit History Instrumentation (2/2 plans) — completed 2026-02-10
-- [x] Phase 25: Edit History Timeline Modal (2/2 plans) — completed 2026-02-10
-
-</details>
-
-<details>
-<summary>✅ v2.3 Services Department Support (Phases 26-40) — SHIPPED 2026-02-26</summary>
-
-- [x] Phase 26: Security & Roles Foundation (3/3 plans) — completed 2026-02-18
-- [x] Phase 27: Code Generation (1/1 plan) — completed 2026-02-18
-- [x] Phase 28: Services View (3/3 plans) — completed 2026-02-18
-- [x] Phase 29: MRF Integration (3/3 plans) — completed 2026-02-18
-- [x] Phase 30: Cross-Department Workflows (2/2 plans) — completed 2026-02-18
-- [x] Phase 31: Dashboard Integration (1/1 plan) — completed 2026-02-19
-- [x] Phase 32: Fix Firestore Assignment Rules (1/1 plan) — completed 2026-02-19
-- [x] Phase 33: Service Expense Breakdown (1/1 plan) — completed 2026-02-19
-- [x] Phase 34: Documentation & Minor Fixes (2/2 plans) — completed 2026-02-19
-- [x] Phase 35: Fix Service Edit History + UAT Gap Closure (3/3 plans) — completed 2026-02-20
-- [x] Phase 36: Fix Expense Breakdown Modal (1/1 plan) — completed 2026-02-23
-- [x] Phase 37: Documentation & File Cleanup (1/1 plan) — completed 2026-02-24
-- [x] Phase 38: Code Quality & DRY Cleanup (2/2 plans) — completed 2026-02-24
-- [x] Phase 39: Admin Assignments Overhaul (3/3 plans) — completed 2026-02-24
-- [x] Phase 40: UI/UX Revisions (7/7 plans) — completed 2026-02-26
-
-</details>
-
-<details>
-<summary>✅ v2.4 Productivity & Polish (Phases 41-48) — SHIPPED 2026-03-01</summary>
-
-- [x] Phase 41: List View Exports (3/3 plans) — completed 2026-02-27
-- [x] Phase 42: Detail Page Exports (1/1 plan) — completed 2026-02-27
-- [x] Phase 43: Mobile Hamburger Navigation (1/1 plan) — completed 2026-02-27
-- [x] Phase 44: Responsive Layouts (3/3 plans) — completed 2026-02-27
-- [x] Phase 45: Visual Polish (2/2 plans) — completed 2026-02-27
-- [x] Phase 46: Code Cleanup and MRF Fix (3/3 plans) — completed 2026-02-28
-- [x] Phase 47: Sortable Headers + Login Logo + Urgency (3/3 plans) — completed 2026-02-28
-- [x] Phase 47.1: Procurement Records Sorting (2/2 plans) — completed 2026-03-01
-- [x] Phase 47.2: MRF Requestor Auto-fill (1/1 plan) — completed 2026-03-01
-- [x] Phase 48: Performance Optimization (5/5 plans) — completed 2026-03-01
-
-</details>
-
-<details>
-<summary>✅ v2.5 Data & Application Security (Phases 49-53) — SHIPPED 2026-03-02</summary>
-
-- [x] Phase 49: Security Audit (5/5 plans) — completed 2026-03-01
-- [x] Phase 50: Database Safety (2/2 plans) — completed 2026-03-01
-- [x] Phase 51: Data Wipe (1/1 plan) — completed 2026-03-01
-- ~~Phase 52: Data Migration~~ *(superseded by Phase 51.1)*
-- [x] Phase 51.1: Data Migration [inserted] (1/1 plan) — completed 2026-03-01
-- [x] Phase 51.2: Clickable Active Badge [inserted] (1/1 plan) — completed 2026-03-01
-- [x] Phase 52.1: Finance Subtabs [inserted] (1/1 plan) — completed 2026-03-02
-- [x] Phase 53: Milestone Gap Closure (1/1 plan) — completed 2026-03-02
-- [x] Phase 53.1: Dev Firebase Setup [inserted] (2/2 plans) — completed 2026-03-02
-- [x] Phase 53.2: Seed Dev Database [inserted] (1/1 plan) — completed 2026-03-02
-
-</details>
-
-<details>
-<summary>✅ v3.0 Fixes (Phases 54-56) — SHIPPED 2026-03-04</summary>
-
-- [x] Phase 54: MRF Table PR/PO Alignment (2/2 plans) — completed 2026-03-04
-- [x] Phase 55: Finance Pending Approvals Fixes (1/1 plan) — completed 2026-03-04
-- [x] Phase 56: UI Layout Standardization (1/1 plan) — completed 2026-03-04
-
-</details>
-
-<details>
-<summary>✅ v3.1 PR/TR Routing Fix & Procurement Workflow Improvements (Phases 57-62.2) — SHIPPED 2026-03-10</summary>
-
-- [x] Phase 57: Delivery By Supplier Category (1/1 plan) — completed 2026-03-05
-- [x] Phase 58: TR rejection visibility + CSP fix (2/2 plans) — completed 2026-03-05
-- [x] Phase 59: TR display, sortable headers, responsiveness (5/5 plans) — completed 2026-03-06
-- [x] Phase 59.1: MRF Records real-time rendering (1/1 plan) — completed 2026-03-07
-- [x] Phase 60: TR rejection independence (3/3 plans) — completed 2026-03-08
-- [x] Phase 60.1: TR code visibility + rejected MRFs grouping (2/2 plans) — completed 2026-03-08
-- [x] Phase 60.2: My Requests table width match (1/1 plan) — completed 2026-03-08
-- [x] Phase 61: Code format dash + permission fixes (1/1 plan) — completed 2026-03-09
-- [x] Phase 62: Sort dropdowns, soft-reject, TR modal, Finance fix (4/4 plans) — completed 2026-03-09
-- [x] Phase 62.1: Add line item to rejected TRs (1/1 plan) — completed 2026-03-10
-- [x] Phase 62.2: MRF rejection timeline event (1/1 plan) — completed 2026-03-10
-- [x] Phase 62.3: Client search bar + dropdown sort by code [inserted] (1/1 plan) — completed 2026-03-10
-
-</details>
-
-<details>
-<summary>✅ v3.2 Supplier Search, Proof of Procurement & Payables Tracking (Phases 63-82) — SHIPPED 2026-04-28</summary>
-
-**Core scope (originally planned 63-65):**
-
-- [x] Phase 63: Supplier Search (1/1 plan) — completed 2026-03-16
-- [x] Phase 64: Proof of Procurement (4/4 plans) — completed 2026-03-17
-- [x] Phase 65: RFP + Payables Tracking (5/5 plans) — completed 2026-03-18
-
-**Payables polish & RFP lifecycle (inserted):**
-
-- [x] Phase 65.1: Finance Payables Dual-Table Revamp [inserted] (3/3 plans) — completed 2026-03-19
-- [x] Phase 65.2: Remove Processed RFPs from RFP Processing [inserted] (1/1 plan) — completed 2026-03-19
-- [x] Phase 65.3: Active Tranche % Display [inserted] (1/1 plan) — completed 2026-03-19
-- [x] Phase 65.4: PO-Scoped RFP IDs [inserted] (1/1 plan) — completed 2026-03-19
-- [x] Phase 65.5: Clickable PO IDs in RFP Processing [inserted] (1/1 plan) — completed 2026-03-19
-- [x] Phase 65.6: RFP Bank Transfer Alt-Bank UX [inserted] (1/1 plan) — completed 2026-03-19
-- [x] Phase 65.7: PO Payment Summary Pagination [inserted] (1/1 plan) — completed 2026-03-19
-- [x] Phase 65.8: Payables Tab UI Containment [inserted] (1/1 plan) — completed 2026-03-19
-- [x] Phase 65.9: Delivery Fee RFP Integration [inserted] (1/1 plan) — completed 2026-03-19
-- [x] Phase 65.10: Cancel RFP Capability [inserted] (1/1 plan) — completed 2026-03-19
-
-**MRF Records / TR parity:**
-
-- [x] Phase 66: PO Payment Progress Bar Fix (1/1 plan) — completed 2026-03-20
-- [x] Phase 66.1: TR Proof Column for Mixed MRFs [inserted] (1/1 plan) — completed 2026-03-20
-- [x] Phase 67: TR Proof + Payment + RFP Parity (2/2 plans) — completed 2026-03-21
-
-**Expense / Financial Breakdown modal:**
-
-- [x] Phase 68: Expense Modal Cleanup (1/1 plan) — completed 2026-03-22
-- [x] Phase 68.1: Subcon Cost Scorecard Fix [inserted] *(deferred to v3.3 — bug remains; needs `/gsd:discuss-phase 68.1`)*
-- [x] Phase 69: Expense Modal Payable Tracking (1/1 plan) — completed 2026-03-23
-- [x] Phase 69.1: Remaining Payable Formula Fix [inserted] (1/1 plan) — completed 2026-03-23
-- [x] Phase 70: Cancel PRs / Restore MRF (1/1 plan) — completed 2026-03-24 *(rework deferred — see BACKLOG "Recall Process with Finance Approval")*
-- [x] Phase 71: Financial Breakdown Modal Revamp (3/3 plans) — completed 2026-03-25
-- [x] Phase 72: Project/Service Financial Summary Payables (1/1 plan) — completed 2026-03-26
-- [x] Phase 72.1: Service Financial Summary Parity [inserted] (1/1 plan) — completed 2026-03-26
-
-**Mobile optimization:**
-
-- [x] Phase 73: Finance Tab Mobile (2/2 plans) — completed 2026-03-28
-- [x] Phase 73.1: Finance Card Layouts [inserted] (4/4 plans) — completed 2026-03-30
-- [x] Phase 73.2: Finance Modals Mobile [inserted] (2/2 plans) — completed 2026-04-01
-- [x] Phase 73.3: Finance Sub-Nav + PR Modal Cleanup [inserted] (1/1 plan) — completed 2026-04-02
-- [x] Phase 74: MRF Tab Mobile Optimization (3/3 plans) — completed 2026-04-05
-
-**Audit closure:**
-
-- [x] Phase 75: v3.2 Gap Closure (Code + Spec) [inserted] (2/2 plans) — completed 2026-04-18
-- [x] Phase 76: v3.2 Final Audit Closure [inserted] (1/1 plan) — completed 2026-04-20
-
-**Home dashboard, layout & status overhaul:**
-
-- [x] Phase 77: Home Stats Cards Redesign — completed 2026-04-22 *(backfilled retroactively from commits 2a8c5a6, 5854a42, 05a4710, ace2ef5; no PLAN/UI-SPEC artifacts)*
-- [x] Phase 77.1: Home Charts (Chart.js) [inserted] (1/1 plan) — completed 2026-04-23
-- [x] Phase 77.2: Home Chart Proportions Polish [inserted] (1/1 plan) — completed 2026-04-25
-- [x] Phase 78: Clientless Project Creation (4/4 plans) — completed 2026-04-24
-- [x] Phase 79: MRF Details Justification + QTY + Searchable Dropdown (2/2 plans) — completed 2026-04-25
-- [x] Phase 80: 1366x768 Layout Overflow Fix (2/2 plans) — completed 2026-04-26
-- [x] Phase 81: Unified Project/Service Status (4/4 plans) — completed 2026-04-27
-- [x] Phase 82: Delete Rejected MRFs (1/1 plan) — completed 2026-04-28
-
-</details>
-
-## Progress
-
-**Total shipped: 92 phases, 200+ plans, 11 milestones**
-
-| Phases | Milestone | Plans | Status | Completed |
-|--------|-----------|-------|--------|-----------|
-| 1-4 | v1.0 | 10/10 | Complete | 2026-01-30 |
-| 5-10 | v2.0 | 26/26 | Complete | 2026-02-04 |
-| 11-13 | v2.1 | 11/11 | Complete | 2026-02-06 |
-| 15-25 | v2.2 | 23/23 | Complete | 2026-02-10 |
-| 26-40 | v2.3 | 34/34 | Complete | 2026-02-26 |
-| 41-48 | v2.4 | 24/24 | Complete | 2026-03-01 |
-| 49-53 | v2.5 | 12/12 | Complete | 2026-03-02 |
-| 54-56 | v3.0 | 4/4 | Complete | 2026-03-04 |
-| 57-62.3 | v3.1 | 23/23 | Complete | 2026-03-10 |
-| 63-82 | v3.2 | 55/55 | Complete | 2026-04-28 |
-
-### Next Milestone
-
-**v3.3** — not yet defined. Run `/gsd:new-milestone` to plan.
-
-Carry-overs to weigh in v3.3 scoping:
-
-- **Phase 68.1** — Subcon cost scorecard $0 bug (deferred from v3.2; needs `/gsd:discuss-phase 68.1`)
-- **Phase 70 rework** — Cancel-PR flow needs proper approval workflow, audit trail, soft-delete, role-based access (tracked in `BACKLOG.md` as "Recall Process with Finance Approval")
-- **Process gaps** — Phases 73.2 and 79 shipped without VERIFICATION.md (reqs satisfied, but for tidiness)
-- **Dead CSS housekeeping** — `styles/hero.css` orphan classes from Phase 81; `views.css:1748` unused `.mrf-sub-nav--hidden`
+## Phase 105 — Service Plan (Gantt) Parity
+**Goal**: Mirror the project plan / Gantt subsystem (`project-plan.js`, ~4,800 lines; Phases 86 → 86.12) to services. Largest parity piece — requires a new service task data model (services have no `project_tasks` equivalent today) and a `#/services/{code}/plan` route.
+**Plans**: 3 plans / 3 waves
+Plans:
+- [x] 105-01-PLAN.md — firestore.rules `match /service_tasks/{taskId}` two-tier block (mirror project_tasks, services roles) + `app/service-task-id.js` `generateServiceTaskId` (TASK-{service_code}-{seq}) + dev rules deploy [D-01/D-02/D-03/D-06] [Wave 1]
+- [x] 105-02-PLAN.md — `app/views/service-plan.js` copy-adapt of project-plan.js (id swap; remove deferred baseline 86.12 + iterations 97) + router `#/services/{code}/plan` wiring [D-01/D-03/D-04/D-05] [Wave 2, dep 01] ✅ UAT approved 2026-06-15 (792057d/40b8345/4560b3f/f4fdc3a/8303a68)
+- [~] 105-03-PLAN.md — service-detail.js "Service Plan" summary card + live service_tasks listener (teardown in init re-init + destroy) + Open Plan CTA (clientless-disabled) [D-01/D-05] [Wave 3, dep 02] — CODE COMPLETE 2026-06-15, paused at browser UAT gate (43281d4/b743b60)
+**Status**: 🔄 EXECUTING 2026-06-15 — 3/3 plans started (01 COMPLETE, 02 COMPLETE/UAT-approved, 03 code-complete/UAT-pending). Copy-then-adapt parity phase (D-01): project plan subsystem stays byte-untouched. W1 rules+ID foundation → W2 service-plan.js view+route → W3 service-detail card. Deferred to 105.1: baseline snapshot + iterations/save-game (D-05). DEV `firebase deploy --only firestore:rules` for UAT; prod deploy rides standing v3.3→main debt.

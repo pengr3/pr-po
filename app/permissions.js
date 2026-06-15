@@ -34,8 +34,8 @@ export function getCurrentPermissions() {
  * @returns {boolean|undefined} True if has access, false if denied, undefined if not loaded yet
  */
 export function hasTabAccess(tabId) {
-    // Return undefined if permissions not loaded yet OR malformed (allows router to defer check)
-    if (!currentPermissions || !currentPermissions.tabs) return undefined;
+    // Return undefined if permissions not loaded yet OR malformed OR no tabId (allows router to defer check)
+    if (!currentPermissions || !currentPermissions.tabs || !tabId) return undefined;
     return currentPermissions.tabs[tabId]?.access || false;
 }
 

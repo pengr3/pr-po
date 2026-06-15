@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spike 010 — Milestone UX</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      background: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+    }
+
+    /* ---- Top bar ---- */
+    .top-bar {
+      background: #1e293b;
+      color: #f1f5f9;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .top-bar .badge { background: #1a73e8; color: #fff; border-radius: 4px; padding: 2px 8px; font-weight: 700; font-size: 11px; }
+    .top-bar .label { color: #94a3b8; }
+
+    /* ---- Layout ---- */
+    .page {
+      display: grid;
+      grid-template-columns: 1fr 1fr 320px;
+      gap: 16px;
+      padding: 16px;
+      align-items: start;
+    }
+
+    /* ---- Variant shell ---- */
+    .variant-wrap {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .variant-header {
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .variant-header h3 { font-size: 13px; font-weight: 700; color: #1e293b; }
+    .variant-header .variant-tag {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+    .tag-a { background: #dbeafe; color: #1e40af; }
+    .tag-b { background: #fef3c7; color: #92400e; }
+    .variant-desc { font-size: 11px; color: #64748b; padding: 8px 14px; border-bottom: 1px solid #f1f5f9; }
+
+    /* ---- Task grid ---- */
+    .task-grid-wrap { overflow-x: auto; }
+    table.tg {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    table.tg thead th {
+      background: #f8fafc;
+      color: #64748b;
+      font-weight: 700;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 8px;
+      border-bottom: 2px solid #e2e8f0;
+      white-space: nowrap;
+      text-align: left;
+    }
+    table.tg tbody tr { border-bottom: 1px solid #f1f5f9; }
+    table.tg tbody tr:hover { background: #f8fafc; }
+    table.tg tbody tr.is-milestone-row { background: #fffbeb; }
+    table.tg tbody tr.is-milestone-row:hover { background: #fef3c7; }
+    table.tg td {
+      padding: 5px 8px;
+      color: #1e293b;
+      vertical-align: middle;
+    }
+    .tg-rn { width: 28px; color: #94a3b8; font-size: 11px; text-align: center; }
+    .tg-name { min-width: 150px; max-width: 180px; }
+    .tg-name-text { display: flex; align-items: center; gap: 5px; }
+    .tg-date { min-width: 80px; color: #475569; font-size: 11.5px; }
+    .tg-prog { width: 60px; text-align: center; }
+    .tg-ms { width: 36px; text-align: center; }
+
+    /* Milestone diamond in name */
+    .ms-diamond {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: #f59e0b;
+      transform: rotate(45deg);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    /* Milestone column toggle (Variant B) */
+    .ms-toggle-btn {
+      width: 24px;
+      height: 24px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 4px;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #94a3b8;
+      transition: all 0.15s;
+      margin: 0 auto;
+    }
+    .ms-toggle-btn:hover { border-color: #f59e0b; color: #f59e0b; background: #fffbeb; }
+    .ms-toggle-btn.active {
+      background: #fef3c7;
+      border-color: #f59e0b;
+      color: #d97706;
+    }
+
+    /* Progress bar */
+    .prog-bar-wrap { height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 2px; }
+    .prog-bar-fill { height: 100%; border-radius: 2px; background: #1a73e8; }
+    .prog-bar-fill.done { background: #059669; }
+    .prog-label { font-size: 11px; color: #64748b; }
+
+    /* Context menu (Variant A) */
+    .ctx-menu {
+      position: fixed;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      min-width: 180px;
+      z-index: 9999;
+      padding: 4px 0;
+      font-size: 13px;
+    }
+    .ctx-menu-label {
+      padding: 6px 14px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+    }
+    .ctx-menu-sep { border-top: 1px solid #f1f5f9; margin: 3px 0; }
+    .ctx-item {
+      padding: 7px 14px;
+      cursor: pointer;
+      color: #1e293b;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .ctx-item:hover { background: #eff6ff; }
+    .ctx-item.danger { color: #ef4444; }
+    .ctx-item.danger:hover { background: #fef2f2; }
+    .ctx-item.milestone-on { color: #d97706; }
+    .ctx-item.milestone-on:hover { background: #fffbeb; }
+    .ctx-item-icon { width: 14px; text-align: center; font-size: 11px; }
+
+    /* ---- Gantt mock ---- */
+    .gantt-mock {
+      padding: 10px 14px;
+      border-top: 1px solid #f1f5f9;
+    }
+    .gantt-mock-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+    .gantt-row {
+      display: flex;
+      align-items: center;
+      height: 32px;
+      border-bottom: 1px solid #f8fafc;
+      gap: 6px;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .gantt-row-name {
+      width: 110px;
+      font-size: 11px;
+      color: #475569;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex-shrink: 0;
+    }
+    .gantt-bar-wrap {
+      flex: 1;
+      height: 100%;
+      position: relative;
+      background: #f8fafc;
+    }
+    .gantt-bar {
+      position: absolute;
+      height: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      border-radius: 3px;
+      background: #1a73e8;
+      opacity: 0.85;
+    }
+    .gantt-bar.done { background: #059669; }
+    .gantt-bar.overdue { background: #ef4444; }
+    .gantt-diamond {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%) rotate(45deg);
+      width: 12px;
+      height: 12px;
+      background: #f59e0b;
+      border-radius: 2px;
+    }
+    .today-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #ef4444;
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    /* ---- Project Plan Card ---- */
+    .plan-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+      position: sticky;
+      top: 16px;
+    }
+    .plan-card-header {
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #64748b;
+    }
+    .plan-card-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .plan-stat {
+      padding: 10px 14px;
+      text-align: center;
+    }
+    .plan-stat + .plan-stat { border-left: 1px solid #f1f5f9; }
+    .plan-stat-val { font-size: 22px; font-weight: 700; color: #1a73e8; line-height: 1.2; }
+    .plan-stat-lbl { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+    .plan-highlights { padding: 10px 0; }
+    .plan-hl {
+      padding: 8px 14px;
+      border-bottom: 1px solid #f8fafc;
+    }
+    .plan-hl:last-child { border-bottom: none; }
+    .plan-hl-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .plan-hl-label .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .dot-green { background: #059669; }
+    .dot-amber { background: #f59e0b; }
+    .dot-blue  { background: #1a73e8; }
+    .plan-hl-val {
+      font-size: 12.5px;
+      color: #1e293b;
+      font-weight: 500;
+    }
+    .plan-hl-val.empty { color: #94a3b8; font-style: italic; font-weight: 400; }
+    .plan-card-footer {
+      padding: 10px 14px;
+      border-top: 1px solid #f1f5f9;
+      text-align: right;
+    }
+    .btn-primary {
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary:hover { background: #1557b0; }
+
+    /* ---- Controls panel ---- */
+    .controls {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      background: #1e293b;
+      color: #f1f5f9;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      max-width: 260px;
+      z-index: 100;
+    }
+    .controls h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; margin-bottom: 8px; }
+    .controls ul { padding-left: 16px; line-height: 1.8; color: #cbd5e1; }
+    .controls kbd {
+      background: #334155;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 10px;
+      font-family: monospace;
+    }
+
+    /* ---- Verdict banner ---- */
+    .verdict { display: none; }
+    .verdict.show {
+      display: block;
+      grid-column: 1 / -1;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #166534;
+    }
+
+    /* Instruction hint */
+    .hint {
+      font-size: 11px;
+      color: #94a3b8;
+      padding: 6px 14px 8px;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <span class="badge">SPIKE 010</span>
+  <span>milestone-ux</span>
+  <span class="label">—</span>
+  <span>Given a task row in the grid, when user wants to mark it as a milestone, then which UX feels right?</span>
+</div>
+
+<div class="page" id="page">
+
+  <!-- Verdict (hidden until user picks) -->
+  <div class="verdict" id="verdict">
+    <strong>Verdict logged.</strong> Close the page and run <code>/gsd-spike --wrap-up</code> to package findings.
+  </div>
+
+  <!-- Variant A: Context menu -->
+  <div class="variant-wrap" id="variantA">
+    <div class="variant-header">
+      <span class="variant-tag tag-a">A</span>
+      <h3>Context Menu — Right-click → Mark as Milestone</h3>
+    </div>
+    <div class="variant-desc">Consistent with existing right-click pattern. No extra column. Discovery requires knowing to right-click.</div>
+    <div class="hint">Right-click any row to see the context menu</div>
+    <div class="task-grid-wrap">
+      <table class="tg" id="gridA">
+        <thead>
+          <tr>
+            <th class="tg-rn">#</th>
+            <th class="tg-name">Name</th>
+            <th class="tg-date">Start</th>
+            <th class="tg-date">End</th>
+            <th class="tg-prog">Progress</th>
+            <th class="tg-date">Predecessors</th>
+            <th class="tg-date">Resources</th>
+          </tr>
+        </thead>
+        <tbody id="bodyA"></tbody>
+      </table>
+    </div>
+    <div class="gantt-mock">
+      <div class="gantt-mock-label">Gantt preview</div>
+      <div id="ganttA"></div>
+    </div>
+  </div>
+
+  <!-- Variant B: Inline column -->
+  <div class="variant-wrap" id="variantB">
+    <div class="variant-header">
+      <span class="variant-tag tag-b">B</span>
+      <h3>Inline Column — ◆ toggle always visible</h3>
+    </div>
+    <div class="variant-desc">One-click toggle in a dedicated narrow column. Always discoverable. Adds ~36px to an already-wide grid.</div>
+    <div class="hint">Click ◆ in the last column to toggle milestone</div>
+    <div class="task-grid-wrap">
+      <table class="tg" id="gridB">
+        <thead>
+          <tr>
+            <th class="tg-rn">#</th>
+            <th class="tg-name">Name</th>
+            <th class="tg-date">Start</th>
+            <th class="tg-date">End</th>
+            <th class="tg-prog">Progress</th>
+            <th class="tg-date">Predecessors</th>
+            <th class="tg-date">Resources</th>
+            <th class="tg-ms" title="Milestone">◆</th>
+          </tr>
+        </thead>
+        <tbody id="bodyB"></tbody>
+      </table>
+    </div>
+    <div class="gantt-mock">
+      <div class="gantt-mock-label">Gantt preview</div>
+      <div id="ganttB"></div>
+    </div>
+  </div>
+
+  <!-- Project Plan Summary Card (live-updating) -->
+  <div class="plan-card" id="planCard">
+    <div class="plan-card-header">Project Plan Summary Card</div>
+    <div class="plan-card-stats">
+      <div class="plan-stat">
+        <div class="plan-stat-val" id="statTasks">6</div>
+        <div class="plan-stat-lbl">tasks</div>
+      </div>
+      <div class="plan-stat">
+        <div class="plan-stat-val" id="statPct">—</div>
+        <div class="plan-stat-lbl">complete</div>
+      </div>
+    </div>
+    <div class="plan-highlights">
+      <div class="plan-hl">
+        <div class="plan-hl-label"><span class="dot dot-green"></span>Most Recent Done</div>
+        <div class="plan-hl-val" id="hlRecent">No completed tasks yet.</div>
+      </div>
+      <div class="plan-hl">
+        <div class="plan-hl-label"><span class="dot dot-amber"></span>Next Milestone</div>
+        <div class="plan-hl-val" id="hlNext">No upcoming milestones.</div>
+      </div>
+      <div class="plan-hl">
+        <div class="plan-hl-label"><span class="dot dot-blue"></span>Ongoing Milestone</div>
+        <div class="plan-hl-val" id="hlOngoing">No active milestones.</div>
+      </div>
+    </div>
+    <div class="plan-card-footer">
+      <button class="btn-primary">Open Plan</button>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<!-- Context menu (shared, repositioned) -->
+<div class="ctx-menu" id="ctxMenu" style="display:none;">
+  <div class="ctx-menu-label" id="ctxTitle">Task name</div>
+  <div class="ctx-menu-sep"></div>
+  <div class="ctx-item" id="ctxMilestoneItem" onclick="ctxToggleMilestone()">
+    <span class="ctx-item-icon">◆</span>
+    <span id="ctxMilestoneLabel">Mark as Milestone</span>
+  </div>
+  <div class="ctx-menu-sep"></div>
+  <div class="ctx-item" onclick="hideCtx()"><span class="ctx-item-icon">→</span> Indent</div>
+  <div class="ctx-item" onclick="hideCtx()"><span class="ctx-item-icon">←</span> Outdent</div>
+  <div class="ctx-menu-sep"></div>
+  <div class="ctx-item" onclick="hideCtx()">Insert Row Above</div>
+  <div class="ctx-item danger" onclick="hideCtx()">Delete Row</div>
+  <div class="ctx-menu-sep"></div>
+  <div class="ctx-item" onclick="hideCtx()">Copy</div>
+  <div class="ctx-item" onclick="hideCtx()">Paste</div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <h4>How to interact</h4>
+  <ul>
+    <li><kbd>Right-click</kbd> any row in Variant A</li>
+    <li>Click <kbd>◆</kbd> column in Variant B</li>
+    <li>Both update the Plan Card →</li>
+  </ul>
+</div>
+
+<script>
+// ---- Task data (shared between A and B) ----
+const today = new Date();
+function dateStr(offsetDays) {
+  const d = new Date(today);
+  d.setDate(d.getDate() + offsetDays);
+  return d.toISOString().slice(0, 10);
+}
+function fmtDate(str) {
+  const d = new Date(str + 'T00:00:00');
+  return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+}
+
+// Each task: id, name, start, end, progress, is_milestone, resources, predecessor
+// Shared source of truth — A and B read from this
+const taskData = [
+  { id: 1, name: 'Site mobilization',    start: dateStr(-14), end: dateStr(-7),  progress: 100, is_milestone: false, resources: 'Ramos', pred: '' },
+  { id: 2, name: 'Foundation works',     start: dateStr(-7),  end: dateStr(3),   progress: 60,  is_milestone: false, resources: 'Cruz',  pred: '1' },
+  { id: 3, name: 'Structural steelwork', start: dateStr(0),   end: dateStr(14),  progress: 10,  is_milestone: false, resources: 'Reyes', pred: '2' },
+  { id: 4, name: 'Concrete pour',        start: dateStr(14),  end: dateStr(21),  progress: 0,   is_milestone: false, resources: 'Ramos', pred: '3' },
+  { id: 5, name: 'MEP rough-in',         start: dateStr(21),  end: dateStr(35),  progress: 0,   is_milestone: false, resources: 'Dela Cruz', pred: '4' },
+  { id: 6, name: 'Turnover inspection',  start: dateStr(35),  end: dateStr(36),  progress: 0,   is_milestone: false, resources: '',      pred: '5' },
+];
+
+// ---- Rendering ----
+
+function renderGridA() {
+  const tbody = document.getElementById('bodyA');
+  tbody.innerHTML = taskData.map((t, i) => `
+    <tr class="${t.is_milestone ? 'is-milestone-row' : ''}"
+        data-id="${t.id}"
+        oncontextmenu="showCtxA(event, ${t.id}); return false;">
+      <td class="tg-rn">${i + 1}</td>
+      <td class="tg-name">
+        <div class="tg-name-text">
+          ${t.is_milestone ? '<span class="ms-diamond"></span>' : ''}
+          <span>${escHtml(t.name)}</span>
+        </div>
+      </td>
+      <td class="tg-date">${fmtDate(t.start)}</td>
+      <td class="tg-date">${fmtDate(t.end)}</td>
+      <td class="tg-prog">
+        <div class="prog-label">${t.progress}%</div>
+        <div class="prog-bar-wrap"><div class="prog-bar-fill ${t.progress===100?'done':''}" style="width:${t.progress}%"></div></div>
+      </td>
+      <td class="tg-date" style="color:#94a3b8;">${t.pred}</td>
+      <td class="tg-date" style="color:#475569;">${escHtml(t.resources)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderGridB() {
+  const tbody = document.getElementById('bodyB');
+  tbody.innerHTML = taskData.map((t, i) => `
+    <tr class="${t.is_milestone ? 'is-milestone-row' : ''}" data-id="${t.id}">
+      <td class="tg-rn">${i + 1}</td>
+      <td class="tg-name">
+        <div class="tg-name-text">
+          ${t.is_milestone ? '<span class="ms-diamond"></span>' : ''}
+          <span>${escHtml(t.name)}</span>
+        </div>
+      </td>
+      <td class="tg-date">${fmtDate(t.start)}</td>
+      <td class="tg-date">${fmtDate(t.end)}</td>
+      <td class="tg-prog">
+        <div class="prog-label">${t.progress}%</div>
+        <div class="prog-bar-wrap"><div class="prog-bar-fill ${t.progress===100?'done':''}" style="width:${t.progress}%"></div></div>
+      </td>
+      <td class="tg-date" style="color:#94a3b8;">${t.pred}</td>
+      <td class="tg-date" style="color:#475569;">${escHtml(t.resources)}</td>
+      <td class="tg-ms">
+        <button class="ms-toggle-btn ${t.is_milestone ? 'active' : ''}"
+                title="${t.is_milestone ? 'Remove milestone' : 'Mark as milestone'}"
+                onclick="toggleMilestoneB(${t.id})">◆</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+// ---- Gantt mock rendering ----
+// Total span: today-14 to today+36 = 50 days
+const SPAN_DAYS = 56;
+const SPAN_START = dateStr(-14);
+
+function dayOffset(dateIso) {
+  const a = new Date(SPAN_START + 'T00:00:00');
+  const b = new Date(dateIso + 'T00:00:00');
+  return Math.round((b - a) / 86400000);
+}
+function pct(days) { return (days / SPAN_DAYS * 100).toFixed(1) + '%'; }
+
+function renderGanttMock(containerId) {
+  const container = document.getElementById(containerId);
+  const todayOffset = dayOffset(today.toISOString().slice(0, 10));
+  container.innerHTML = taskData.map(t => {
+    const startOff = Math.max(0, dayOffset(t.start));
+    const endOff = Math.min(SPAN_DAYS, dayOffset(t.end));
+    const durOff = Math.max(1, endOff - startOff);
+    const isOverdue = t.end < today.toISOString().slice(0,10) && t.progress < 100;
+    const barClass = t.progress === 100 ? 'done' : isOverdue ? 'overdue' : '';
+
+    const barOrDiamond = t.is_milestone
+      ? `<div class="gantt-diamond" style="left:${pct(startOff)};margin-left:-6px;"></div>`
+      : `<div class="gantt-bar ${barClass}" style="left:${pct(startOff)};width:${pct(durOff)};"></div>`;
+
+    return `
+      <div class="gantt-row">
+        <div class="gantt-row-name">${escHtml(t.name.length > 16 ? t.name.slice(0,16)+'…' : t.name)}</div>
+        <div class="gantt-bar-wrap">
+          <div class="today-line" style="left:${pct(todayOffset)};"></div>
+          ${barOrDiamond}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ---- Project Plan Card update ----
+function updatePlanCard() {
+  const todayStr = today.toISOString().slice(0, 10);
+
+  // % complete (weighted by duration days)
+  const leaves = taskData; // all are leaves in this mock
+  let wSum = 0, wTotal = 0;
+  leaves.forEach(t => {
+    const dur = Math.max(1, dayOffset(t.end) - dayOffset(t.start) + 1);
+    wSum += t.progress * dur;
+    wTotal += dur;
+  });
+  const pctComplete = wTotal > 0 ? Math.round(wSum / wTotal) : 0;
+  document.getElementById('statPct').textContent = pctComplete + '%';
+
+  // Most recent done
+  const done = taskData.filter(t => t.progress === 100);
+  const recentEl = document.getElementById('hlRecent');
+  if (done.length > 0) {
+    recentEl.textContent = done[done.length - 1].name;
+    recentEl.className = 'plan-hl-val';
+  } else {
+    recentEl.textContent = 'No completed tasks yet.';
+    recentEl.className = 'plan-hl-val empty';
+  }
+
+  // Next milestone (upcoming — end_date >= today, progress < 100, is_milestone)
+  const upcoming = taskData
+    .filter(t => t.is_milestone && t.end >= todayStr && t.progress < 100)
+    .sort((a, b) => a.end.localeCompare(b.end));
+  const nextEl = document.getElementById('hlNext');
+  if (upcoming.length > 0) {
+    nextEl.textContent = upcoming[0].name + ' (' + fmtDate(upcoming[0].end) + ')';
+    nextEl.className = 'plan-hl-val';
+  } else {
+    nextEl.textContent = 'No upcoming milestones.';
+    nextEl.className = 'plan-hl-val empty';
+  }
+
+  // Ongoing milestone (start <= today <= end, progress < 100, is_milestone)
+  const ongoing = taskData
+    .filter(t => t.is_milestone && t.start <= todayStr && t.end >= todayStr && t.progress < 100)
+    .sort((a, b) => a.start.localeCompare(b.start));
+  const ongoingEl = document.getElementById('hlOngoing');
+  if (ongoing.length > 0) {
+    ongoingEl.textContent = ongoing[0].name + ' (ends ' + fmtDate(ongoing[0].end) + ')';
+    ongoingEl.className = 'plan-hl-val';
+  } else {
+    ongoingEl.textContent = 'No active milestones.';
+    ongoingEl.className = 'plan-hl-val empty';
+  }
+}
+
+function renderAll() {
+  renderGridA();
+  renderGridB();
+  renderGanttMock('ganttA');
+  renderGanttMock('ganttB');
+  updatePlanCard();
+}
+
+// ---- Context menu (Variant A) ----
+let ctxActiveId = null;
+
+function showCtxA(event, taskId) {
+  ctxActiveId = taskId;
+  const t = taskData.find(x => x.id === taskId);
+  document.getElementById('ctxTitle').textContent = t.name;
+  const item = document.getElementById('ctxMilestoneItem');
+  const lbl  = document.getElementById('ctxMilestoneLabel');
+  if (t.is_milestone) {
+    item.className = 'ctx-item';
+    lbl.textContent = 'Remove Milestone';
+  } else {
+    item.className = 'ctx-item milestone-on';
+    lbl.textContent = 'Mark as Milestone';
+  }
+  const menu = document.getElementById('ctxMenu');
+  menu.style.display = 'block';
+  // Position near cursor, flip if needed
+  let x = event.clientX, y = event.clientY;
+  menu.style.left = x + 'px';
+  menu.style.top  = y + 'px';
+  menu.style.visibility = 'hidden';
+  requestAnimationFrame(() => {
+    const mw = menu.offsetWidth, mh = menu.offsetHeight;
+    if (x + mw > window.innerWidth)  x = Math.max(0, x - mw);
+    if (y + mh > window.innerHeight) y = Math.max(0, y - mh);
+    menu.style.left = x + 'px';
+    menu.style.top  = y + 'px';
+    menu.style.visibility = '';
+  });
+}
+
+function ctxToggleMilestone() {
+  if (ctxActiveId == null) return;
+  const t = taskData.find(x => x.id === ctxActiveId);
+  if (t) t.is_milestone = !t.is_milestone;
+  hideCtx();
+  renderAll();
+}
+
+function hideCtx() {
+  document.getElementById('ctxMenu').style.display = 'none';
+  ctxActiveId = null;
+}
+
+// Variant B — inline toggle
+function toggleMilestoneB(taskId) {
+  const t = taskData.find(x => x.id === taskId);
+  if (t) t.is_milestone = !t.is_milestone;
+  renderAll();
+}
+
+// Dismiss ctx on outside click
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('ctxMenu');
+  if (menu.style.display !== 'none' && !menu.contains(e.target)) hideCtx();
+});
+
+// ---- Helpers ----
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ---- Init ----
+renderAll();
+</script>
+</body>
+</html>

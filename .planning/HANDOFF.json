@@ -1,34 +1,42 @@
 {
   "version": "1.0",
-  "timestamp": "2026-04-27T10:15:30.500Z",
-  "phase": "77.2",
-  "phase_name": "polish-home-graph-proportions-and-legend",
-  "phase_dir": ".planning/phases/77.2-polish-home-graph-proportions-and-legend",
-  "plan": 1,
-  "task": 0,
-  "total_tasks": 3,
+  "timestamp": "2026-06-14T18:00:31Z",
+  "phase": "104",
+  "phase_name": "service-detail-parity",
+  "phase_dir": ".planning/phases/104-service-detail-parity",
+  "plan": 5,
+  "task": null,
+  "total_tasks": 5,
   "status": "paused",
-  "completed_tasks": [],
+  "context": "between-phases",
+  "completed_tasks": [
+    {"id": 1, "name": "104-01 service journal/audit firestore rules + Finance Record-Release branch", "status": "done", "commit": "0ed3d93"},
+    {"id": 2, "name": "104-02 service Activity Journal (write primitives, feed, 3 listeners, cost-delta auto-entry)", "status": "done", "commit": "dddea54"},
+    {"id": 3, "name": "104-03 service lifecycle accordion + 4 gate transitions", "status": "done", "commit": "28e02e4"},
+    {"id": 4, "name": "104-04 service DLP/retention — 4-state finance bar, inline tranche editor, Finance Record Release", "status": "done", "commit": "f5b2db4"},
+    {"id": 5, "name": "104-05 PO-Delivered service auto-entry + one-time On-going signal", "status": "done", "commit": "d39d668"}
+  ],
   "remaining_tasks": [
-    {"id": 1, "name": "Reduce .hs-chart-canvas.hs-chart-status height in views.css (320px→180px desktop, 360px→220px mobile)", "status": "not_started"},
-    {"id": 2, "name": "Bump Chart.js legend font + box size +2px and barThickness 22→28 in home.js", "status": "not_started"},
-    {"id": 3, "name": "Visual verify Projects + Services chart proportions and legend size (human checkpoint)", "status": "not_started"}
+    {"id": 6, "name": "Phase 105 — Service Plan (Gantt) Parity — DEFERRED placeholder; scope after 104 ships. Plan via /gsd-discuss-phase 105 -> /gsd-plan-phase 105 when prioritized", "status": "not_started"},
+    {"id": 7, "name": "Triage exploration spikes 028 (home hero), 029 (responsibility map), 030 (deep-link intent), 031 (role-system target), 102 (lifecycle card layout) into roadmap phases", "status": "not_started"}
   ],
   "blockers": [],
   "human_actions_pending": [
-    {"action": "Visual UAT on local server after execution — approve or report tuning needed", "context": "Task 3 is a blocking human-verify checkpoint; user must open http://localhost:8000 and confirm bar dominates card, legend is +2px", "blocking": false}
+    {"action": "DEPLOY DEBT (carried across phases): firebase deploy --only firestore:rules --project <prod> after v3.3->main merge", "context": "Rules from Phase 87.4/99/100/101/104 (gate transitions, journal + service journal/audit subcollections) need prod deploy. UAT runs on clmc-procurement-dev; CLI active project is PROD per memory firebase-dev-prod-deploy", "blocking": false},
+    {"action": "Decide next work: prioritize Phase 105 (Gantt parity, needs a service task data model) OR promote one of the untracked spikes (028-031, 102) into a phase", "context": "Phase 104 is the last completed roadmap phase; no phase is currently in progress", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Desktop card height: 320px → 180px; mobile: 360px → 220px", "rationale": "Single stacked bar only 28px tall — old 320px left huge empty space; 180px absorbs bar + legend rows + breathing room", "phase": "77.2"},
-    {"decision": "barThickness: 22 → 28", "rationale": "Bar must grow proportionally with the smaller card or it still looks tiny in the 180px container", "phase": "77.2"},
-    {"decision": "legend boxWidth/boxHeight/font.size: 10 → 12 (+2px across the board)", "rationale": "User's explicit request — bump legend font 2px and adjust square accordingly", "phase": "77.2"},
-    {"decision": "Single CSS rule change covers all 3 chart cards (Projects, Services OT, Services Recurring)", "rationale": "All three use the same .hs-chart-status class via getChartSizeClass() — no per-card divergence needed", "phase": "77.2"}
+    {"decision": "Phase 104 executed inline-sequential on v3.3 (copy-then-adapt parity, Phase-26 pattern); CSS reused verbatim from Phase 100/101/102", "rationale": "Three service-detail.js subsystems share one file -> sequential waves; analogs pre-verified in 104-PATTERNS.md", "phase": "104"},
+    {"decision": "Service Plan / Gantt explicitly deferred out of 104 into Phase 105", "rationale": "Needs a separate service task data model not yet designed", "phase": "104"},
+    {"decision": "Commit scope for this pause: HANDOFF files + valuable planning artifacts (spikes 028-031, 102-lifecycle-card-layout, 104-PATTERNS.md) only; throwaway root files and stale 86.9 leftovers left uncommitted", "rationale": "User-confirmed scope before push", "phase": "104"}
   ],
   "uncommitted_files": [
-    ".planning/ROADMAP.md",
-    ".planning/STATE.md",
-    ".planning/phases/77.2-polish-home-graph-proportions-and-legend/77.2-01-PLAN.md"
+    ".planning/phases/86.9-gantt-curtain-divider-pdf-export/86.9-03-PLAN.md (stale May-11 orphan; phase 86.9 closed)",
+    ".planning/debug/86.9-row-misalign-DEBUG.md (stale May-11 orphan)",
+    "debug-diag-86.9.js (throwaway diagnostic, repo root)",
+    ".review-prompt-104.md / .review-prompt-104-final.md (throwaway generated review prompts, repo root)",
+    ".claude/worktrees/ (tooling scratch)"
   ],
-  "next_action": "Run /gsd:execute-phase 77.2 — all 3 tasks in 1 wave, Tasks 1+2 are auto, Task 3 is a human visual checkpoint",
-  "context_notes": "This session: inserted Phase 77.2 after 77.1, planned it (1 plan, verified passing). Execution not yet started. The fix is purely numeric — 5 literal changes across 2 files (views.css + home.js). Plan values confirmed to match actual code exactly by plan-checker."
+  "next_action": "v3.3 is being pushed to origin (was 71 commits ahead). On resume: decide between planning Phase 105 (Gantt parity) and promoting a spike; nothing is mid-task.",
+  "context_notes": "Pause taken at a clean between-phases checkpoint, NOT mid-task. Phase 104 (service detail parity: lifecycle, journal, DLP) is fully complete — 12/12 UAT approved, VERIFICATION passed (HEAD f26dd12). Working tree had only untracked planning artifacts + leftovers; no in-progress code edits. The prior HANDOFF.json (Phase 102) was stale and is replaced by this one. Branch v3.3 was 71 commits ahead of origin/v3.3 and is being pushed now as a backup. The five untracked exploration spikes (028 home-hero, 029 responsibility-map, 030 deep-link-intent, 031 role-system-target, 102 lifecycle-card-layout) are unrouted ideation — they have no roadmap phase yet."
 }

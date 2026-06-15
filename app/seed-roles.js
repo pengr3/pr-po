@@ -12,7 +12,9 @@ import { doc, setDoc, serverTimestamp, writeBatch, getDoc } from './firebase.js'
 
 /**
  * Default role templates with tab permissions
- * Each role MUST have all 7 tabs defined (access: true/false, edit: true/false)
+ * Each role MUST have all 12 tabs defined (access: true/false, edit: true/false)
+ * Phase 91 — added 4 sub-tab keys per role and 2 new role objects (services_admin, services_user)
+ * Bugfix — added missing `services` tab key; fixed operations_user projects.edit (was false)
  */
 const defaultRoleTemplates = [
     {
@@ -23,10 +25,15 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: true },
                 clients: { access: true, edit: true },
                 projects: { access: true, edit: true },
+                services: { access: true, edit: true },
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: true },
                 finance: { access: true, edit: true },
-                role_config: { access: true, edit: true }
+                role_config: { access: true, edit: true },
+                procurement_request:   { access: true, edit: true },
+                procurement_mrfs:      { access: true, edit: true },
+                procurement_suppliers: { access: true, edit: true },
+                procurement_records:   { access: true, edit: true }
             }
         }
     },
@@ -38,10 +45,15 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: true },
                 projects: { access: true, edit: true },
+                services: { access: true, edit: true },
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: true },
                 finance: { access: true, edit: false },
-                role_config: { access: false, edit: false }
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: true, edit: true },
+                procurement_mrfs:      { access: true, edit: true },
+                procurement_suppliers: { access: true, edit: true },
+                procurement_records:   { access: true, edit: true }
             }
         }
     },
@@ -52,11 +64,56 @@ const defaultRoleTemplates = [
             tabs: {
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: false },
-                projects: { access: true, edit: false },
+                projects: { access: true, edit: true },
+                services: { access: true, edit: false },
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: false },
                 finance: { access: false, edit: false },
-                role_config: { access: false, edit: false }
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: true, edit: true },
+                procurement_mrfs:      { access: true, edit: false },
+                procurement_suppliers: { access: true, edit: false },
+                procurement_records:   { access: true, edit: false }
+            }
+        }
+    },
+    {
+        role_id: 'services_admin',
+        role_name: 'Services Admin',
+        permissions: {
+            tabs: {
+                dashboard: { access: true, edit: false },
+                clients: { access: true, edit: true },
+                projects: { access: true, edit: true },
+                services: { access: true, edit: true },
+                mrf_form: { access: true, edit: true },
+                procurement: { access: true, edit: true },
+                finance: { access: true, edit: false },
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: true, edit: true },
+                procurement_mrfs:      { access: true, edit: true },
+                procurement_suppliers: { access: true, edit: true },
+                procurement_records:   { access: true, edit: true }
+            }
+        }
+    },
+    {
+        role_id: 'services_user',
+        role_name: 'Services User',
+        permissions: {
+            tabs: {
+                dashboard: { access: true, edit: false },
+                clients: { access: true, edit: false },
+                projects: { access: true, edit: false },
+                services: { access: true, edit: true },
+                mrf_form: { access: true, edit: true },
+                procurement: { access: true, edit: false },
+                finance: { access: false, edit: false },
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: true, edit: true },
+                procurement_mrfs:      { access: true, edit: false },
+                procurement_suppliers: { access: true, edit: false },
+                procurement_records:   { access: true, edit: false }
             }
         }
     },
@@ -68,10 +125,15 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: false },
                 projects: { access: true, edit: false },
+                services: { access: true, edit: false },
                 mrf_form: { access: false, edit: false },
                 procurement: { access: false, edit: false },
                 finance: { access: true, edit: true },
-                role_config: { access: false, edit: false }
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: false, edit: false },
+                procurement_mrfs:      { access: false, edit: false },
+                procurement_suppliers: { access: false, edit: false },
+                procurement_records:   { access: false, edit: false }
             }
         }
     },
@@ -83,10 +145,15 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: false },
                 projects: { access: true, edit: false },
+                services: { access: true, edit: false },
                 mrf_form: { access: false, edit: false },
                 procurement: { access: true, edit: true },
                 finance: { access: false, edit: false },
-                role_config: { access: false, edit: false }
+                role_config: { access: false, edit: false },
+                procurement_request:   { access: false, edit: false },
+                procurement_mrfs:      { access: true, edit: true },
+                procurement_suppliers: { access: true, edit: true },
+                procurement_records:   { access: true, edit: true }
             }
         }
     }
@@ -132,6 +199,7 @@ export async function seedRoleTemplates() {
 }
 
 /**
+ * Phase 91 — call this once after deploy to push the 4 new sub-tab permission keys to live role documents.
  * Force reseed role templates (overwrites existing)
  * Use for testing or resetting to defaults
  * @returns {Promise<void>}
@@ -164,12 +232,13 @@ export async function forceReseedRoleTemplates() {
 
 /**
  * Verify role templates have correct structure
- * Checks all 5 roles exist and each has all 7 tabs defined
+ * Checks all 7 roles exist and each has all 12 tabs defined
  * @returns {Promise<{valid: boolean, errors: Array<string>}>}
  */
 export async function verifyRoleTemplates() {
-    const roles = ['super_admin', 'operations_admin', 'operations_user', 'finance', 'procurement'];
-    const requiredTabs = ['dashboard', 'clients', 'projects', 'mrf_form', 'procurement', 'finance', 'role_config'];
+    const roles = ['super_admin', 'operations_admin', 'operations_user', 'services_admin', 'services_user', 'finance', 'procurement'];
+    const requiredTabs = ['dashboard', 'clients', 'projects', 'services', 'mrf_form', 'procurement', 'finance', 'role_config',
+                          'procurement_request', 'procurement_mrfs', 'procurement_suppliers', 'procurement_records'];
     const results = { valid: true, errors: [] };
 
     for (const roleId of roles) {

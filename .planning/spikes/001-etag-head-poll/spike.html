@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spike 001 — ETag HEAD Poll Detection</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; padding: 24px; padding-top: 80px; }
+    h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { font-size: 0.875rem; color: #64748b; margin-bottom: 24px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; }
+    .card h2 { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    td { padding: 7px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+    td:first-child { color: #64748b; width: 130px; padding-right: 12px; white-space: nowrap; }
+    .value { font-family: 'Consolas', 'Courier New', monospace; font-size: 0.8125rem; background: #f1f5f9; padding: 2px 8px; border-radius: 4px; word-break: break-all; display: inline-block; }
+    .value.none { color: #94a3b8; font-style: italic; }
+    .status-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8125rem; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+    .status-badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .badge-watching { background: #eff6ff; color: #1a73e8; }
+    .badge-watching .dot { background: #1a73e8; animation: pulse 1.5s infinite; }
+    .badge-changed { background: #fffbeb; color: #b45309; }
+    .badge-changed .dot { background: #f59e0b; }
+    .badge-init { background: #f1f5f9; color: #64748b; }
+    .badge-init .dot { background: #94a3b8; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .counters { display: flex; gap: 20px; }
+    .counter { text-align: center; }
+    .counter-num { font-size: 1.75rem; font-weight: 700; color: #1e293b; line-height: 1; }
+    .counter-label { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
+    .counter-num.highlight { color: #f59e0b; }
+    .log { max-height: 220px; overflow-y: auto; }
+    .log-entry { padding: 4px 0; border-bottom: 1px solid #f8fafc; font-family: 'Consolas', 'Courier New', monospace; font-size: 0.75rem; color: #475569; display: flex; gap: 8px; }
+    .log-time { color: #94a3b8; flex-shrink: 0; }
+    .log-entry.changed { color: #b45309; font-weight: 600; }
+    .log-entry.error { color: #ef4444; }
+    .log-entry.warn { color: #f59e0b; }
+    .instructions { font-size: 0.875rem; color: #475569; line-height: 1.7; }
+    .instructions code { background: #f1f5f9; padding: 1px 7px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 0.8125rem; color: #1e293b; }
+    .step { display: flex; gap: 10px; margin-bottom: 4px; }
+    .step-num { background: #1a73e8; color: white; width: 20px; height: 20px; border-radius: 50%; font-size: 0.6875rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+
+    /* Update banner */
+    .update-banner { position: fixed; top: 0; left: 0; right: 0; background: #1557b0; color: white; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; transform: translateY(-100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .update-banner.show { transform: translateY(0); }
+    .banner-text { font-size: 0.9375rem; display: flex; align-items: center; gap: 10px; }
+    .banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .btn { padding: 6px 14px; border-radius: 5px; border: none; cursor: pointer; font-size: 0.875rem; font-weight: 500; }
+    .btn-white { background: white; color: #1557b0; }
+    .btn-white:hover { background: #f0f7ff; }
+    .btn-ghost { background: transparent; color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.4); }
+    .btn-ghost:hover { color: white; border-color: rgba(255,255,255,0.7); }
+  </style>
+</head>
+<body>
+
+  <!-- Update banner -->
+  <div class="update-banner" id="updateBanner">
+    <div class="banner-text">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      A new version was detected — refresh to get the latest updates.
+    </div>
+    <div class="banner-actions">
+      <button class="btn btn-white" onclick="location.reload()">Refresh Now</button>
+      <button class="btn btn-ghost" onclick="dismissBanner()">Dismiss</button>
+    </div>
+  </div>
+
+  <h1>Spike 001 — ETag HEAD Poll</h1>
+  <p class="subtitle">Polling <code style="font-family:monospace;background:#f1f5f9;padding:1px 6px;border-radius:3px;">/index.html</code> every 5 seconds — modify and save the file to trigger detection.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Response Headers</h2>
+      <table>
+        <tr><td>ETag</td><td><span class="value none" id="etag">—</span></td></tr>
+        <tr><td>Last-Modified</td><td><span class="value none" id="lastmod">—</span></td></tr>
+        <tr><td>Cache-Control</td><td><span class="value none" id="cc">—</span></td></tr>
+        <tr><td>Signal used</td><td><span class="value none" id="signal-type">—</span></td></tr>
+        <tr><td>Status</td><td><span class="status-badge badge-init" id="status"><span class="dot"></span>Initializing</span></td></tr>
+      </table>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;justify-content:space-between;">
+      <h2>Counters</h2>
+      <div class="counters">
+        <div class="counter"><div class="counter-num" id="poll-count">0</div><div class="counter-label">polls fired</div></div>
+        <div class="counter"><div class="counter-num highlight" id="change-count">0</div><div class="counter-label">changes detected</div></div>
+        <div class="counter"><div class="counter-num" id="error-count">0</div><div class="counter-label">errors</div></div>
+      </div>
+      <div style="font-size:0.75rem;color:#94a3b8;margin-top:16px;">Next poll in: <span id="countdown">5</span>s</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Poll Log</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+  <div class="card">
+    <h2>How to Trigger Detection</h2>
+    <div class="instructions">
+      <div class="step"><span class="step-num">1</span><span>Serve from project root: <code>python -m http.server 8000</code></span></div>
+      <div class="step"><span class="step-num">2</span><span>Open this page — baseline ETag/Last-Modified is captured on first poll.</span></div>
+      <div class="step"><span class="step-num">3</span><span>Open <code>index.html</code> in your editor, add a space anywhere, and <strong>save</strong>.</span></div>
+      <div class="step"><span class="step-num">4</span><span>Within 5 seconds the poll detects the change and the blue banner slides in above.</span></div>
+      <div class="step"><span class="step-num">5</span><span>Check the log — it shows the old and new signal values. Click <strong>Dismiss</strong> to hide the banner.</span></div>
+    </div>
+  </div>
+
+  <script>
+    let baseline = null;
+    let pollCount = 0;
+    let changeCount = 0;
+    let errorCount = 0;
+    let bannerShown = false;
+    let countdownVal = 5;
+
+    function getSignal(headers) {
+      const etag = headers.get('etag');
+      const lm = headers.get('last-modified');
+      if (etag) return { value: etag, type: 'ETag' };
+      if (lm) return { value: lm, type: 'Last-Modified' };
+      return { value: null, type: 'none' };
+    }
+
+    function addLog(msg, type = '') {
+      const el = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry' + (type ? ' ' + type : '');
+      const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
+      entry.innerHTML = `<span class="log-time">${time}</span><span>${msg}</span>`;
+      el.prepend(entry);
+    }
+
+    function setStatus(label, cls) {
+      const el = document.getElementById('status');
+      el.className = 'status-badge ' + cls;
+      el.innerHTML = `<span class="dot"></span>${label}`;
+    }
+
+    async function poll() {
+      try {
+        const res = await fetch('/index.html', { method: 'HEAD', cache: 'no-store' });
+        const sig = getSignal(res.headers);
+        pollCount++;
+
+        document.getElementById('poll-count').textContent = pollCount;
+        document.getElementById('etag').textContent = res.headers.get('etag') || '(none)';
+        document.getElementById('etag').className = 'value' + (res.headers.get('etag') ? '' : ' none');
+        document.getElementById('lastmod').textContent = res.headers.get('last-modified') || '(none)';
+        document.getElementById('lastmod').className = 'value' + (res.headers.get('last-modified') ? '' : ' none');
+        document.getElementById('cc').textContent = res.headers.get('cache-control') || '(none)';
+        document.getElementById('cc').className = 'value' + (res.headers.get('cache-control') ? '' : ' none');
+        document.getElementById('signal-type').textContent = sig.type;
+        document.getElementById('signal-type').className = 'value' + (sig.type === 'none' ? ' none' : '');
+
+        if (baseline === null) {
+          baseline = sig.value;
+          setStatus('Watching for changes', 'badge-watching');
+          addLog(`Baseline set via ${sig.type}: ${sig.value || '(no signal returned)'}`);
+          if (!sig.value) {
+            addLog('WARNING: No ETag or Last-Modified returned. Server may not support change detection.', 'warn');
+          }
+        } else if (sig.value && sig.value !== baseline) {
+          changeCount++;
+          document.getElementById('change-count').textContent = changeCount;
+          setStatus('Change detected!', 'badge-changed');
+          addLog(`CHANGE DETECTED via ${sig.type} — was: ${baseline} → now: ${sig.value}`, 'changed');
+          baseline = sig.value;
+          if (!bannerShown) showBanner();
+        } else {
+          addLog(`Poll ${pollCount}: no change (${sig.type}: ${sig.value?.substring(0, 40) || 'null'})`);
+        }
+      } catch (e) {
+        errorCount++;
+        document.getElementById('error-count').textContent = errorCount;
+        addLog(`Fetch error: ${e.message}`, 'error');
+      }
+    }
+
+    function showBanner() {
+      bannerShown = true;
+      document.getElementById('updateBanner').classList.add('show');
+    }
+
+    function dismissBanner() {
+      document.getElementById('updateBanner').classList.remove('show');
+      addLog('Banner dismissed by user.');
+    }
+    window.dismissBanner = dismissBanner;
+
+    // Countdown display
+    setInterval(() => {
+      countdownVal = (countdownVal <= 1) ? 5 : countdownVal - 1;
+      document.getElementById('countdown').textContent = countdownVal;
+    }, 1000);
+
+    poll();
+    setInterval(() => { countdownVal = 5; poll(); }, 5000);
+  </script>
+</body>
+</html>

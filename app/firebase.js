@@ -23,6 +23,7 @@ import {
     onSnapshot,
     orderBy,
     limit,
+    startAfter,
     Timestamp,
     serverTimestamp,
     writeBatch,
@@ -39,10 +40,10 @@ import {
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
+    sendPasswordResetEmail,
     setPersistence,
     browserLocalPersistence
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
 // Runtime environment detection
 const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
@@ -116,6 +117,7 @@ export {
     onSnapshot,
     orderBy,
     limit,
+    startAfter,
     Timestamp,
     serverTimestamp,
     writeBatch,
@@ -132,7 +134,8 @@ export {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
-    onAuthStateChanged
+    onAuthStateChanged,
+    sendPasswordResetEmail
 };
 
 // Also expose to window for backward compatibility with onclick handlers
@@ -152,6 +155,7 @@ window.firestore = {
     onSnapshot,
     orderBy,
     limit,
+    startAfter,
     Timestamp,
     serverTimestamp,
     writeBatch,
@@ -168,7 +172,6 @@ window.firebaseAuth = {
     signOut,
     onAuthStateChanged
 };
-
 // Initialize auth observer after auth is set up
 import('./auth.js').then(module => {
     if (module.initAuthObserver) {

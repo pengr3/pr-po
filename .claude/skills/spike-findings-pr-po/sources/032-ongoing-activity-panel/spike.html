@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 032 — On-going Activity Panel</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; font-size: 14px; }
+
+  /* ── Nav mock ── */
+  .mock-nav { background: #1a73e8; color: white; padding: 0 20px; height: 52px; display: flex; align-items: center; gap: 24px; }
+  .mock-nav .brand { font-weight: 700; font-size: 15px; }
+  .mock-nav a { color: rgba(255,255,255,0.8); text-decoration: none; font-size: 13px; }
+  .mock-nav a.active { color: white; font-weight: 600; border-bottom: 2px solid white; padding-bottom: 2px; }
+
+  /* ── Layout ── */
+  .page-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px; }
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .page-header h1 { font-size: 20px; font-weight: 700; }
+  .status-badge { background: #0ea5e9; color: white; border-radius: 6px; padding: 4px 12px; font-size: 12px; font-weight: 700; letter-spacing: .5px; }
+
+  /* ── 2-col grid ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; }
+  .card-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #64748b; margin-bottom: 12px; }
+
+  /* ── Lifecycle accordion strip (mockup) ── */
+  .lc-strip { background: white; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .lc-header { padding: 12px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; user-select: none; border-bottom: 1px solid #e2e8f0; }
+  .lc-header span { font-size: 12px; font-weight: 600; color: #475569; }
+  .lc-track { display: flex; align-items: center; gap: 0; flex: 1; }
+  .lc-node { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; color: #94a3b8; flex: 1; position: relative; }
+  .lc-node::after { content: ''; position: absolute; top: 8px; left: 50%; width: 100%; height: 2px; background: #e2e8f0; z-index: 0; }
+  .lc-node:last-child::after { display: none; }
+  .lc-dot { width: 16px; height: 16px; border-radius: 50%; background: #e2e8f0; border: 2px solid #e2e8f0; z-index: 1; }
+  .lc-node.done .lc-dot { background: #16a34a; border-color: #16a34a; }
+  .lc-node.done::after { background: #16a34a; }
+  .lc-node.active .lc-dot { background: #0ea5e9; border-color: #0ea5e9; box-shadow: 0 0 0 3px rgba(14,165,233,.2); }
+  .lc-node.active { color: #0ea5e9; font-weight: 700; }
+  .lc-body { padding: 14px 16px; background: #f8fafc; }
+  .lc-action-row { display: flex; align-items: center; gap: 10px; }
+  .btn { padding: 7px 16px; border-radius: 7px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: background .15s; }
+  .btn-primary { background: #1a73e8; color: white; }
+  .btn-primary:hover { background: #1557b0; }
+  .btn-ghost { background: transparent; color: #475569; border: 1px solid #e2e8f0; }
+  .btn-ghost:hover { background: #f1f5f9; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+  .btn-success { background: #059669; color: white; }
+  .btn-success:hover { background: #047857; }
+  .btn-danger { background: #ef4444; color: white; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-amber { background: #f59e0b; color: white; }
+  .btn-amber:hover { background: #d97706; }
+
+  /* ── ACTIVITY PANEL ── */
+  .activity-panel { background: white; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+  .ap-header { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; }
+  .ap-header-left { display: flex; align-items: center; gap: 10px; }
+  .ap-header h2 { font-size: 14px; font-weight: 700; }
+  .ap-tabs { display: flex; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
+  .ap-tab { padding: 10px 18px; font-size: 13px; font-weight: 500; color: #64748b; cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; user-select: none; }
+  .ap-tab:hover { color: #1e293b; background: rgba(0,0,0,.03); }
+  .ap-tab.active { color: #1a73e8; border-bottom-color: #1a73e8; font-weight: 600; background: white; }
+  .ap-tab-badge { background: #e2e8f0; color: #475569; border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 5px; }
+  .ap-tab.active .ap-tab-badge { background: #dbeafe; color: #1a73e8; }
+  .ap-body { padding: 16px; }
+  .ap-pane { display: none; }
+  .ap-pane.visible { display: block; }
+
+  /* ── Tab A: Activity Feed ── */
+  .feed-composer { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 16px; background: #fafafa; }
+  .feed-composer textarea { width: 100%; border: none; background: transparent; font-size: 13px; color: #1e293b; resize: none; outline: none; font-family: inherit; }
+  .feed-composer-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; gap: 8px; }
+  .tag-row { display: flex; gap: 6px; }
+  .entry-tag { padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1.5px solid transparent; transition: all .12s; }
+  .entry-tag.update { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+  .entry-tag.milestone { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+  .entry-tag.issue { background: #fef2f2; color: #ef4444; border-color: #fecaca; }
+  .entry-tag.client { background: #fdf4ff; color: #9333ea; border-color: #e9d5ff; }
+  .entry-tag.selected { box-shadow: 0 0 0 2px currentColor; }
+  .feed-list { display: flex; flex-direction: column; gap: 1px; }
+  .feed-entry { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+  .feed-entry:last-child { border-bottom: none; }
+  .feed-avatar { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; margin-top: 1px; }
+  .feed-right { flex: 1; min-width: 0; }
+  .feed-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap; }
+  .feed-author { font-weight: 600; font-size: 13px; }
+  .feed-time { font-size: 11px; color: #94a3b8; }
+  .feed-system { font-size: 11px; font-style: italic; color: #64748b; background: #f1f5f9; padding: 1px 6px; border-radius: 4px; }
+  .feed-text { font-size: 13px; color: #334155; line-height: 1.5; }
+  .feed-tag-badge { padding: 1px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: .3px; }
+  .badge-update { background: #eff6ff; color: #3b82f6; }
+  .badge-milestone { background: #f0fdf4; color: #16a34a; }
+  .badge-issue { background: #fef2f2; color: #ef4444; }
+  .badge-client { background: #fdf4ff; color: #9333ea; }
+  .badge-system { background: #f1f5f9; color: #64748b; }
+  .feed-attach { margin-top: 6px; }
+  .feed-attach a { color: #1a73e8; font-size: 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+  .feed-attach a:hover { text-decoration: underline; }
+
+  /* ── Tab B: Progress Updates ── */
+  .pu-empty { text-align: center; padding: 32px 16px; color: #94a3b8; }
+  .pu-empty .pu-icon { font-size: 36px; margin-bottom: 8px; }
+  .btn-new-update { display: inline-flex; align-items: center; gap: 6px; }
+  .pu-form { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fafafa; }
+  .pu-form h3 { font-size: 13px; font-weight: 700; margin-bottom: 12px; color: #334155; }
+  .form-row { margin-bottom: 12px; }
+  .form-row label { display: block; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; }
+  .form-row input[type=text], .form-row textarea, .form-row select { width: 100%; border: 1px solid #e2e8f0; border-radius: 6px; padding: 7px 10px; font-size: 13px; font-family: inherit; color: #1e293b; background: white; outline: none; }
+  .form-row input[type=text]:focus, .form-row textarea:focus, .form-row select:focus { border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,.12); }
+  .form-row textarea { resize: vertical; min-height: 70px; }
+  .pct-row { display: flex; align-items: center; gap: 12px; }
+  .pct-slider { flex: 1; accent-color: #1a73e8; }
+  .pct-value { font-size: 18px; font-weight: 700; color: #1a73e8; width: 48px; text-align: right; }
+  .pu-history { display: flex; flex-direction: column; gap: 10px; }
+  .pu-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; }
+  .pu-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+  .pu-card-title { font-weight: 700; font-size: 13px; }
+  .pu-card-meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .pu-pct-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; margin-bottom: 10px; }
+  .pu-pct-fill { height: 100%; background: #1a73e8; border-radius: 3px; transition: width .3s; }
+  .pu-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pu-field { background: #f8fafc; border-radius: 6px; padding: 8px; }
+  .pu-field-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #94a3b8; margin-bottom: 3px; }
+  .pu-field-val { font-size: 12px; color: #334155; }
+  .pu-field-val.blockers { color: #ef4444; }
+  .pu-field-val.cleared { color: #64748b; font-style: italic; }
+
+  /* ── Tab C: Issue List ── */
+  .issue-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .filter-chip { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid #e2e8f0; color: #64748b; background: white; transition: all .12s; }
+  .filter-chip.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+  .issue-list { display: flex; flex-direction: column; gap: 8px; }
+  .issue-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start; transition: box-shadow .12s; }
+  .issue-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .issue-card.resolved { opacity: .6; }
+  .issue-left { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .issue-type-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; }
+  .dot-delay { background: #f59e0b; }
+  .dot-change { background: #9333ea; }
+  .dot-site { background: #ef4444; }
+  .dot-client { background: #3b82f6; }
+  .issue-right { flex: 1; min-width: 0; }
+  .issue-title { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+  .issue-desc { font-size: 12px; color: #64748b; line-height: 1.4; margin-bottom: 6px; }
+  .issue-footer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .issue-type-badge { padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; letter-spacing: .3px; }
+  .badge-delay { background: #fef3c7; color: #d97706; }
+  .badge-change { background: #f3e8ff; color: #7c3aed; }
+  .badge-site { background: #fef2f2; color: #dc2626; }
+  .badge-client-req { background: #eff6ff; color: #2563eb; }
+  .badge-resolved { background: #f0fdf4; color: #16a34a; }
+  .issue-date { font-size: 11px; color: #94a3b8; }
+  .issue-resolve-btn { margin-left: auto; }
+  .issue-form { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; background: #fafafa; display: none; }
+  .issue-form.visible { display: block; }
+  .issue-form h3 { font-size: 13px; font-weight: 700; margin-bottom: 12px; color: #334155; }
+
+  /* ── Log pane ── */
+  .log-pane { position: fixed; bottom: 0; left: 0; right: 0; background: #0f172a; color: #94a3b8; font-family: 'Fira Mono', 'Cascadia Code', monospace; font-size: 11px; padding: 8px 14px; max-height: 140px; overflow-y: auto; z-index: 100; border-top: 2px solid #1e293b; }
+  .log-pane .log-entry { padding: 1px 0; }
+  .log-pane .log-entry.feed { color: #60a5fa; }
+  .log-pane .log-entry.update { color: #34d399; }
+  .log-pane .log-entry.issue { color: #f87171; }
+  .log-pane .log-entry.info { color: #94a3b8; }
+  .log-pane .log-entry.resolve { color: #fbbf24; }
+  .log-spacer { height: 160px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 700px) {
+    .two-col { grid-template-columns: 1fr; }
+    .pu-fields { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav mock -->
+<div class="mock-nav">
+  <span class="brand">CLMC Operations</span>
+  <a href="#">Home</a>
+  <a href="#">Procurement</a>
+  <a href="#" class="active">Projects</a>
+  <a href="#">Finance</a>
+</div>
+
+<div class="page-wrap">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <div style="font-size:12px;color:#64748b;margin-bottom:4px;">← Back to Projects</div>
+      <h1>Metro Line 7 — Station Fit-out Package</h1>
+    </div>
+    <span class="status-badge">⚙️ On-going</span>
+  </div>
+
+  <!-- Lifecycle accordion (collapsed state mock) -->
+  <div class="lc-strip">
+    <div class="lc-header" onclick="this.parentElement.classList.toggle('open')">
+      <span>Lifecycle</span>
+      <div class="lc-track">
+        <div class="lc-node done"><div class="lc-dot"></div><span>Insp</span></div>
+        <div class="lc-node done"><div class="lc-dot"></div><span>Proposal</span></div>
+        <div class="lc-node done"><div class="lc-dot"></div><span>Approved</span></div>
+        <div class="lc-node done"><div class="lc-dot"></div><span>Mobilize</span></div>
+        <div class="lc-node active"><div class="lc-dot"></div><span>On-going</span></div>
+        <div class="lc-node"><div class="lc-dot"></div><span>Done</span></div>
+      </div>
+      <span style="font-size:11px;color:#94a3b8">▼ Expand</span>
+    </div>
+    <div class="lc-body" style="display:none" id="lc-body">
+      <div class="lc-action-row">
+        <div style="flex:1;font-size:12px;color:#475569">Project started <strong>2026-05-15</strong>. Attach completion report to advance to Completed.</div>
+        <button class="btn btn-ghost btn-sm" disabled>📎 Attach Completion Report</button>
+        <button class="btn btn-success btn-sm" disabled>✅ Mark as Completed</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2-col cards row -->
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Project Info</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        <div><span style="color:#94a3b8">Client</span><br><strong>Metro Manila Transit Corp.</strong></div>
+        <div><span style="color:#94a3b8">Contract Value</span><br><strong>₱ 4,200,000</strong></div>
+        <div><span style="color:#94a3b8">Start Date</span><br><strong>2026-05-15</strong></div>
+        <div><span style="color:#94a3b8">Target End</span><br><strong>2026-09-30</strong></div>
+        <div><span style="color:#94a3b8">Operations User</span><br><strong>J. Reyes</strong></div>
+        <div><span style="color:#94a3b8">Service Type</span><br><strong>Electrical Fit-out</strong></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Financial Summary</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        <div><span style="color:#94a3b8">Invoiced</span><br><strong>₱ 1,050,000</strong></div>
+        <div><span style="color:#94a3b8">Collected</span><br><strong style="color:#059669">₱ 840,000</strong></div>
+        <div><span style="color:#94a3b8">Outstanding</span><br><strong style="color:#f59e0b">₱ 210,000</strong></div>
+        <div><span style="color:#94a3b8">Projected Expense</span><br><strong>₱ 3,100,000</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────── ACTIVITY PANEL ─────────────── -->
+  <div class="activity-panel">
+    <div class="ap-header">
+      <div class="ap-header-left">
+        <span style="font-size:16px">📋</span>
+        <h2>On-going Activity</h2>
+      </div>
+      <div style="font-size:11px;color:#94a3b8">Started 2026-05-15 · <span id="days-running">25</span> days running</div>
+    </div>
+
+    <div class="ap-tabs">
+      <div class="ap-tab active" data-tab="feed" onclick="switchTab('feed',this)">
+        Activity Feed <span class="ap-tab-badge" id="feed-count">7</span>
+      </div>
+      <div class="ap-tab" data-tab="updates" onclick="switchTab('updates',this)">
+        Progress Updates <span class="ap-tab-badge" id="updates-count">3</span>
+      </div>
+      <div class="ap-tab" data-tab="issues" onclick="switchTab('issues',this)">
+        Issues <span class="ap-tab-badge" id="issues-count">4</span>
+      </div>
+    </div>
+
+    <div class="ap-body">
+
+      <!-- ═══════════════ TAB A: ACTIVITY FEED ═══════════════ -->
+      <div class="ap-pane visible" id="pane-feed">
+
+        <!-- Composer -->
+        <div class="feed-composer">
+          <textarea id="note-input" rows="2" placeholder="Add a note, update, or observation…"></textarea>
+          <div class="feed-composer-footer">
+            <div class="tag-row">
+              <span class="entry-tag update selected" id="tag-update" onclick="selectTag('update',this)">Update</span>
+              <span class="entry-tag milestone" id="tag-milestone" onclick="selectTag('milestone',this)">Milestone</span>
+              <span class="entry-tag issue" id="tag-issue" onclick="selectTag('issue',this)">Issue</span>
+              <span class="entry-tag client" id="tag-client" onclick="selectTag('client',this)">Client Comm.</span>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="postNote()">Post</button>
+          </div>
+        </div>
+
+        <!-- Feed entries -->
+        <div class="feed-list" id="feed-list">
+
+          <!-- System entry -->
+          <div class="feed-entry">
+            <div class="feed-avatar" style="background:#94a3b8;font-size:10px;">SYS</div>
+            <div class="feed-right">
+              <div class="feed-meta">
+                <span class="feed-system">System</span>
+                <span class="feed-tag-badge badge-system">STATUS</span>
+                <span class="feed-time">2026-05-15 08:00</span>
+              </div>
+              <div class="feed-text">Project status changed from <strong>For Mobilization</strong> → <strong>On-going</strong> by J. Reyes.</div>
+            </div>
+          </div>
+
+          <div class="feed-entry">
+            <div class="feed-avatar" style="background:#1a73e8;">JR</div>
+            <div class="feed-right">
+              <div class="feed-meta">
+                <span class="feed-author">J. Reyes</span>
+                <span class="feed-tag-badge badge-update">UPDATE</span>
+                <span class="feed-time">2026-05-16 14:22</span>
+              </div>
+              <div class="feed-text">Site mobilization complete. Crew of 12 on-site. Material staging area secured at Level B2.</div>
+            </div>
+          </div>
+
+          <div class="feed-entry">
+            <div class="feed-avatar" style="background:#9333ea;">AM</div>
+            <div class="feed-right">
+              <div class="feed-meta">
+                <span class="feed-author">A. Mendoza</span>
+                <span class="feed-tag-badge badge-milestone">MILESTONE</span>
+                <span class="feed-time">2026-05-22 11:04</span>
+              </div>
+              <div class="feed-text">Conduit roughing-in complete for Levels B2–B1. First quality inspection passed.</div>
+              <div class="feed-attach">📎 <a href="#">QC-Inspection-May22.pdf</a></div>
+            </div>
+          </div>
+
+          <div class="feed-entry">
+            <div class="feed-avatar" style="background:#ef4444;">JR</div>
+            <div class="feed-right">
+              <div class="feed-meta">
+                <span class="feed-author">J. Reyes</span>
+                <span class="feed-tag-badge badge-issue">ISSUE</span>
+                <span class="feed-time">2026-05-26 09:15</span>
+              </div>
+              <div class="feed-text">Structural interference at Level G — steel beam conflicts with planned conduit path. Requesting RFI from structural team. 3–4 day estimated delay.</div>
+            </div>
+          </div>
+
+          <div class="feed-entry">
+            <div class="feed-avatar" style="background:#7c3aed;">AM</div>
+            <div class="feed-right">
+              <div class="feed-meta">
+                <span class="feed-author">A. Mendoza</span>
+                <span class="feed-tag-badge badge-client">CLIENT</span>
+                <span class="feed-time">2026-05-28 16:00</span>
+              </div>
+              <div class="feed-text">Progress meeting with MMTC project manager. Client satisfied with pace, flagged concern about dust containment near active platform. Will add extra barrier at Level G.</div>
+            </div>
+          </div>
+
+          <div class="feed-entry">
+            <div class="feed-avatar" style="background:#94a3b8;font-size:10px;">SYS</div>
+            <div class="feed-right">
+              <div class="feed-meta">
+                <span class="feed-system">System</span>
+                <span class="feed-tag-badge badge-system">PO</span>
+                <span class="feed-time">2026-05-30 10:00</span>
+              </div>
+              <div class="feed-text">PO-2026-041 status changed to <strong>Delivered</strong> — Panel boards, 12 units.</div>
+            </div>
+          </div>
+
+          <div class="feed-entry">
+            <div class="feed-avatar" style="background:#059669;">JR</div>
+            <div class="feed-right">
+              <div class="feed-meta">
+                <span class="feed-author">J. Reyes</span>
+                <span class="feed-tag-badge badge-milestone">MILESTONE</span>
+                <span class="feed-time">2026-06-07 17:30</span>
+              </div>
+              <div class="feed-text">Level G structural workaround approved. RFI resolved in 3 days. Conduit routing adjusted and work resumed. Back on schedule.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═══════════════ TAB B: PROGRESS UPDATES ═══════════════ -->
+      <div class="ap-pane" id="pane-updates">
+
+        <!-- New update form -->
+        <div style="margin-bottom:14px">
+          <button class="btn btn-primary btn-sm btn-new-update" onclick="toggleUpdateForm()">+ New Progress Update</button>
+        </div>
+
+        <div class="pu-form" id="pu-form">
+          <h3>Progress Update — Week of 2026-06-09</h3>
+          <div class="form-row">
+            <label>Overall % Complete</label>
+            <div class="pct-row">
+              <input type="range" min="0" max="100" value="42" class="pct-slider" id="pct-slider" oninput="document.getElementById('pct-val').textContent=this.value+'%'">
+              <span class="pct-value" id="pct-val">42%</span>
+            </div>
+          </div>
+          <div class="form-row">
+            <label>Summary / What was done</label>
+            <textarea placeholder="e.g. Completed conduit roughing-in for Levels B2–G. Panel board installation 60% done."></textarea>
+          </div>
+          <div class="form-row">
+            <label>Blockers / Issues</label>
+            <textarea placeholder="e.g. Awaiting delivery of circuit breakers — ETA Jun 15."></textarea>
+          </div>
+          <div class="form-row">
+            <label>Next milestone</label>
+            <input type="text" placeholder="e.g. Complete panel board wiring — Level B2 by Jun 20">
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-ghost btn-sm" onclick="toggleUpdateForm()">Cancel</button>
+            <button class="btn btn-success btn-sm" onclick="submitUpdate()">Save Update</button>
+          </div>
+        </div>
+
+        <!-- Update history -->
+        <div class="pu-history" id="pu-history">
+
+          <div class="pu-card">
+            <div class="pu-card-header">
+              <div>
+                <div class="pu-card-title">Week of 2026-06-02</div>
+                <div class="pu-card-meta">Submitted by J. Reyes · 2026-06-02 17:15</div>
+              </div>
+              <div style="font-size:18px;font-weight:800;color:#1a73e8">38%</div>
+            </div>
+            <div class="pu-pct-bar"><div class="pu-pct-fill" style="width:38%"></div></div>
+            <div class="pu-fields">
+              <div class="pu-field">
+                <div class="pu-field-label">Summary</div>
+                <div class="pu-field-val">Conduit roughing-in complete B2–G. Level G rework approved.</div>
+              </div>
+              <div class="pu-field">
+                <div class="pu-field-label">Blockers</div>
+                <div class="pu-field-val blockers">RFI resolved Day 3 — no active blockers.</div>
+              </div>
+              <div class="pu-field" style="grid-column:span 2">
+                <div class="pu-field-label">Next Milestone</div>
+                <div class="pu-field-val">Panel board installation Level B2 — target Jun 10</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pu-card">
+            <div class="pu-card-header">
+              <div>
+                <div class="pu-card-title">Week of 2026-05-26</div>
+                <div class="pu-card-meta">Submitted by J. Reyes · 2026-05-26 18:00</div>
+              </div>
+              <div style="font-size:18px;font-weight:800;color:#f59e0b">22%</div>
+            </div>
+            <div class="pu-pct-bar"><div class="pu-pct-fill" style="width:22%;background:#f59e0b"></div></div>
+            <div class="pu-fields">
+              <div class="pu-field">
+                <div class="pu-field-label">Summary</div>
+                <div class="pu-field-val">Levels B2–B1 conduit complete. Level G blocked by structural clash.</div>
+              </div>
+              <div class="pu-field">
+                <div class="pu-field-label">Blockers</div>
+                <div class="pu-field-val blockers">⚠ RFI pending — structural team. Est. 3–4 day delay.</div>
+              </div>
+              <div class="pu-field" style="grid-column:span 2">
+                <div class="pu-field-label">Next Milestone</div>
+                <div class="pu-field-val">Resolve RFI + resume Level G conduit routing</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pu-card">
+            <div class="pu-card-header">
+              <div>
+                <div class="pu-card-title">Week of 2026-05-16</div>
+                <div class="pu-card-meta">Submitted by J. Reyes · 2026-05-16 17:00</div>
+              </div>
+              <div style="font-size:18px;font-weight:800;color:#1a73e8">8%</div>
+            </div>
+            <div class="pu-pct-bar"><div class="pu-pct-fill" style="width:8%"></div></div>
+            <div class="pu-fields">
+              <div class="pu-field">
+                <div class="pu-field-label">Summary</div>
+                <div class="pu-field-val">Site mobilization complete. Staging secured. Marking and measurement done.</div>
+              </div>
+              <div class="pu-field">
+                <div class="pu-field-label">Blockers</div>
+                <div class="pu-field-val cleared">None at this time.</div>
+              </div>
+              <div class="pu-field" style="grid-column:span 2">
+                <div class="pu-field-label">Next Milestone</div>
+                <div class="pu-field-val">Start conduit roughing-in Level B2</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═══════════════ TAB C: ISSUES ═══════════════ -->
+      <div class="ap-pane" id="pane-issues">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;flex-wrap:wrap;">
+          <div class="issue-toolbar">
+            <span class="filter-chip active" onclick="filterIssues('all',this)">All (4)</span>
+            <span class="filter-chip" onclick="filterIssues('open',this)">Open (2)</span>
+            <span class="filter-chip" onclick="filterIssues('resolved',this)">Resolved (2)</span>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="toggleIssueForm()">+ Log Issue</button>
+        </div>
+
+        <!-- Issue form -->
+        <div class="issue-form" id="issue-form">
+          <h3>Log New Issue</h3>
+          <div class="form-row">
+            <label>Issue Type</label>
+            <select id="issue-type-input">
+              <option value="delay">Delay</option>
+              <option value="change">Change Order</option>
+              <option value="site">Site Issue</option>
+              <option value="client">Client Request</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Title</label>
+            <input type="text" id="issue-title-input" placeholder="Short description of the issue">
+          </div>
+          <div class="form-row">
+            <label>Details</label>
+            <textarea id="issue-desc-input" placeholder="What happened? Impact? Action taken?"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-ghost btn-sm" onclick="toggleIssueForm()">Cancel</button>
+            <button class="btn btn-danger btn-sm" onclick="submitIssue()">Log Issue</button>
+          </div>
+        </div>
+
+        <!-- Issue list -->
+        <div class="issue-list" id="issue-list">
+
+          <div class="issue-card" data-status="open">
+            <div class="issue-left">
+              <div class="issue-type-dot dot-client"></div>
+            </div>
+            <div class="issue-right">
+              <div class="issue-title">Dust containment at Level G platform boundary</div>
+              <div class="issue-desc">Client flagged inadequate dust barrier near active passenger platform. Additional 10m temporary wall barrier required. Works to start Jun 10.</div>
+              <div class="issue-footer">
+                <span class="issue-type-badge badge-client-req">CLIENT REQ</span>
+                <span class="issue-date">Logged 2026-05-28</span>
+                <button class="btn btn-sm btn-amber issue-resolve-btn" onclick="resolveIssue(this)">Mark Resolved</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="issue-card" data-status="open">
+            <div class="issue-left">
+              <div class="issue-type-dot dot-delay"></div>
+            </div>
+            <div class="issue-right">
+              <div class="issue-title">Circuit breaker delivery delayed — supplier backorder</div>
+              <div class="issue-desc">ABB CB panels on backorder. ETA shifted from Jun 10 → Jun 18. Affects panel board wiring timeline on Level G. 5-day buffer in schedule.</div>
+              <div class="issue-footer">
+                <span class="issue-type-badge badge-delay">DELAY</span>
+                <span class="issue-date">Logged 2026-06-03</span>
+                <button class="btn btn-sm btn-amber issue-resolve-btn" onclick="resolveIssue(this)">Mark Resolved</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="issue-card resolved" data-status="resolved">
+            <div class="issue-left">
+              <div class="issue-type-dot dot-site"></div>
+            </div>
+            <div class="issue-right">
+              <div class="issue-title">Structural clash — Level G conduit path conflicts with beam</div>
+              <div class="issue-desc">RFI submitted 2026-05-26. Structural team approved alternate routing 2026-05-29. Rework completed, conduit installation resumed on schedule.</div>
+              <div class="issue-footer">
+                <span class="issue-type-badge badge-site">SITE ISSUE</span>
+                <span class="issue-type-badge badge-resolved">✓ RESOLVED</span>
+                <span class="issue-date">Logged 2026-05-26 · Resolved 2026-05-29</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="issue-card resolved" data-status="resolved">
+            <div class="issue-left">
+              <div class="issue-type-dot dot-change"></div>
+            </div>
+            <div class="issue-right">
+              <div class="issue-title">Change order — add 3 emergency lighting circuits on Level B1</div>
+              <div class="issue-desc">Client requested 3 additional emergency lighting feeds for new staircase. CO-001 approved 2026-05-20. Work incorporated into scope, no schedule impact.</div>
+              <div class="issue-footer">
+                <span class="issue-type-badge badge-change">CHANGE ORDER</span>
+                <span class="issue-type-badge badge-resolved">✓ RESOLVED</span>
+                <span class="issue-date">Logged 2026-05-18 · Resolved 2026-05-20</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- ap-body -->
+  </div><!-- activity-panel -->
+
+</div><!-- page-wrap -->
+
+<div class="log-spacer"></div>
+
+<!-- Log pane -->
+<div class="log-pane" id="log-pane">
+  <div class="log-entry info">[032] Spike — On-going Activity Panel. Try all three tabs. Post notes, submit progress updates, log + resolve issues.</div>
+</div>
+
+<script>
+  // ── Tab switching ──
+  function switchTab(name, el) {
+    document.querySelectorAll('.ap-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.ap-pane').forEach(p => p.classList.remove('visible'));
+    el.classList.add('active');
+    document.getElementById('pane-' + name).classList.add('visible');
+    log('info', 'Switched to tab: ' + name);
+  }
+
+  // ── Lifecycle accordion ──
+  document.querySelector('.lc-header').addEventListener('click', () => {
+    const b = document.getElementById('lc-body');
+    b.style.display = b.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // ── Feed / notes ──
+  let selectedTag = 'update';
+  const AVATARS = { 'J. Reyes': { init: 'JR', col: '#1a73e8' }, 'A. Mendoza': { init: 'AM', col: '#9333ea' }, 'System': { init: 'SYS', col: '#94a3b8' } };
+  const currentUser = 'J. Reyes';
+
+  function selectTag(tag, el) {
+    document.querySelectorAll('.entry-tag').forEach(t => t.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedTag = tag;
+  }
+
+  function postNote() {
+    const txt = document.getElementById('note-input').value.trim();
+    if (!txt) return;
+    const now = new Date();
+    const ts = now.toISOString().replace('T', ' ').slice(0, 16);
+    const av = AVATARS[currentUser];
+    const tagBadge = { update: 'badge-update', milestone: 'badge-milestone', issue: 'badge-issue', client: 'badge-client' }[selectedTag];
+    const tagLabel = { update: 'UPDATE', milestone: 'MILESTONE', issue: 'ISSUE', client: 'CLIENT' }[selectedTag];
+    const html = `
+      <div class="feed-entry">
+        <div class="feed-avatar" style="background:${av.col}">${av.init}</div>
+        <div class="feed-right">
+          <div class="feed-meta">
+            <span class="feed-author">${currentUser}</span>
+            <span class="feed-tag-badge ${tagBadge}">${tagLabel}</span>
+            <span class="feed-time">${ts}</span>
+          </div>
+          <div class="feed-text">${escH(txt)}</div>
+        </div>
+      </div>`;
+    document.getElementById('feed-list').insertAdjacentHTML('beforeend', html);
+    document.getElementById('note-input').value = '';
+    const cnt = document.querySelectorAll('#feed-list .feed-entry').length;
+    document.getElementById('feed-count').textContent = cnt;
+    log('feed', `Posted [${tagLabel}]: "${txt.slice(0, 50)}${txt.length > 50 ? '…' : ''}"`);
+  }
+
+  // ── Progress updates ──
+  let puFormOpen = false;
+  function toggleUpdateForm() {
+    puFormOpen = !puFormOpen;
+    document.getElementById('pu-form').style.display = puFormOpen ? 'block' : 'none';
+    if (puFormOpen) log('update', 'Opened progress update form');
+  }
+  function submitUpdate() {
+    const pct = document.getElementById('pct-slider').value;
+    log('update', `Saved progress update — ${pct}% complete`);
+    document.getElementById('pu-form').style.display = 'none';
+    puFormOpen = false;
+    // Insert a new card at top of history
+    const now = new Date();
+    const ts = now.toISOString().replace('T', ' ').slice(0, 16);
+    const html = `
+      <div class="pu-card" style="border:2px solid #bbf7d0">
+        <div class="pu-card-header">
+          <div>
+            <div class="pu-card-title">Week of ${ts.slice(0,10)}</div>
+            <div class="pu-card-meta">Submitted by ${currentUser} · ${ts}</div>
+          </div>
+          <div style="font-size:18px;font-weight:800;color:#1a73e8">${pct}%</div>
+        </div>
+        <div class="pu-pct-bar"><div class="pu-pct-fill" style="width:${pct}%"></div></div>
+        <div class="pu-fields">
+          <div class="pu-field" style="grid-column:span 2">
+            <div class="pu-field-label">Note</div>
+            <div class="pu-field-val">(New update submitted — form data captured in real build)</div>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('pu-history').insertAdjacentHTML('afterbegin', html);
+    const cnt = document.querySelectorAll('#pu-history .pu-card').length;
+    document.getElementById('updates-count').textContent = cnt;
+  }
+  document.getElementById('pu-form').style.display = 'none';
+
+  // ── Issues ──
+  let issueFormOpen = false;
+  function toggleIssueForm() {
+    issueFormOpen = !issueFormOpen;
+    document.getElementById('issue-form').classList.toggle('visible', issueFormOpen);
+    if (issueFormOpen) log('issue', 'Opened issue log form');
+  }
+  function filterIssues(filter, el) {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('#issue-list .issue-card').forEach(card => {
+      const st = card.dataset.status;
+      card.style.display = (filter === 'all' || filter === st) ? 'flex' : 'none';
+    });
+    log('info', 'Issue filter: ' + filter);
+  }
+  function resolveIssue(btn) {
+    const card = btn.closest('.issue-card');
+    card.classList.add('resolved');
+    card.dataset.status = 'resolved';
+    btn.remove();
+    const footer = card.querySelector('.issue-footer');
+    footer.insertAdjacentHTML('beforeend', '<span class="issue-type-badge badge-resolved">✓ RESOLVED</span>');
+    const open = document.querySelectorAll('#issue-list .issue-card[data-status="open"]').length;
+    const resolved = document.querySelectorAll('#issue-list .issue-card[data-status="resolved"]').length;
+    const total = open + resolved;
+    document.getElementById('issues-count').textContent = total;
+    // Update filter labels
+    const chips = document.querySelectorAll('.filter-chip');
+    chips[0].textContent = `All (${total})`;
+    chips[1].textContent = `Open (${open})`;
+    chips[2].textContent = `Resolved (${resolved})`;
+    log('resolve', 'Issue resolved — ' + card.querySelector('.issue-title').textContent.slice(0, 40));
+  }
+  function submitIssue() {
+    const type = document.getElementById('issue-type-input').value;
+    const title = document.getElementById('issue-title-input').value.trim();
+    const desc = document.getElementById('issue-desc-input').value.trim();
+    if (!title) return;
+    const dotClass = { delay: 'dot-delay', change: 'dot-change', site: 'dot-site', client: 'dot-client' }[type];
+    const badgeClass = { delay: 'badge-delay', change: 'badge-change', site: 'badge-site', client: 'badge-client-req' }[type];
+    const badgeText = { delay: 'DELAY', change: 'CHANGE ORDER', site: 'SITE ISSUE', client: 'CLIENT REQ' }[type];
+    const now = new Date().toISOString().slice(0, 10);
+    const html = `
+      <div class="issue-card" data-status="open">
+        <div class="issue-left"><div class="issue-type-dot ${dotClass}"></div></div>
+        <div class="issue-right">
+          <div class="issue-title">${escH(title)}</div>
+          <div class="issue-desc">${escH(desc) || '—'}</div>
+          <div class="issue-footer">
+            <span class="issue-type-badge ${badgeClass}">${badgeText}</span>
+            <span class="issue-date">Logged ${now}</span>
+            <button class="btn btn-sm btn-amber issue-resolve-btn" onclick="resolveIssue(this)">Mark Resolved</button>
+          </div>
+        </div>
+      </div>`;
+    document.getElementById('issue-list').insertAdjacentHTML('afterbegin', html);
+    toggleIssueForm();
+    document.getElementById('issue-title-input').value = '';
+    document.getElementById('issue-desc-input').value = '';
+    const open = document.querySelectorAll('#issue-list .issue-card[data-status="open"]').length;
+    const resolved = document.querySelectorAll('#issue-list .issue-card[data-status="resolved"]').length;
+    const total = open + resolved;
+    document.getElementById('issues-count').textContent = total;
+    const chips = document.querySelectorAll('.filter-chip');
+    chips[0].textContent = `All (${total})`;
+    chips[1].textContent = `Open (${open})`;
+    chips[2].textContent = `Resolved (${resolved})`;
+    log('issue', `Logged issue [${badgeText}]: "${title.slice(0, 40)}"`);
+  }
+
+  // ── Utils ──
+  function escH(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function log(type, msg) {
+    const pane = document.getElementById('log-pane');
+    const ts = new Date().toISOString().slice(11, 19);
+    const el = document.createElement('div');
+    el.className = 'log-entry ' + type;
+    el.textContent = `[${ts}] [${type.toUpperCase()}] ${msg}`;
+    pane.appendChild(el);
+    pane.scrollTop = pane.scrollHeight;
+  }
+</script>
+</body>
+</html>

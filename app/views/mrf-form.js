@@ -6,9 +6,10 @@
      - 'my-requests' → My Requests: user's submitted MRFs
    ======================================== */
 
-import { db, collection, addDoc, getDocs, getDoc, query, where, onSnapshot, doc, updateDoc } from '../firebase.js';
+import { db, collection, addDoc, getDocs, getDoc, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from '../firebase.js';
 import { showLoading as utilsShowLoading, showAlert as utilsShowAlert } from '../utils.js';
 import { skeletonTableRows } from '../components.js';
+import { createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
 
 // View state
 let projectsListener = null;
@@ -24,10 +25,6 @@ let psShowServices = true;
 // My Requests sub-tab controller (from mrf-records.js)
 let myRequestsController = null;
 
-// Phase 74-01: Scroll-hide/show handler for sticky MRF sub-nav pill bar
-let _mrfNavScrollHandler = null;
-let _mrfNavLastScrollY = 0;
-
 // Phase 74-02: Module-level refs for scoped sync handlers on .mrf-items-section.
 // REVIEWS [HIGH]: Stored as module-level vars (not window globals) so
 // destroy() can call removeEventListener and avoid zombie handlers.
@@ -35,42 +32,12 @@ let _mrfItemSyncHandler = null;        // for 'input' events
 let _mrfItemSyncChangeHandler = null;  // for 'change' events
 
 // ----------------------------------------
-// SUB-TAB NAVIGATION RENDER
-// ----------------------------------------
-
-function renderSubTabNav(activeTab) {
-    return `
-        <nav class="mrf-sub-nav" id="mrfSubNav" role="navigation" aria-label="Material Request sections">
-            <div class="mrf-sub-nav-inner">
-                <div class="mrf-sub-nav-tabs" role="tablist">
-                    <button type="button"
-                        class="mrf-sub-nav-tab ${activeTab === 'form' ? 'mrf-sub-nav-tab--active' : ''}"
-                        role="tab"
-                        aria-selected="${activeTab === 'form' ? 'true' : 'false'}"
-                        onclick="window.navigateToTab('form')">
-                        Material Request Form
-                    </button>
-                    <button type="button"
-                        class="mrf-sub-nav-tab ${activeTab === 'my-requests' ? 'mrf-sub-nav-tab--active' : ''}"
-                        role="tab"
-                        aria-selected="${activeTab === 'my-requests' ? 'true' : 'false'}"
-                        onclick="window.navigateToTab('my-requests')">
-                        My Requests
-                    </button>
-                </div>
-            </div>
-        </nav>
-    `;
-}
-
-// ----------------------------------------
 // MY REQUESTS VIEW RENDER
 // ----------------------------------------
 
-function renderMyRequestsView(tabNav) {
+function renderMyRequestsView() {
     return `
         <div style="min-height: 100vh; background: #f8fafc;">
-            ${tabNav}
             <div class="container" style="max-width: 1600px; margin: 0 auto; padding: 2rem;">
                 <div class="card">
                     <div class="card-header">
@@ -147,21 +114,17 @@ function renderMyRequestsView(tabNav) {
  * @returns {string} HTML string
  */
 export function render(activeTab = 'form') {
-    const tabNav = renderSubTabNav(activeTab);
-
     if (activeTab === 'my-requests') {
-        return renderMyRequestsView(tabNav);
+        return renderMyRequestsView();
     }
 
     // --- FORM TAB ---
     // Check edit permission - this is a create form, so block if no edit permission
-    const canEdit = window.canEditTab?.('mrf_form');
+    const canEdit = window.canEditTab?.('procurement_request');
 
-    // If user has no edit permission, show blocked message (but still show sub-tab nav)
     if (canEdit === false) {
         return `
             <div style="min-height: 100vh; background: #f8fafc;">
-                ${tabNav}
                 <div class="container" style="padding: 2rem;">
                     <div class="view-only-notice">
                         <span class="notice-icon">👁</span>
@@ -177,7 +140,6 @@ export function render(activeTab = 'form') {
 
     return `
         <div style="min-height: 100vh; background: #f8fafc;">
-            ${tabNav}
             <div style="max-width: 1100px; margin: 2rem auto; background: white; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.1); overflow: hidden;">
                 <div style="background: var(--primary); color: white; padding: 2rem; text-align: center;">
                     <h1 style="font-size: 1.75rem; font-weight: 700; margin-bottom: 0.5rem; color: white;">Material Request Form (MRF)</h1>
@@ -394,35 +356,6 @@ export function render(activeTab = 'form') {
  * @param {string} activeTab - 'form' (default) or 'my-requests'
  */
 export async function init(activeTab = 'form') {
-    // Phase 74-01: Attach scroll-hide/show listener for the sticky MRF sub-nav.
-    // Router does NOT call destroy() when switching sub-tabs within MRF view,
-    // so guard against re-attach on repeated init() calls.
-    if (!_mrfNavScrollHandler) {
-        _mrfNavLastScrollY = window.scrollY || 0;
-        const SCROLL_THRESHOLD = 80;
-        _mrfNavScrollHandler = function () {
-            const nav = document.getElementById('mrfSubNav');
-            if (!nav) return;
-            const currentY = window.scrollY || 0;
-            const prevY = _mrfNavLastScrollY;
-            _mrfNavLastScrollY = currentY; // always update first
-            if (currentY < SCROLL_THRESHOLD) {
-                // Always show when near top of page.
-                nav.style.transform = 'translateY(0)';
-                nav.style.opacity = '1';
-            } else if (currentY > prevY) {
-                // Scrolling DOWN past threshold — hide.
-                nav.style.transform = 'translateY(-100%)';
-                nav.style.opacity = '0';
-            } else if (currentY < prevY) {
-                // Scrolling UP at any position — show.
-                nav.style.transform = 'translateY(0)';
-                nav.style.opacity = '1';
-            }
-        };
-        window.addEventListener('scroll', _mrfNavScrollHandler, { passive: true });
-    }
-
     if (activeTab === 'my-requests') {
         // Clean up form listeners from previous sub-tab if switching from form → my-requests
         if (projectsListener) { projectsListener(); projectsListener = null; }
@@ -1112,7 +1045,10 @@ function loadProjects() {
             // Cache projects for re-population on assignment change
             cachedProjects = [];
             snapshot.forEach(doc => {
-                cachedProjects.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                // Phase 88 D-05 — Draft projects cannot accept MRFs.
+                if (data.project_status === 'Draft') return;
+                cachedProjects.push({ id: doc.id, ...data });
             });
 
             // Sort alphabetically A-Z by project code
@@ -1164,7 +1100,10 @@ function loadServices() {
         servicesListener = onSnapshot(q, (snapshot) => {
             cachedServices = [];
             snapshot.forEach(doc => {
-                cachedServices.push({ id: doc.id, ...doc.data() });
+                const data = doc.data();
+                // Phase 88 D-05 — Draft services cannot accept MRFs.
+                if (data.project_status === 'Draft') return;
+                cachedServices.push({ id: doc.id, ...data });
             });
 
             // Sort alphabetically A-Z by service code
@@ -1206,9 +1145,14 @@ function rebuildPSOptions() {
         const assignedCodes = window.getAssignedProjectCodes?.();
         let projects = cachedProjects;
         if (assignedCodes !== null) {
-            // Phase 78 D-02: clientless projects (no project_code) are not in assigned_project_codes;
-            // assignment filter applies to coded projects only.
-            projects = cachedProjects.filter(p => assignedCodes.includes(p.project_code));
+            const uid = window.getCurrentUser?.()?.uid;
+            // Coded projects: include if in assignedCodes.
+            // Codeless projects: include if user is in personnel_user_ids
+            // (syncPersonnelToAssignments is skipped for codeless projects — no code to sync).
+            projects = cachedProjects.filter(p =>
+                assignedCodes.includes(p.project_code) ||
+                (!p.project_code && uid && (p.personnel_user_ids || []).includes(uid))
+            );
         }
         projects.forEach(p => {
             // Phase 78 D-04: clientless projects use Firestore doc ID as the stable option value
@@ -1230,7 +1174,11 @@ function rebuildPSOptions() {
         const assignedCodes = window.getAssignedServiceCodes?.();
         let services = cachedServices;
         if (assignedCodes !== null) {
-            services = cachedServices.filter(s => assignedCodes.includes(s.service_code) && s.active === true);
+            const uid = window.getCurrentUser?.()?.uid;
+            services = cachedServices.filter(s =>
+                (assignedCodes.includes(s.service_code) && s.active === true) ||
+                (!s.service_code && uid && (s.personnel_user_ids || []).includes(uid) && s.active === true)
+            );
         }
         services.forEach(s => {
             psOptions.push({
@@ -1771,8 +1719,9 @@ async function handleFormSubmit(e) {
             service_code: hasService ? serviceCode : '',        // MRF-07: denormalized
             service_name: hasService ? serviceName : '',        // MRF-07: denormalized
             requestor_name: requestorName,
+            requestor_user_id: window.getCurrentUser?.()?.uid ?? null,   // Phase 84 D-01
             date_needed: dateNeeded,
-            date_submitted: new Date().toISOString().split('T')[0],
+            date_submitted: serverTimestamp(),
             delivery_address: deliveryAddress,
             justification: justification,
             items_json: JSON.stringify(items),
@@ -1782,6 +1731,24 @@ async function handleFormSubmit(e) {
 
         // Submit to Firebase
         await addDoc(collection(db, 'mrfs'), mrfDoc);
+
+        // Phase 84.1 NOTIF-14: broadcast new MRF to all active procurement users (fire-and-forget)
+        try {
+            const projectOrServiceLabel = mrfDoc.project_name || mrfDoc.service_name || 'Unknown';
+            await createNotificationForRoles({
+                roles: ['procurement'],
+                type: NOTIFICATION_TYPES.MRF_SUBMITTED,
+                message: `New MRF ${mrfId} for ${projectOrServiceLabel} needs processing`,
+                link: '#/procurement/mrfs',
+                source_collection: 'mrfs',
+                source_id: mrfId,
+                object_name: projectOrServiceLabel,
+                actor_name: window.getCurrentUser?.()?.full_name || 'System',
+                excludeActor: true   // if a procurement user submits an MRF themselves, skip self-notify
+            });
+        } catch (notifErr) {
+            console.error('[MRFForm] NOTIF-14 broadcast failed:', notifErr);
+        }
 
         showLoading(false);
 
@@ -1899,13 +1866,6 @@ export async function destroy() {
     }
     const staleMobileMenu = document.getElementById('myRequestsMobileMenu');
     if (staleMobileMenu) staleMobileMenu.remove();
-
-    // Phase 74-01: Detach scroll-hide/show listener for sticky sub-nav.
-    if (_mrfNavScrollHandler) {
-        window.removeEventListener('scroll', _mrfNavScrollHandler);
-        _mrfNavScrollHandler = null;
-    }
-    _mrfNavLastScrollY = 0;
 
     // Phase 74-02: REVIEWS [HIGH] — detach scoped item sync handlers to prevent zombies.
     // Section may already be gone from DOM; handlers still need to be null'd.

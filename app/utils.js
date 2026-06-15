@@ -40,6 +40,62 @@ export function formatCurrency(amount) {
     });
 }
 
+/* ========================================
+   RFP FEE UTILITIES (Phase 91.3)
+   ======================================== */
+
+/**
+ * Phase 91.3 RFP Fees — canonical field names. Strategy (a): amount_requested stays
+ * the BASE; fees are additive; total_with_fees is the persisted grand total.
+ * Legacy RFP docs have NONE of the fee fields — every helper below is legacy-safe.
+ */
+export const RFP_FEE_FIELDS = ['transfer_fee', 'cash_out_fee', 'misc_fees', 'total_with_fees'];
+
+/**
+ * Legacy-safe read of an RFP's supplementary fees.
+ * @returns {{transfer:number, cashOut:number, misc:Array<{label:string,amount:number}>, feesTotal:number}}
+ */
+export function getRFPFees(rfp) {
+    const transfer = parseFloat(rfp?.transfer_fee) || 0;
+    const cashOut = parseFloat(rfp?.cash_out_fee) || 0;
+    const misc = Array.isArray(rfp?.misc_fees) ? rfp.misc_fees : [];
+    const miscTotal = misc.reduce((s, m) => s + (parseFloat(m?.amount) || 0), 0);
+    return { transfer, cashOut, misc, feesTotal: transfer + cashOut + miscTotal };
+}
+
+/**
+ * Fee-inclusive grand total. Prefers the persisted total_with_fees when present and
+ * consistent with the parts; otherwise recomputes (base + fees). Legacy docs → base.
+ * THIS is what all payables / remaining / partial-payment math must track against (D-11).
+ */
+export function getRFPTotal(rfp) {
+    const base = parseFloat(rfp?.amount_requested) || 0;
+    const { feesTotal } = getRFPFees(rfp);
+    const persisted = parseFloat(rfp?.total_with_fees);
+    if (Number.isFinite(persisted) && persisted > 0) return persisted;
+    return base + feesTotal;
+}
+
+/**
+ * Ordered breakdown for itemization (D-07 detail card, tooltip, modal running total).
+ * NOTE: misc labels are returned RAW (unescaped) — any caller that renders a label into
+ * innerHTML MUST run it through escapeHTML at render time (mitigates T-91.3-02).
+ * @returns {{base:number, lines:Array<{label:string, amount:number, kind:string}>,
+ *            feesTotal:number, grandTotal:number, hasFees:boolean}}
+ */
+export function getRFPFeeBreakdown(rfp) {
+    const base = parseFloat(rfp?.amount_requested) || 0;
+    const { transfer, cashOut, misc, feesTotal } = getRFPFees(rfp);
+    const lines = [{ label: 'Base amount', amount: base, kind: 'base' }];
+    if (transfer > 0) lines.push({ label: 'Transfer fee', amount: transfer, kind: 'transfer' });
+    if (cashOut > 0) lines.push({ label: 'Cash-out fee', amount: cashOut, kind: 'cash_out' });
+    misc.forEach(m => {
+        const amt = parseFloat(m?.amount) || 0;
+        if (amt > 0) lines.push({ label: String(m?.label || 'Misc fee'), amount: amt, kind: 'misc' });
+    });
+    return { base, lines, feesTotal, grandTotal: base + feesTotal, hasFees: feesTotal > 0 };
+}
+
 /**
  * Format date string to readable format
  * @param {string} dateString - Date string to format
@@ -811,4 +867,30 @@ export function downloadCSV(headers, rows, filename) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+}
+
+// Phase 87: re-export proposal ID generator for convenience (defined in app/proposal-id.js)
+export { generateProposalId } from './proposal-id.js';
+
+/* ========================================
+   UUID / RANDOM ID UTILITIES
+   ======================================== */
+
+/**
+ * Generate a UUID suitable for audit_log entry_id and similar in-document keys.
+ * Prefers crypto.randomUUID() (modern browsers); falls back to a simple pseudo-UUID
+ * for older runtimes (sufficient uniqueness for audit entry IDs).
+ *
+ * Phase 87.1: extracted to utils.js (was previously private in app/views/proposals.js)
+ * so proposals.js, app/proposal-modal.js, and other modules can share one implementation
+ * without circular imports.
+ *
+ * @returns {string} A UUID string
+ */
+export function cryptoRandomUuid() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    // Fallback for older runtimes — sufficient uniqueness for audit entry IDs
+    return 'p87-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10);
 }

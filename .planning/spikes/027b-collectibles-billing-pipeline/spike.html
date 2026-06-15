@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 027b — Collectibles Billing Pipeline Visibility</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
+
+/* Top header */
+.spike-header { padding: 1.25rem 1.5rem 0.5rem; }
+h1 { font-size: 1.05rem; font-weight: 700; color: #1a73e8; margin-bottom: 0.2rem; }
+.subtitle { font-size: 0.78rem; color: #64748b; margin-bottom: 0.75rem; }
+
+/* Variant switcher bar */
+.variant-bar { display: flex; gap: 0; background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 1.5rem; }
+.var-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 0.65rem 1rem; font-size: 0.82rem; font-weight: 600; color: #64748b; cursor: pointer; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
+.var-btn.active { color: #1a73e8; border-bottom-color: #1a73e8; }
+.var-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin: 0 0.5rem; align-self: center; }
+
+/* Page */
+.page-wrap { padding: 0 1.5rem 1.5rem; max-width: 960px; }
+.card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; }
+
+/* Card header */
+.card-header { display: flex; align-items: center; justify-content: space-between; padding: 0.9rem 1.25rem; border-bottom: 1px solid #f1f5f9; }
+.card-title { font-size: 1rem; font-weight: 700; }
+.btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.75rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.78rem; font-weight: 600; }
+.btn-primary { background: #1a73e8; color: #fff; }
+.btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.btn-sm { padding: 0.3rem 0.55rem; font-size: 0.72rem; }
+.btn-success { background: #059669; color: #fff; }
+.btn-danger-ghost { background: #fff; color: #ef4444; border: 1px solid #fecaca; }
+
+/* ---- VARIANT A: Banner ---- */
+.billing-banner { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 0.65rem 1rem; margin: 0.75rem 1.25rem; }
+.banner-header { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; user-select: none; }
+.banner-count { background: #1a73e8; color: #fff; border-radius: 999px; font-size: 0.66rem; font-weight: 700; padding: 0.08rem 0.5rem; }
+.banner-title { font-weight: 700; color: #1e40af; font-size: 0.84rem; }
+.banner-body { margin-top: 0.5rem; }
+.banner-req-row { border-top: 1px solid #dbeafe; padding: 0.6rem 0; display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; flex-wrap: wrap; }
+.banner-req-info .req-project { font-weight: 700; font-size: 0.8rem; }
+.banner-req-info .req-tranche { color: #475569; font-size: 0.73rem; margin-top: 0.1rem; }
+.banner-req-info .req-meta { color: #94a3b8; font-size: 0.67rem; margin-top: 0.1rem; }
+.banner-req-actions { display: flex; gap: 0.4rem; align-items: center; }
+
+/* ---- VARIANT B: Ghost Rows ---- */
+.ghost-section-divider { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 1.25rem; }
+.ghost-divider-line { flex: 1; height: 1px; background: #e5e7eb; }
+.ghost-divider-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; white-space: nowrap; }
+
+/* Table */
+.table-wrap { padding: 0 1.25rem 1.25rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 0.75rem; }
+th { padding: 0.4rem 0.5rem; text-align: left; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; font-weight: 700; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
+th.r { text-align: right; }
+td { padding: 0.5rem 0.5rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+td.r { text-align: right; }
+tr:hover td { background: #f8fafc; }
+
+/* Real row */
+.row-overdue td { background: #fff8f8; }
+
+/* Ghost row */
+tr.ghost-row td { background: #fafbff; opacity: 0.85; }
+tr.ghost-row:hover td { background: #f0f4ff; opacity: 1; }
+.ghost-coll-id { font-family: monospace; font-size: 0.77rem; color: #94a3b8; font-style: italic; }
+.ghost-badge { font-size: 0.62rem; font-weight: 700; padding: 0.18rem 0.5rem; border-radius: 10px; background: #e0e7ff; color: #3730a3; display: inline-block; }
+
+/* Scorecard strip (both variants use same) */
+.scorecard-strip { display: flex; gap: 0.6rem; padding: 0.75rem 1.25rem; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
+.sc-chip { flex: 1; min-width: 100px; border-radius: 7px; padding: 0.55rem 0.75rem; border: 1px solid; }
+.sc-chip.green  { background: #f0fdf4; border-color: #bbf7d0; }
+.sc-chip.blue   { background: #e0f2fe; border-color: #bae6fd; }
+.sc-chip.orange { background: #fff7ed; border-color: #fed7aa; }
+.sc-chip.indigo { background: #eef2ff; border-color: #c7d2fe; }
+.sc-label { font-size: 0.57rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.15rem; }
+.sc-chip.green  .sc-label { color: #059669; }
+.sc-chip.blue   .sc-label { color: #0369a1; }
+.sc-chip.orange .sc-label { color: #c2410c; }
+.sc-chip.indigo .sc-label { color: #4338ca; }
+.sc-val { font-size: 0.95rem; font-weight: 700; }
+.sc-chip.green  .sc-val { color: #059669; }
+.sc-chip.blue   .sc-val { color: #0369a1; }
+.sc-chip.orange .sc-val { color: #c2410c; }
+.sc-chip.indigo .sc-val { color: #4338ca; }
+.sc-sub { font-size: 0.6rem; color: #94a3b8; margin-top: 0.08rem; }
+
+/* Status badges */
+.badge { font-size: 0.62rem; font-weight: 700; padding: 0.18rem 0.5rem; border-radius: 10px; display: inline-block; white-space: nowrap; }
+.badge-pending  { background: #fff3cd; color: #856404; }
+.badge-overdue  { background: #fee2e2; color: #991b1b; }
+.badge-partial  { background: #dbeafe; color: #1d4ed8; }
+.badge-paid     { background: #d1fae5; color: #065f46; }
+.badge-approved { background: #e0e7ff; color: #3730a3; }
+
+/* Progress */
+.prog-bar-wrap { display: flex; align-items: center; gap: 0.35rem; margin-top: 0.2rem; }
+.prog-bar { height: 3px; border-radius: 2px; background: #e5e7eb; flex: 1; overflow: hidden; }
+.prog-bar-fill { height: 100%; border-radius: 2px; background: #1a73e8; }
+.prog-bar-fill.full { background: #059669; }
+.prog-bar-fill.overdue { background: #ef4444; }
+.prog-pct { font-size: 0.62rem; color: #94a3b8; white-space: nowrap; }
+
+/* Comparison note */
+.compare-note { font-size: 0.74rem; color: #475569; background: #fff; border-radius: 8px; padding: 0.6rem 1rem; margin: 0.5rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border-left: 3px solid #1a73e8; }
+.compare-note strong { color: #1e293b; }
+
+/* Controls */
+.controls-panel {
+  position: fixed; bottom: 1.25rem; left: 1.25rem;
+  background: #1e293b; color: #e2e8f0; border-radius: 10px;
+  padding: 0.75rem 1rem; font-size: 0.72rem; z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25); min-width: 200px;
+}
+.controls-panel h3 { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-bottom: 0.4rem; }
+.ctrl-btn { display: block; width: 100%; background: #334155; border: none; color: #e2e8f0; border-radius: 5px; padding: 0.35rem 0.6rem; font-size: 0.72rem; cursor: pointer; margin-bottom: 0.3rem; text-align: left; }
+.ctrl-btn:hover { background: #475569; }
+.ctrl-btn.active { background: #1a73e8; color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="spike-header">
+  <h1>Spike 027b — Collectibles Billing Pipeline Visibility (Comparison)</h1>
+  <p class="subtitle">Same data, two approaches: how should "approved billing requests, not yet filed as COLL-xxx" surface on the Collectibles page?</p>
+</div>
+
+<!-- Variant switcher -->
+<div class="variant-bar">
+  <button class="var-btn active" id="btn-a" onclick="switchVariant('a')">A — Enhanced Banner</button>
+  <span class="var-label">vs</span>
+  <button class="var-btn" id="btn-b" onclick="switchVariant('b')">B — Ghost Rows in Table</button>
+</div>
+
+<!-- Description of current variant -->
+<div class="compare-note" id="variant-desc">
+  <strong>Variant A:</strong> The collapsible pending billing banner is retained but visually upgraded — larger presence, indigo lifecycle badge, explicit "Approved — file COLL-xxx" label. Finance sees this as a separate action queue above the table. <em>Question: Is the banner easy to miss vs. the table?</em>
+</div>
+
+<!-- Page content (shared scaffolding, variant-specific sections toggled) -->
+<div class="page-wrap" style="margin-top:0.75rem;">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Collectibles</span>
+      <button class="btn btn-primary btn-sm">+ Create Collectible</button>
+    </div>
+
+    <!-- Scorecard strip (both variants) -->
+    <div class="scorecard-strip">
+      <div class="sc-chip green">
+        <div class="sc-label">Total Invoiced</div>
+        <div class="sc-val">₱7.5M</div>
+        <div class="sc-sub">5 collectibles</div>
+      </div>
+      <div class="sc-chip blue">
+        <div class="sc-label">Cash Collected</div>
+        <div class="sc-val">₱2.3M</div>
+        <div class="sc-sub">31% of invoiced</div>
+      </div>
+      <div class="sc-chip orange">
+        <div class="sc-label">Outstanding</div>
+        <div class="sc-val">₱5.2M</div>
+        <div class="sc-sub">4 open items</div>
+      </div>
+      <div class="sc-chip indigo" id="sc-pipeline-chip">
+        <div class="sc-label">Pending Pipeline</div>
+        <div class="sc-val" id="sc-pipeline-val">₱1.9M</div>
+        <div class="sc-sub" id="sc-pipeline-sub">2 approved, awaiting COLL</div>
+      </div>
+    </div>
+
+    <!-- ===== VARIANT A: Banner ===== -->
+    <div id="section-banner">
+      <div class="billing-banner">
+        <div class="banner-header" onclick="toggleBanner()">
+          <span id="banner-chevron" style="color:#1a73e8;font-weight:700;">▾</span>
+          <span class="banner-title">Approved — File as Collectible</span>
+          <span class="banner-count" id="banner-count">2</span>
+          <span style="font-size:0.7rem;color:#4b6bb5;margin-left:auto;">Billing requests approved by Finance, awaiting COLL-xxx creation</span>
+        </div>
+        <div id="banner-body" class="banner-body">
+          <div class="banner-req-row">
+            <div class="banner-req-info">
+              <div class="req-project">CLMC New Office</div>
+              <div class="req-tranche">Final Billing (30%) · ₱1,200,000</div>
+              <div class="req-meta">Approved by Finance · 3 days ago</div>
+            </div>
+            <div class="banner-req-actions">
+              <span class="badge badge-approved" style="font-size:0.6rem;">Approved</span>
+              <button class="btn btn-success btn-sm" onclick="fileColl('CLMC New Office', 'Final Billing')">File COLL-xxx</button>
+            </div>
+          </div>
+          <div class="banner-req-row">
+            <div class="banner-req-info">
+              <div class="req-project">Renovation HQ</div>
+              <div class="req-tranche">Phase 2 (60%) · ₱720,000</div>
+              <div class="req-meta">Approved by Finance · 1 week ago</div>
+            </div>
+            <div class="banner-req-actions">
+              <span class="badge badge-approved" style="font-size:0.6rem;">Approved</span>
+              <button class="btn btn-success btn-sm" onclick="fileColl('Renovation HQ', 'Phase 2')">File COLL-xxx</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== VARIANT B: No banner, ghost rows in table ===== -->
+    <div id="section-ghost" style="display:none;"></div>
+
+    <!-- Main table (shared) -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Project</th>
+            <th>Tranche</th>
+            <th class="r">Amount</th>
+            <th class="r">Paid</th>
+            <th class="r">Balance</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="mainTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls-panel">
+  <h3>Pending Requests</h3>
+  <button class="ctrl-btn active" id="ctrl-2" onclick="setPendingCount(2)">2 pending requests</button>
+  <button class="ctrl-btn" id="ctrl-0" onclick="setPendingCount(0)">0 pending (clean)</button>
+  <button class="ctrl-btn" id="ctrl-4" onclick="setPendingCount(4)">4 pending requests</button>
+  <h3 style="margin-top:0.65rem;">Table</h3>
+  <button class="ctrl-btn" id="ctrl-overdue" onclick="toggleOverdue()">+ Add overdue row</button>
+</div>
+
+<script>
+const COLLS = [
+  { id: 'COLL-2026-001', project: 'CLMC New Office',    tranche: 'Mobilization (20%)',     amount: 800000,   paid: 800000,  due: '2026-03-15', overdue: false },
+  { id: 'COLL-2026-002', project: 'CLMC New Office',    tranche: 'Progress Billing (50%)', amount: 2000000,  paid: 500000,  due: '2026-05-01', overdue: true  },
+  { id: 'COLL-2026-003', project: 'Renovation HQ',      tranche: 'Phase 1 (40%)',          amount: 1200000,  paid: 0,       due: '2026-07-30', overdue: false },
+  { id: 'COLL-2026-004', project: 'Warehouse Expansion',tranche: 'Mobilization (30%)',     amount: 1500000,  paid: 0,       due: '2026-04-01', overdue: true  },
+  { id: 'COLL-2026-005', project: 'Warehouse Expansion',tranche: 'Progress Billing (40%)', amount: 2000000,  paid: 1000000, due: '2026-07-15', overdue: false },
+];
+
+const PENDING_REQS = [
+  { project: 'CLMC New Office',    tranche: 'Final Billing (30%)', amount: 1200000, ago: '3 days ago' },
+  { project: 'Renovation HQ',      tranche: 'Phase 2 (60%)',       amount: 720000,  ago: '1 week ago' },
+  { project: 'Warehouse Expansion',tranche: 'Final (30%)',         amount: 1800000, ago: '2 days ago' },
+  { project: 'Renovation HQ',      tranche: 'Phase 3 (20%)',       amount: 240000,  ago: '5 days ago' },
+];
+
+let currentVariant = 'a';
+let pendingCount = 2;
+let showExtraOverdue = false;
+let bannerCollapsed = false;
+
+function fmt(n) {
+  if (n >= 1000000) return '₱' + (n/1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1000) return '₱' + (n/1000).toFixed(0) + 'k';
+  return '₱' + n.toLocaleString();
+}
+function fmtFull(n) { return '₱' + n.toLocaleString(); }
+
+function deriveStatus(c) {
+  if (c.paid >= c.amount && c.amount > 0) return 'Fully Paid';
+  if (c.overdue) return 'Overdue';
+  if (c.paid > 0) return 'Partially Paid';
+  return 'Pending';
+}
+
+function badgeHtml(status) {
+  const cls = { 'Fully Paid': 'badge-paid', 'Overdue': 'badge-overdue', 'Partially Paid': 'badge-partial', 'Pending': 'badge-pending' };
+  return `<span class="badge ${cls[status] || ''}">${status}</span>`;
+}
+
+function collRowHtml(c) {
+  const status = deriveStatus(c);
+  const balance = c.amount - c.paid;
+  const pct = c.amount > 0 ? (c.paid / c.amount * 100) : 0;
+  const barFill = status === 'Fully Paid' ? 'full' : c.overdue ? 'overdue' : '';
+  const dueStyle = c.overdue ? 'color:#ef4444;font-weight:600;' : '';
+  return `<tr class="${c.overdue ? 'row-overdue' : ''}">
+    <td><strong style="font-family:monospace;font-size:0.77rem;">${c.id}</strong></td>
+    <td style="font-size:0.77rem;">${c.project}</td>
+    <td style="color:#475569;font-size:0.77rem;">${c.tranche}</td>
+    <td class="r">${fmtFull(c.amount)}</td>
+    <td class="r" style="color:#059669;">${fmtFull(c.paid)}</td>
+    <td class="r" style="color:${balance > 0 ? '#ef4444' : '#059669'};font-weight:600;">${fmtFull(balance)}</td>
+    <td style="font-size:0.77rem;${dueStyle}">${c.due}${c.overdue ? ' ⚠' : ''}</td>
+    <td>${badgeHtml(status)}${status !== 'Fully Paid' ? `<div class="prog-bar-wrap"><div class="prog-bar"><div class="prog-bar-fill ${barFill}" style="width:${pct}%"></div></div><span class="prog-pct">${pct.toFixed(0)}%</span></div>` : ''}</td>
+    <td><button class="btn btn-secondary btn-sm">Record&nbsp;Payment</button></td>
+  </tr>`;
+}
+
+function ghostRowHtml(req) {
+  return `<tr class="ghost-row">
+    <td><span class="ghost-coll-id">COLL-xxx (pending)</span></td>
+    <td style="font-size:0.77rem;">${req.project}</td>
+    <td style="color:#475569;font-size:0.77rem;">${req.tranche}</td>
+    <td class="r" style="color:#4338ca;">${fmtFull(req.amount)}</td>
+    <td class="r" style="color:#94a3b8;">—</td>
+    <td class="r" style="color:#94a3b8;">—</td>
+    <td style="font-size:0.77rem;color:#94a3b8;">Not yet set</td>
+    <td><span class="badge badge-approved">Approved</span><div style="font-size:0.62rem;color:#4338ca;margin-top:0.2rem;">Awaiting COLL creation</div></td>
+    <td><button class="btn btn-success btn-sm" onclick="fileColl('${req.project}', '${req.tranche}')">File COLL-xxx</button></td>
+  </tr>`;
+}
+
+function renderMainTable() {
+  const rows = [...COLLS];
+  if (showExtraOverdue) {
+    rows.splice(2, 0, { id: 'COLL-2026-006', project: 'Renovation HQ', tranche: 'Phase 2 (60%)', amount: 1800000, paid: 200000, due: '2026-03-01', overdue: true });
+  }
+
+  let html = rows.map(collRowHtml).join('');
+
+  // In variant B, append ghost rows after a divider row
+  if (currentVariant === 'b' && pendingCount > 0) {
+    const pending = PENDING_REQS.slice(0, pendingCount);
+    const totalPendingAmt = pending.reduce((s, r) => s + r.amount, 0);
+    html += `<tr>
+      <td colspan="9" style="padding:0;">
+        <div class="ghost-section-divider">
+          <div class="ghost-divider-line"></div>
+          <div class="ghost-divider-label">Approved — awaiting COLL-xxx (${pendingCount}) · ${fmt(totalPendingAmt)} billed</div>
+          <div class="ghost-divider-line"></div>
+        </div>
+      </td>
+    </tr>`;
+    html += pending.map(ghostRowHtml).join('');
+  }
+
+  document.getElementById('mainTableBody').innerHTML = html;
+}
+
+function renderBanner() {
+  const bannerSection = document.getElementById('section-banner');
+  if (pendingCount === 0) {
+    bannerSection.innerHTML = '';
+    return;
+  }
+  const pending = PENDING_REQS.slice(0, pendingCount);
+  const chevron = bannerCollapsed ? '▸' : '▾';
+  const body = bannerCollapsed ? '' : pending.map(req => `
+    <div class="banner-req-row">
+      <div class="banner-req-info">
+        <div class="req-project">${req.project}</div>
+        <div class="req-tranche">${req.tranche} · ${fmtFull(req.amount)}</div>
+        <div class="req-meta">Approved by Finance · ${req.ago}</div>
+      </div>
+      <div class="banner-req-actions">
+        <span class="badge badge-approved" style="font-size:0.6rem;">Approved</span>
+        <button class="btn btn-success btn-sm" onclick="fileColl('${req.project}', '${req.tranche}')">File COLL-xxx</button>
+      </div>
+    </div>`).join('');
+
+  bannerSection.innerHTML = `
+    <div class="billing-banner">
+      <div class="banner-header" onclick="toggleBanner()">
+        <span style="color:#1a73e8;font-weight:700;">${chevron}</span>
+        <span class="banner-title">Approved — File as Collectible</span>
+        <span class="banner-count">${pendingCount}</span>
+        <span style="font-size:0.68rem;color:#4b6bb5;margin-left:auto;">Billing requests approved, awaiting COLL-xxx creation</span>
+      </div>
+      ${body ? `<div class="banner-body">${body}</div>` : ''}
+    </div>`;
+}
+
+function updatePipelineScorecard() {
+  const pending = PENDING_REQS.slice(0, pendingCount);
+  const totalAmt = pending.reduce((s, r) => s + r.amount, 0);
+  document.getElementById('sc-pipeline-val').textContent = pendingCount > 0 ? fmt(totalAmt) : '₱0';
+  document.getElementById('sc-pipeline-sub').textContent = pendingCount > 0 ? `${pendingCount} approved, awaiting COLL` : 'None pending';
+  document.getElementById('sc-pipeline-chip').style.opacity = pendingCount > 0 ? '1' : '0.5';
+}
+
+function switchVariant(v) {
+  currentVariant = v;
+  document.getElementById('btn-a').classList.toggle('active', v === 'a');
+  document.getElementById('btn-b').classList.toggle('active', v === 'b');
+
+  if (v === 'a') {
+    document.getElementById('section-banner').style.display = '';
+    document.getElementById('section-ghost').style.display = 'none';
+    renderBanner();
+    document.getElementById('variant-desc').innerHTML = `<strong>Variant A:</strong> The collapsible pending banner is retained but upgraded — larger, indigo badge, "File COLL-xxx" action inline. Finance sees a separate action queue. <em>Question: Is the banner easy to miss? Does it feel disconnected from the table?</em>`;
+  } else {
+    document.getElementById('section-banner').style.display = 'none';
+    document.getElementById('section-ghost').style.display = '';
+    document.getElementById('variant-desc').innerHTML = `<strong>Variant B:</strong> No banner. Approved billing requests appear as ghost rows at the bottom of the table with a divider. Finance sees the full collection pipeline in one place. <em>Question: Does mixing "real COLLs" with "ghost rows" feel odd? Is the divider clear enough?</em>`;
+  }
+
+  renderMainTable();
+}
+
+function toggleBanner() {
+  bannerCollapsed = !bannerCollapsed;
+  renderBanner();
+}
+
+function setPendingCount(n) {
+  pendingCount = n;
+  document.querySelectorAll('.ctrl-btn[id^="ctrl-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('ctrl-' + n).classList.add('active');
+  renderBanner();
+  renderMainTable();
+  updatePipelineScorecard();
+}
+
+function toggleOverdue() {
+  showExtraOverdue = !showExtraOverdue;
+  const btn = document.getElementById('ctrl-overdue');
+  btn.textContent = showExtraOverdue ? '- Remove overdue row' : '+ Add overdue row';
+  btn.classList.toggle('active', showExtraOverdue);
+  renderMainTable();
+}
+
+function fileColl(project, tranche) {
+  alert(`Opens pre-filled Create Collectible modal\nProject: ${project}\nTranche: ${tranche}\n\n(In production this calls window.openCreateCollectibleModal with pre-selected project + tranche)`);
+}
+
+// Initial render
+switchVariant('a');
+updatePipelineScorecard();
+</script>
+</body>
+</html>

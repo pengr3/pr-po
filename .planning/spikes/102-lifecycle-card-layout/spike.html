@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spike 102 — Project Lifecycle Card layout options</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; color: #1e293b; font-size: 14px; }
+
+/* Toggle bar */
+.ctrl-bar { position: sticky; top: 0; z-index: 100; background: #0f172a; padding: 12px 20px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ctrl-bar > span { color: #94a3b8; font-size: 12px; margin-right: 4px; }
+.cbtn { padding: 7px 14px; border-radius: 7px; border: 1px solid #334155; background: #1e293b; color: #cbd5e1; cursor: pointer; font-size: 12.5px; font-weight: 600; transition: all .15s; }
+.cbtn.active, .cbtn:hover { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+.ctrl-desc { color: #64748b; font-size: 11.5px; margin-left: 6px; max-width: 420px; }
+
+.frame { max-width: 1560px; margin: 22px auto; padding: 0 18px; }
+.frame-note { font-size: 12px; color: #64748b; margin-bottom: 12px; }
+.frame-note b { color: #1e293b; }
+
+/* ── Real card styles (faithful to views.css) ── */
+.lc-accordion { background: #fff; border: 1.5px solid #93c5fd; border-radius: 12px; box-shadow: 0 2px 12px rgba(26,115,232,0.08); overflow: hidden; }
+.lc-card-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 18px; border-bottom: 1px solid #e5e7eb; }
+.lc-header-left { display: flex; align-items: center; gap: 10px; }
+.lc-card-title { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .07em; }
+.lc-cur-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #1a73e81a; color: #1a73e8; border: 1px solid #1a73e844; }
+.lc-chevron { font-size: 11px; color: #64748b; transform: rotate(180deg); }
+
+/* Stage track */
+.lc-track-wrap { padding: 14px 18px 12px; }
+.lc-track { display: flex; align-items: flex-start; }
+.stage-node { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: 1; min-width: 0; }
+.stage-circle { width: 46px; height: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 19px; position: relative; flex-shrink: 0; }
+.s-done { background: #d1fae5; border: 2px solid #10b981; }
+.s-current { background: #dbeafe; border: 2px solid #1a73e8; box-shadow: 0 0 0 4px #1a73e822; }
+.s-future { background: #f1f5f9; border: 2px solid #e2e8f0; opacity: .8; }
+.stage-check { position: absolute; bottom: -3px; right: -3px; width: 17px; height: 17px; background: #10b981; color: #fff; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; border: 2px solid #fff; }
+.stage-label { font-size: 10px; text-align: center; line-height: 1.25; color: #94a3b8; }
+.s-done-node .stage-label { color: #047857; }
+.s-current-node .stage-label { color: #1a73e8; font-weight: 700; }
+.stage-chip { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; padding: 2px 6px; border-radius: 8px; }
+.chip-done { background: #d1fae5; color: #065f46; }
+.chip-here { background: #dbeafe; color: #1d4ed8; }
+.chip-end { background: #f1f5f9; color: #64748b; }
+.chip-gap { background: #fef3c7; color: #92400e; }
+.connector { flex: 0 0 auto; height: 2px; width: 100%; background: #e2e8f0; margin-top: 22px; align-self: flex-start; }
+.connector.done { background: #10b981; }
+
+/* Body */
+.lc-body { padding: 14px 18px 18px; }
+.gate-label { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.gate-label::before, .gate-label::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
+.lc-desc { font-size: 12.5px; color: #475569; line-height: 1.65; margin-bottom: 12px; }
+.meta-line { font-size: 11px; color: #475569; margin-bottom: 10px; }
+.meta-line code { background: #f1f5f9; padding: 1px 6px; border-radius: 4px; }
+.az { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 11px 13px; margin-bottom: 9px; }
+.az-lbl { font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 7px; }
+.az-row { display: flex; gap: 8px; }
+.az-input { flex: 1; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 9px; font-size: 12px; }
+.az-btn { background: #1a73e8; color: #fff; border: none; border-radius: 6px; font-size: 12px; padding: 6px 12px; cursor: pointer; }
+.dlp-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 11px 13px; margin-bottom: 12px; }
+.dlp-box-title { font-size: 11px; font-weight: 700; color: #92400e; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+.dlp-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.dlp-grid label { font-size: 11px; color: #475569; font-weight: 600; display: block; margin-bottom: 3px; }
+.dlp-grid input, .dlp-grid select { width: 100%; padding: 5px 7px; border: 1px solid #fde68a; border-radius: 5px; font-size: 13px; }
+.dlp-note { font-size: 11px; color: #92400e; margin-top: 7px; }
+.action-row { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.btn-primary { background: #1a73e8; color: #fff; border: none; border-radius: 7px; font-size: 13px; font-weight: 600; padding: 8px 16px; cursor: pointer; }
+.action-note { font-size: 11px; color: #64748b; }
+.sub-head { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px; }
+
+/* ===== Layout B — two-row stage track ===== */
+.layout-b .lc-track { flex-wrap: wrap; gap: 14px 0; justify-content: center; }
+.layout-b .stage-node { flex: 0 0 25%; }
+.layout-b .stage-circle { width: 54px; height: 54px; font-size: 22px; }
+.layout-b .connector { display: none; }
+
+/* ===== Layout C — vertical timeline rail + body ===== */
+.layout-c .lc-track-wrap, .layout-c .lc-body { padding: 0; }
+.layout-c .lc-split { display: grid; grid-template-columns: 230px 1fr; align-items: stretch; }
+.layout-c .rail { background: #f8fafc; border-right: 1px solid #e5e7eb; padding: 16px 14px; }
+.layout-c .rail-node { display: flex; align-items: flex-start; gap: 10px; position: relative; padding-bottom: 14px; }
+.layout-c .rail-node:last-child { padding-bottom: 0; }
+.layout-c .rail-node::before { content: ''; position: absolute; left: 17px; top: 36px; bottom: -2px; width: 2px; background: #e2e8f0; }
+.layout-c .rail-node.done::before { background: #10b981; }
+.layout-c .rail-node:last-child::before { display: none; }
+.layout-c .rail-dot { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; z-index: 1; }
+.layout-c .rail-txt { padding-top: 7px; }
+.layout-c .rail-txt .rl { font-size: 12px; font-weight: 600; color: #475569; line-height: 1.2; }
+.layout-c .rail-node.done .rl { color: #047857; }
+.layout-c .rail-node.current .rl { color: #1a73e8; font-weight: 700; }
+.layout-c .rail-txt .rc { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; }
+.layout-c .body-panel { padding: 16px 18px 18px; }
+
+/* ===== Layout D — two stacked content rows (Documents / Action) ===== */
+.layout-d .lc-row-split { display: grid; grid-template-rows: auto auto; gap: 0; }
+.layout-d .lc-sec { padding: 14px 0; border-top: 1px dashed #e5e7eb; }
+.layout-d .lc-sec:first-child { border-top: none; padding-top: 0; }
+.layout-d .doc-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+
+@media (max-width: 820px) {
+  .layout-c .lc-split { grid-template-columns: 1fr; }
+  .layout-c .rail { border-right: none; border-bottom: 1px solid #e5e7eb; }
+  .layout-d .doc-2col { grid-template-columns: 1fr; }
+  .layout-b .stage-node { flex: 0 0 50%; }
+}
+</style>
+</head>
+<body>
+
+<div class="ctrl-bar">
+  <span>Lifecycle card layout:</span>
+  <button class="cbtn active" data-l="a" onclick="setLayout('a')">A · Current</button>
+  <button class="cbtn" data-l="b" onclick="setLayout('b')">B · Two-row track</button>
+  <button class="cbtn" data-l="c" onclick="setLayout('c')">C · Vertical rail</button>
+  <button class="cbtn" data-l="d" onclick="setLayout('d')">D · Two stacked rows</button>
+  <span class="ctrl-desc" id="ctrlDesc"></span>
+</div>
+
+<div class="frame">
+  <div class="frame-note">Open lifecycle card for an <b>On-going</b> project at <b>Gate 4 — Completion</b> (the heaviest gate, with two attach zones + the DLP fieldset). Full width ~1560px, same as the real detail page. Resize the window to see responsive behavior.</div>
+  <div id="cardHost"></div>
+</div>
+
+<script>
+const STAGES = [
+  { e: '🔍', l: 'For\nInspection', s: 'done' },
+  { e: '📝', l: 'For\nProposal', s: 'done' },
+  { e: '👁', l: 'Internal\nApproval', s: 'done' },
+  { e: '🤝', l: 'Client\nReview', s: 'done' },
+  { e: '✅', l: 'Client\nApproved', s: 'done' },
+  { e: '🚚', l: 'For\nMobilization', s: 'done' },
+  { e: '🏗', l: 'On-going', s: 'current' },
+  { e: '🏁', l: 'Completed', s: 'future' },
+];
+
+const DESCS = {
+  a: 'What ships today — full-width horizontal track on top, then a single tall column of body content. This is the "heavy on fully horizontal" baseline.',
+  b: 'The 8-stage track literally wraps into two rows of 4 (bigger nodes); body stays one column. Closest to "split into two rows".',
+  c: 'Stages become a compact vertical timeline rail on the left; the gate body fills the right. Trades the wide-and-short shape for a balanced two-pane card — best at filling the space.',
+  d: 'Track on top, then the body is split into two clearly-labelled stacked rows: Documents (side-by-side) and Action + DLP. "Two rows" of body content.',
+};
+
+function nl(s){ return s.split('\n').join('<br>'); }
+function chip(s){ return s==='done'?'<span class="stage-chip chip-done">Done</span>':s==='current'?'<span class="stage-chip chip-here">← Here</span>':'<span class="stage-chip chip-end">End</span>'; }
+
+function horizTrack(){
+  let h='<div class="lc-track">';
+  STAGES.forEach((st,i)=>{
+    h+=`<div class="stage-node s-${st.s}-node">
+      <div class="stage-circle s-${st.s}">${st.e}${st.s==='done'?'<div class="stage-check">✓</div>':''}</div>
+      <div class="stage-label">${nl(st.l)}</div>${chip(st.s)}
+    </div>`;
+    if(i<STAGES.length-1) h+=`<div class="connector ${st.s==='done'?'done':''}"></div>`;
+  });
+  return h+'</div>';
+}
+
+function verticalRail(){
+  let h='<div class="rail">';
+  STAGES.forEach(st=>{
+    const dotStyle = st.s==='done'?'background:#d1fae5;border:2px solid #10b981;'
+      : st.s==='current'?'background:#dbeafe;border:2px solid #1a73e8;'
+      : 'background:#f1f5f9;border:2px solid #e2e8f0;';
+    h+=`<div class="rail-node ${st.s}">
+      <div class="rail-dot" style="${dotStyle}">${st.s==='done'?'✓':st.e}</div>
+      <div class="rail-txt"><div class="rl">${st.l.replace('\\n',' ')}</div><div class="rc">${st.s==='current'?'← Here':st.s==='done'?'Done':'End'}</div></div>
+    </div>`;
+  });
+  return h+'</div>';
+}
+
+const ATTACH = (lbl)=>`<div class="az"><div class="az-lbl">${lbl}</div><div class="az-row"><input class="az-input" placeholder="https://drive.google.com/..."><button class="az-btn">Attach</button></div></div>`;
+const DLP = `<div class="dlp-box"><div class="dlp-box-title">Defect Liability Period</div>
+  <div class="dlp-grid">
+    <div><label>Retention %</label><input type="number" value="20"></div>
+    <div><label>DLP Months</label><select><option>3</option><option selected>12</option><option>24</option></select></div>
+    <div><label>DLP Start Date</label><input type="date"></div>
+  </div>
+  <div class="dlp-note">DLP is required because this project has a retention tranche. Captured when you mark the project Completed.</div></div>`;
+const DESCTXT = 'Project in execution. Both a Completion Report and Certificate of Completion (COC) must be attached before closing.';
+const ACTION = `<div class="action-row"><button class="btn-primary">✅ Mark as Completed</button><span class="action-note">Both documents required</span></div>`;
+
+function bodySingle(){
+  return `<div class="gate-label">Gate 4 — Completion</div>
+    <div class="lc-desc">${DESCTXT}</div>
+    <div class="meta-line">Started: <code>2026-03-01</code></div>
+    ${ATTACH('Completion Report')}${ATTACH('Certificate of Completion (COC)')}${DLP}${ACTION}`;
+}
+function bodyTwoRows(){
+  return `<div class="gate-label">Gate 4 — Completion</div>
+    <div class="lc-desc">${DESCTXT}</div>
+    <div class="lc-row-split">
+      <div class="lc-sec"><div class="sub-head">Documents</div><div class="doc-2col">${ATTACH('Completion Report')}${ATTACH('Certificate of Completion (COC)')}</div></div>
+      <div class="lc-sec"><div class="sub-head">Closeout</div><div class="meta-line">Started: <code>2026-03-01</code></div>${DLP}${ACTION}</div>
+    </div>`;
+}
+
+function render(layout){
+  const header = `<div class="lc-card-header"><div class="lc-header-left"><span class="lc-card-title">Project Lifecycle</span><span class="lc-cur-badge">● On-going</span></div><div class="lc-chevron">▼</div></div>`;
+  let inner;
+  if(layout==='a') inner = header + `<div class="lc-track-wrap">${horizTrack()}</div><div class="lc-body">${bodySingle()}</div>`;
+  else if(layout==='b') inner = header + `<div class="lc-track-wrap">${horizTrack()}</div><div class="lc-body">${bodySingle()}</div>`;
+  else if(layout==='c') inner = header + `<div class="lc-split">${verticalRail()}<div class="body-panel">${bodySingle()}</div></div>`;
+  else inner = header + `<div class="lc-track-wrap">${horizTrack()}</div><div class="lc-body">${bodyTwoRows()}</div>`;
+  document.getElementById('cardHost').innerHTML = `<div class="lc-accordion layout-${layout}">${inner}</div>`;
+}
+
+function setLayout(l){
+  document.querySelectorAll('.cbtn').forEach(b=>b.classList.toggle('active', b.dataset.l===l));
+  document.getElementById('ctrlDesc').textContent = DESCS[l];
+  render(l);
+}
+setLayout('a');
+</script>
+</body>
+</html>

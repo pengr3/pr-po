@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 005 — Unread Row Indicator</title>
+<style>
+  *, *::before, *::before { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+    min-height: 100vh;
+    padding: 2rem 1rem 6rem;
+  }
+
+  h1 { font-size: 1.25rem; font-weight: 700; color: #1e293b; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 0.875rem; color: #64748b; margin-bottom: 2rem; }
+  .section-label {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 0.75rem;
+  }
+
+  /* ── LAYOUT: 3-column compare ── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.5rem;
+    max-width: 960px;
+    margin: 0 auto 2.5rem;
+  }
+  @media (max-width: 720px) { .compare-grid { grid-template-columns: 1fr; } }
+
+  /* ── DROPDOWN PANEL (shared chrome) ── */
+  .mock-dropdown {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    overflow: hidden;
+  }
+  .mock-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .mock-title { font-weight: 600; color: #1e293b; font-size: 0.9375rem; }
+  .mock-mark-all { background: transparent; border: none; color: #1a73e8; font-size: 0.8125rem; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 4px; }
+  .mock-rows { }
+  .mock-footer { padding: 0.75rem 1rem; border-top: 1px solid #e5e7eb; text-align: center; }
+  .mock-footer a { color: #1a73e8; font-size: 0.875rem; font-weight: 500; text-decoration: none; }
+
+  /* ── SHARED ROW BASE ── */
+  .nd-row {
+    display: flex; align-items: flex-start; gap: 0.75rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    cursor: pointer;
+    position: relative;
+  }
+  .nd-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .nd-badge svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .nd-body { flex: 1; min-width: 0; }
+  .nd-msg { font-size: 0.875rem; color: #1e293b; line-height: 1.4; }
+  .nd-time { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+  .nd-read-btn { background: transparent; border: none; color: #94a3b8; cursor: pointer; padding: 0.25rem; border-radius: 4px; flex-shrink: 0; font-size: 0.75rem; align-self: flex-start; margin-top: 2px; }
+
+  /* ── VARIANT A: full blue block (#eff6ff) — CURRENT ── */
+  .v-block .nd-row.unread { background: #eff6ff; }
+  .v-block .nd-row.unread:hover { background: #dbeafe; }
+  .v-block .nd-row:not(.unread):hover { background: #f8fafc; }
+
+  /* ── VARIANT B: left-border accent + subtle tint ── */
+  .v-border .nd-row.unread {
+    background: #f8fbff;
+    border-left: 3px solid #1a73e8;
+    padding-left: calc(1rem - 3px); /* compensate border width */
+  }
+  .v-border .nd-row.unread:hover { background: #eff6ff; }
+  .v-border .nd-row:not(.unread):hover { background: #f8fafc; }
+
+  /* ── VARIANT C: dot indicator (no background tint) ── */
+  .v-dot .nd-row.unread::before {
+    content: '';
+    position: absolute;
+    left: 0.375rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #1a73e8;
+  }
+  .v-dot .nd-row { padding-left: 1.25rem; }
+  .v-dot .nd-row:not(.unread) { padding-left: 1.25rem; } /* keep alignment uniform */
+  .v-dot .nd-row.unread:hover { background: #f8fafc; }
+  .v-dot .nd-row:not(.unread):hover { background: #f8fafc; }
+
+  /* ── CODE COMPARISON ── */
+  .code-compare {
+    max-width: 960px; margin: 0 auto 2rem;
+    background: #1e293b; border-radius: 8px; overflow: hidden;
+  }
+  .code-tabs { display: flex; border-bottom: 1px solid #334155; }
+  .code-tab {
+    padding: 0.6rem 1.25rem; font-size: 0.8125rem; font-weight: 600;
+    color: #94a3b8; cursor: pointer; border: none; background: transparent;
+    white-space: nowrap;
+  }
+  .code-tab.active { color: #e2e8f0; border-bottom: 2px solid #1a73e8; }
+  .code-body { padding: 1.25rem; overflow-x: auto; display: none; }
+  .code-body.active { display: block; }
+  pre { font-family: 'Consolas', 'SF Mono', monospace; font-size: 0.8125rem; color: #e2e8f0; line-height: 1.6; white-space: pre-wrap; }
+  .c-key { color: #7dd3fc; }
+  .c-str { color: #86efac; }
+  .c-cmt { color: #64748b; font-style: italic; }
+  .c-prop { color: #fbbf24; }
+
+  /* ── VERDICT ── */
+  .verdict {
+    max-width: 960px; margin: 0 auto 2rem;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+  }
+  .verdict h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; color: #1e293b; }
+  .verdict ul { font-size: 0.875rem; color: #475569; line-height: 1.7; padding-left: 1.25rem; }
+  .verdict li { margin-bottom: 0.25rem; }
+
+  /* ── CONTROLS ── */
+  .controls {
+    position: fixed; bottom: 1.5rem; left: 1.5rem;
+    background: #1e293b; color: #e2e8f0;
+    border-radius: 8px; padding: 0.875rem 1.125rem;
+    font-size: 0.8125rem; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    display: flex; flex-direction: column; gap: 0.5rem; z-index: 999;
+  }
+  .controls strong { color: #7dd3fc; display: block; margin-bottom: 0.25rem; }
+  .ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
+  .ctrl-label { color: #94a3b8; min-width: 70px; }
+  .ctrl-btn {
+    padding: 0.3rem 0.75rem; border-radius: 4px; border: 1px solid #475569;
+    background: #334155; color: #e2e8f0; font-size: 0.75rem;
+    cursor: pointer; transition: background 0.1s;
+  }
+  .ctrl-btn:hover { background: #475569; }
+  .ctrl-btn.active { background: #1a73e8; border-color: #1a73e8; }
+</style>
+</head>
+<body>
+
+<div style="max-width:960px;margin:0 auto;">
+  <h1>Spike 005 — Unread Row Indicator</h1>
+  <p class="subtitle">Given an unread notification row, which indicator design communicates "new" most clearly without overwhelming the content?</p>
+</div>
+
+<div class="compare-grid">
+  <!-- VARIANT A: full block (current) -->
+  <div>
+    <div class="section-label">A — full block: <code>#eff6ff</code> (current)</div>
+    <div class="mock-dropdown v-block" id="panel-a">
+      <div class="mock-header">
+        <span class="mock-title">Notifications</span>
+        <button class="mock-mark-all">Mark all read</button>
+      </div>
+      <div class="mock-rows" id="rows-a"></div>
+      <div class="mock-footer"><a href="#">View all</a></div>
+    </div>
+  </div>
+
+  <!-- VARIANT B: left-border accent -->
+  <div>
+    <div class="section-label">B — left border: 3px #1a73e8 + <code>#f8fbff</code></div>
+    <div class="mock-dropdown v-border" id="panel-b">
+      <div class="mock-header">
+        <span class="mock-title">Notifications</span>
+        <button class="mock-mark-all">Mark all read</button>
+      </div>
+      <div class="mock-rows" id="rows-b"></div>
+      <div class="mock-footer"><a href="#">View all</a></div>
+    </div>
+  </div>
+
+  <!-- VARIANT C: dot indicator -->
+  <div>
+    <div class="section-label">C — dot: 6px #1a73e8 circle, no tint</div>
+    <div class="mock-dropdown v-dot" id="panel-c">
+      <div class="mock-header">
+        <span class="mock-title">Notifications</span>
+        <button class="mock-mark-all">Mark all read</button>
+      </div>
+      <div class="mock-rows" id="rows-c"></div>
+      <div class="mock-footer"><a href="#">View all</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- CODE COMPARISON -->
+<div style="max-width:960px;margin:0 auto 1.5rem;">
+  <div class="section-label">CSS IMPLEMENTATION</div>
+</div>
+<div class="code-compare">
+  <div class="code-tabs">
+    <button class="code-tab active" onclick="showCode('a')">A — full block</button>
+    <button class="code-tab" onclick="showCode('b')">B — left border</button>
+    <button class="code-tab" onclick="showCode('c')">C — dot</button>
+  </div>
+  <div class="code-body active" id="code-a">
+    <pre><span class="c-cmt">/* ── A: full block tint — current production CSS ── */</span>
+
+<span class="c-key">.nd-row.unread</span>  { <span class="c-prop">background</span>: <span class="c-str">#eff6ff</span>; }
+<span class="c-key">.nd-row.unread:hover</span> { <span class="c-prop">background</span>: <span class="c-str">#dbeafe</span>; }
+
+<span class="c-cmt">/* Change to JS: class toggle
+   row.classList.toggle('unread', !isRead);
+
+ Pros:
+   - High contrast, easy to spot unread zone
+   - Common pattern (Gmail, Slack, Linear)
+   - Hover deepens tint — responsive feel
+
+ Cons:
+   - Blue tint competes with badge colors (especially
+     blue badges like PROPOSAL_SUBMITTED look subdued)
+   - High density of unread rows = very blue panel
+   - Tint disappears on read — abrupt, no fade
+*/</span></pre>
+  </div>
+  <div class="code-body" id="code-b">
+    <pre><span class="c-cmt">/* ── B: left-border accent + very pale tint ── */</span>
+
+<span class="c-key">.nd-row.unread</span> {
+  <span class="c-prop">background</span>: <span class="c-str">#f8fbff</span>;
+  <span class="c-prop">border-left</span>: <span class="c-str">3px solid #1a73e8</span>;
+  <span class="c-prop">padding-left</span>: <span class="c-str">calc(1rem - 3px)</span>; <span class="c-cmt">/* compensate */</span>
+}
+<span class="c-key">.nd-row.unread:hover</span> { <span class="c-prop">background</span>: <span class="c-str">#eff6ff</span>; }
+<span class="c-key">.nd-row</span> { <span class="c-prop">border-left</span>: <span class="c-str">3px solid transparent</span>; } <span class="c-cmt">/* layout anchor */</span>
+
+<span class="c-cmt">/* Pros:
+   - Indicator occupies its own lane — doesn't tint content
+   - Very pale #f8fbff barely changes badge color appearance
+   - Border snaps away on read = clean indicator pattern
+   - Familiar (GitHub, Notion notification sidebar)
+
+ Cons:
+   - 3px leftward nudge shifts content — need transparent border
+     on read rows to keep alignment stable
+   - border-left doesn't round with border-radius on the row
+*/</span></pre>
+  </div>
+  <div class="code-body" id="code-c">
+    <pre><span class="c-cmt">/* ── C: dot indicator — no background change ── */</span>
+
+<span class="c-key">.nd-row</span> { <span class="c-prop">padding-left</span>: <span class="c-str">1.25rem</span>; <span class="c-prop">position</span>: <span class="c-str">relative</span>; }
+
+<span class="c-key">.nd-row.unread::before</span> {
+  <span class="c-prop">content</span>: <span class="c-str">''</span>;
+  <span class="c-prop">position</span>: <span class="c-str">absolute</span>;
+  <span class="c-prop">left</span>: <span class="c-str">0.375rem</span>;
+  <span class="c-prop">top</span>: <span class="c-str">50%</span>;
+  <span class="c-prop">transform</span>: <span class="c-str">translateY(-50%)</span>;
+  <span class="c-prop">width</span>: <span class="c-str">6px</span>; <span class="c-prop">height</span>: <span class="c-str">6px</span>;
+  <span class="c-prop">border-radius</span>: <span class="c-str">50%</span>;
+  <span class="c-prop">background</span>: <span class="c-str">#1a73e8</span>;
+}
+
+<span class="c-cmt">/* Pros:
+   - Minimal — no background color change at all
+   - Dot disappears on read = clean
+   - Badge colors fully unaffected
+   - iMessage / macOS Mail pattern
+
+ Cons:
+   - Easy to miss — small dot in a dense notification list
+   - Padding shift on all rows needed for alignment
+   - No hover affordance difference for unread vs read
+   - When there are 0 unread rows the extra left padding
+     looks slightly wasteful
+*/</span></pre>
+  </div>
+</div>
+
+<!-- VERDICT -->
+<div class="verdict">
+  <h3>Observations</h3>
+  <ul>
+    <li><strong>Variant A (full block):</strong> Highest contrast — immediately clear which rows are new. But heavy blue fill can wash out blue-badged types (PROPOSAL_SUBMITTED, PROJECT_STATUS). With 5+ unread items the panel feels very blue and fatiguing.</li>
+    <li><strong>Variant B (left border):</strong> Best balance — the border occupies its own visual lane without tinting the badge zone. Pale <code>#f8fbff</code> is barely perceptible but adds warmth. Hover deepening to <code>#eff6ff</code> gives tactile feedback. The transparent-border anchor on read rows keeps content alignment rock-solid.</li>
+    <li><strong>Variant C (dot):</strong> Cleanest look — badge colors are 100% unaffected. However the dot is easy to miss at a glance, especially when the bell already has a red badge indicating unread count. The global padding shift adds visual waste when inbox is empty.</li>
+    <li><strong>Recommendation:</strong> Variant B (left border + pale tint). It signals "new" clearly without overwhelming the content, plays well with all 16 badge color types, and the padding-compensation pattern is a 2-line CSS fix with zero JS change.</li>
+  </ul>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <strong>Controls</strong>
+  <div class="ctrl-row">
+    <span class="ctrl-label">Unread:</span>
+    <button class="ctrl-btn" onclick="setUnread(3)">top 3</button>
+    <button class="ctrl-btn active" onclick="setUnread(5)">top 5</button>
+    <button class="ctrl-btn" onclick="setUnread(0)">none</button>
+    <button class="ctrl-btn" onclick="setUnread(99)">all</button>
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">B border:</span>
+    <button class="ctrl-btn" onclick="setBorderWidth(2)">2px</button>
+    <button class="ctrl-btn active" onclick="setBorderWidth(3)">3px</button>
+    <button class="ctrl-btn" onclick="setBorderWidth(4)">4px</button>
+  </div>
+  <div class="ctrl-row">
+    <span class="ctrl-label">B tint:</span>
+    <button class="ctrl-btn active" onclick="setTint('#f8fbff')">pale #f8fbff</button>
+    <button class="ctrl-btn" onclick="setTint('#eff6ff')">full #eff6ff</button>
+    <button class="ctrl-btn" onclick="setTint('transparent')">none</button>
+  </div>
+</div>
+
+<script>
+const svg = (path) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+
+const ALL_ROWS = [
+  { color: '#ef4444', icon: svg('<path d="M6 18L18 6M6 6l12 12"/>'),                                                                              label: 'MRF Rejected',     msg: 'MRF-2026-008 rejected — budget exceeded.',      time: '2m' },
+  { color: '#f59e0b', icon: svg('<path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>'),                          label: 'PR Review Needed', msg: 'PR-2026-014 awaiting your Finance review.',     time: '5m' },
+  { color: '#1a73e8', icon: svg('<path d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>'),        label: 'Proposal Submitted', msg: 'PROP-2026-009 submitted for review.',         time: '12m' },
+  { color: '#f59e0b', icon: svg('<path d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/>'), label: 'TR Review Needed', msg: 'TR-2026-003 awaiting Finance review.',       time: '18m' },
+  { color: '#64748b', icon: svg('<path d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/>'), label: 'Registration', msg: 'New user registration pending your approval.', time: '35m' },
+  { color: '#059669', icon: svg('<path d="M4.5 12.75l6 6 9-13.5"/>'),                                                                              label: 'MRF Approved',     msg: 'MRF-2026-011 approved by Procurement.',        time: '1h' },
+  { color: '#1a73e8', icon: svg('<path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/>'), label: 'Project Status', msg: 'Metro Retail Hub → For Mobilization.', time: '2h' },
+];
+
+let unreadCount = 5;
+let borderWidth = 3;
+let tintColor = '#f8fbff';
+
+function buildRows(panelId) {
+  const rows = ALL_ROWS.map((r, i) => {
+    const isUnread = i < unreadCount;
+    return `<div class="nd-row${isUnread ? ' unread' : ''}">
+      <span class="nd-badge" style="background:${r.color}18;color:${r.color};" title="${r.label}">${r.icon}</span>
+      <div class="nd-body">
+        <div class="nd-msg">${r.msg}</div>
+        <div class="nd-time">${r.label} · ${r.time} ago</div>
+      </div>
+      ${isUnread ? '<button class="nd-read-btn" title="Mark read">✓</button>' : ''}
+    </div>`;
+  }).join('');
+  document.getElementById(`rows-${panelId}`).innerHTML = rows;
+}
+
+function render() {
+  buildRows('a');
+  buildRows('b');
+  buildRows('c');
+  applyBorderStyle();
+}
+
+function applyBorderStyle() {
+  const sheet = document.getElementById('dynamic-style');
+  if (sheet) sheet.remove();
+  const el = document.createElement('style');
+  el.id = 'dynamic-style';
+  el.textContent = `
+    .v-border .nd-row.unread {
+      background: ${tintColor};
+      border-left: ${borderWidth}px solid #1a73e8;
+      padding-left: calc(1rem - ${borderWidth}px);
+    }
+    .v-border .nd-row {
+      border-left: ${borderWidth}px solid transparent;
+    }
+  `;
+  document.head.appendChild(el);
+}
+
+function setUnread(n) {
+  unreadCount = n;
+  document.querySelectorAll('[onclick^="setUnread"]').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  render();
+}
+
+function setBorderWidth(w) {
+  borderWidth = w;
+  document.querySelectorAll('[onclick^="setBorderWidth"]').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  applyBorderStyle();
+}
+
+function setTint(c) {
+  tintColor = c;
+  document.querySelectorAll('[onclick^="setTint"]').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  applyBorderStyle();
+}
+
+function showCode(tab) {
+  document.querySelectorAll('.code-tab').forEach((t, i) =>
+    t.classList.toggle('active', ['a','b','c'][i] === tab));
+  ['a','b','c'].forEach(id =>
+    document.getElementById(`code-${id}`).classList.toggle('active', id === tab));
+}
+
+render();
+</script>
+</body>
+</html>

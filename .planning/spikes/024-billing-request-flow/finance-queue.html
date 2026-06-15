@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 024b — Finance Queue Options</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 0.875rem; }
+
+/* ── Layout ── */
+.page { max-width: 1300px; margin: 0 auto; padding: 1.5rem; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+
+/* ── Option wrapper ── */
+.opt-wrap { display: flex; flex-direction: column; gap: 0.75rem; }
+.opt-header { background: #1e293b; color: #fff; border-radius: 8px 8px 0 0; padding: 0.6rem 1rem; display: flex; align-items: center; gap: 0.75rem; }
+.opt-letter { background: #334155; border-radius: 4px; padding: 2px 8px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; }
+.opt-name { font-size: 0.875rem; font-weight: 700; color: #f1f5f9; }
+.opt-demo { border: 2px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px; background: #fff; overflow: hidden; }
+.opt-note { font-size: 0.72rem; color: #64748b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 0.5rem 0.75rem; }
+
+/* ── Shared Finance chrome ── */
+.fin-header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0.6rem 1rem; display: flex; align-items: center; justify-content: space-between; }
+.fin-title { font-size: 0.8rem; font-weight: 700; color: #1e293b; }
+.tab-bar { display: flex; border-bottom: 2px solid #e5e7eb; background: #fff; }
+.tab { padding: 0.5rem 0.875rem; font-size: 0.78rem; font-weight: 600; border: none; background: none; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; }
+.tab.active { color: #1a73e8; border-bottom-color: #1a73e8; }
+.dot { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #ef4444; color: #fff; font-size: 0.55rem; font-weight: 800; margin-left: 4px; vertical-align: middle; }
+
+/* ── Collectibles toolbar ── */
+.coll-toolbar { padding: 0.6rem 1rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #f1f5f9; background: #fafafa; }
+.coll-toolbar-left { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; }
+
+/* ── Buttons ── */
+.btn { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; padding: 0.35rem 0.75rem; transition: background 0.15s; white-space: nowrap; }
+.btn-primary { background: #1a73e8; color: #fff; }
+.btn-primary:hover { background: #1557b0; }
+.btn-outline { background: #fff; color: #475569; border: 1px solid #cbd5e1; }
+.btn-outline:hover { background: #f1f5f9; }
+.btn-sm { font-size: 0.7rem; padding: 0.2rem 0.55rem; }
+.btn-success { background: #059669; color: #fff; }
+.btn-success:hover { background: #047857; }
+.btn-danger-soft { background: #fff; color: #dc2626; border: 1px solid #fca5a5; }
+.btn-danger-soft:hover { background: #fef2f2; }
+
+/* ── Collectibles table (stub) ── */
+.coll-table-wrap { padding: 0.75rem 1rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+th { padding: 0.4rem 0.5rem; text-align: left; font-size: 0.65rem; color: #64748b; font-weight: 600; border-bottom: 2px solid #e5e7eb; background: #f8fafc; }
+td { padding: 0.4rem 0.5rem; border-bottom: 1px solid #f1f5f9; }
+.coll-id { color: #1a73e8; font-weight: 600; }
+.badge { font-size: 0.62rem; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+.badge-collected { background: #dcfce7; color: #15803d; }
+.badge-pending-coll { background: #fef9c3; color: #854d0e; }
+
+/* ── Pending request rows ── */
+.req-block { margin: 0 1rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+.req-row { padding: 0.65rem 0.875rem; display: flex; align-items: flex-start; gap: 0.75rem; border-bottom: 1px solid #f1f5f9; }
+.req-row:last-child { border-bottom: none; }
+.req-info { flex: 1; min-width: 0; }
+.req-project { font-weight: 700; font-size: 0.8rem; }
+.req-tranche { font-size: 0.7rem; color: #475569; margin: 0.15rem 0; }
+.req-who { font-size: 0.65rem; color: #94a3b8; }
+.req-docs { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-top: 0.35rem; }
+.doc-chip { font-size: 0.65rem; color: #1a73e8; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 7px; cursor: pointer; text-decoration: none; }
+.req-actions { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-end; flex-shrink: 0; }
+.req-amount { font-weight: 700; font-size: 0.82rem; text-align: right; margin-bottom: 0.25rem; }
+
+/* ── Section A: collapsible banner ── */
+.pending-banner { background: #eff6ff; border-bottom: 2px solid #bfdbfe; }
+.pending-banner-head { padding: 0.55rem 1rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+.pending-banner-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #1d4ed8; display: flex; align-items: center; gap: 0.4rem; }
+.pending-banner-body { background: #fff; border-top: 1px solid #bfdbfe; }
+.chevron { font-size: 0.7rem; color: #64748b; transition: transform 0.15s; }
+.chevron.up { transform: rotate(180deg); }
+
+/* ── Section B: inner toggle ── */
+.inner-toggle { display: flex; border-bottom: 1px solid #e5e7eb; background: #f8fafc; }
+.itab { flex: 1; padding: 0.45rem; font-size: 0.72rem; font-weight: 600; border: none; background: none; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -1px; text-align: center; }
+.itab.active { color: #1a73e8; border-bottom-color: #1a73e8; background: #fff; }
+.itab-panel { display: none; }
+.itab-panel.active { display: block; }
+
+/* ── Section C: drawer ── */
+.drawer-shell { position: relative; display: flex; min-height: 260px; }
+.drawer-main { flex: 1; overflow: hidden; }
+.drawer-side { width: 0; overflow: hidden; border-left: 1px solid #e5e7eb; transition: width 0.22s ease; background: #fff; flex-shrink: 0; }
+.drawer-side.open { width: 240px; }
+.drawer-inner { width: 240px; }
+.drawer-head { padding: 0.6rem 0.75rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; background: #f8fafc; }
+.drawer-head-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #1d4ed8; }
+.drawer-req-row { padding: 0.55rem 0.75rem; border-bottom: 1px solid #f1f5f9; font-size: 0.72rem; }
+.drawer-req-row:last-child { border-bottom: none; }
+.drawer-req-project { font-weight: 700; font-size: 0.75rem; }
+.drawer-req-sub { font-size: 0.65rem; color: #64748b; margin: 0.1rem 0 0.3rem; }
+.drawer-docs { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 0.3rem; }
+.drawer-actions { display: flex; gap: 0.25rem; justify-content: flex-end; }
+
+/* ── Toast ── */
+.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #059669; color: #fff; border-radius: 8px; padding: 0.65rem 1rem; font-size: 0.8rem; font-weight: 600; z-index: 999; display: none; box-shadow: 0 8px 25px rgba(0,0,0,0.2); max-width: 340px; }
+.toast.show { display: block; }
+
+.page-title { font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 0.3rem; }
+.page-sub { font-size: 0.78rem; color: #64748b; margin-bottom: 1.25rem; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="page-title">Spike 024b — Finance: Where do billing requests live?</div>
+  <div class="page-sub">All 3 options stay inside the Collectibles tab. Each demo is fully clickable — try approving and rejecting requests.</div>
+
+  <div class="grid-3">
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- OPTION A: Collapsible banner at top    -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="opt-wrap">
+      <div class="opt-header">
+        <span class="opt-letter">A</span>
+        <span class="opt-name">Collapsible banner at the top</span>
+      </div>
+      <div class="opt-demo">
+        <div class="tab-bar">
+          <button class="tab">Pending Approvals</button>
+          <button class="tab">Purchase Orders</button>
+          <button class="tab active">Collectibles</button>
+        </div>
+
+        <!-- Pending banner -->
+        <div class="pending-banner">
+          <div class="pending-banner-head" onclick="toggleBannerA()">
+            <div class="pending-banner-title">
+              <span id="chevron-a" class="chevron">▼</span>
+              Pending Billing Requests
+              <span class="dot" id="badge-a">2</span>
+            </div>
+            <span style="font-size:0.68rem;color:#3b82f6;" id="hint-a">click to collapse</span>
+          </div>
+          <div class="pending-banner-body" id="banner-body-a">
+            <div id="req-list-a">
+              <div class="req-row" id="a-req1">
+                <div class="req-info">
+                  <div class="req-project">CLMC-ACME-001</div>
+                  <div class="req-tranche">Progress Billing (40%) · ₱240,000</div>
+                  <div class="req-who">Juan dela Cruz · Jun 3, 2026</div>
+                  <div class="req-docs">
+                    <a class="doc-chip" href="#" onclick="return false;">📄 Progress Report</a>
+                  </div>
+                </div>
+                <div class="req-actions">
+                  <div class="req-amount">₱240,000</div>
+                  <button class="btn btn-success btn-sm" onclick="approveA('a-req1', 'ACME-001', 'Progress 40%')">✓ Approve</button>
+                  <button class="btn btn-danger-soft btn-sm" onclick="rejectA('a-req1')">✕ Reject</button>
+                </div>
+              </div>
+              <div class="req-row" id="a-req2">
+                <div class="req-info">
+                  <div class="req-project">CLMC-ABC-002</div>
+                  <div class="req-tranche">Final / Completion (30%) · ₱180,000</div>
+                  <div class="req-who">Maria Santos · Jun 4, 2026</div>
+                  <div class="req-docs">
+                    <a class="doc-chip" href="#" onclick="return false;">📄 Certificate of Completion</a>
+                    <a class="doc-chip" href="#" onclick="return false;">📄 Completion Report</a>
+                  </div>
+                </div>
+                <div class="req-actions">
+                  <div class="req-amount">₱180,000</div>
+                  <button class="btn btn-success btn-sm" onclick="approveA('a-req2', 'ABC-002', 'Final 30%')">✓ Approve</button>
+                  <button class="btn btn-danger-soft btn-sm" onclick="rejectA('a-req2')">✕ Reject</button>
+                </div>
+              </div>
+            </div>
+            <div id="a-empty" style="display:none;padding:0.75rem 1rem;font-size:0.75rem;color:#94a3b8;text-align:center;">No pending requests.</div>
+          </div>
+        </div>
+
+        <!-- Collectibles toolbar -->
+        <div class="coll-toolbar">
+          <span class="coll-toolbar-left">Collectibles</span>
+          <button class="btn btn-primary btn-sm">+ Create Collectible</button>
+        </div>
+
+        <!-- Stub table -->
+        <div class="coll-table-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Project</th><th>Tranche</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody id="a-table">
+              <tr><td class="coll-id">COLL-2026-001</td><td>ACME-001</td><td>Down Payment</td><td>₱180,000</td><td><span class="badge badge-collected">Collected</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="opt-note">The blue banner sits above the table. Finance sees it immediately when they open Collectibles. Collapse it to get it out of the way. Disappears automatically when no pending requests remain.</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- OPTION B: Inner view toggle            -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="opt-wrap">
+      <div class="opt-header">
+        <span class="opt-letter">B</span>
+        <span class="opt-name">Toggle inside the tab</span>
+      </div>
+      <div class="opt-demo">
+        <div class="tab-bar">
+          <button class="tab">Pending Approvals</button>
+          <button class="tab">Purchase Orders</button>
+          <button class="tab active">Collectibles</button>
+        </div>
+
+        <!-- Inner toggle -->
+        <div class="inner-toggle">
+          <button class="itab active" id="b-itab-coll" onclick="switchB('coll')">Collectibles</button>
+          <button class="itab" id="b-itab-req" onclick="switchB('req')">Billing Requests <span class="dot" id="badge-b">2</span></button>
+        </div>
+
+        <!-- Collectibles view -->
+        <div class="itab-panel active" id="b-panel-coll">
+          <div class="coll-toolbar">
+            <span class="coll-toolbar-left">Collectibles</span>
+            <button class="btn btn-primary btn-sm">+ Create Collectible</button>
+          </div>
+          <div class="coll-table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Project</th><th>Tranche</th><th>Amount</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td class="coll-id">COLL-2026-001</td><td>ACME-001</td><td>Down Payment</td><td>₱180,000</td><td><span class="badge badge-collected">Collected</span></td></tr>
+                <tr><td style="color:#94a3b8;font-size:0.68rem;" colspan="5">... more rows</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Requests view -->
+        <div class="itab-panel" id="b-panel-req">
+          <div class="coll-toolbar">
+            <span class="coll-toolbar-left">Pending Billing Requests</span>
+          </div>
+          <div id="b-req-list">
+            <div class="req-row" id="b-req1">
+              <div class="req-info">
+                <div class="req-project">CLMC-ACME-001</div>
+                <div class="req-tranche">Progress Billing (40%) · ₱240,000</div>
+                <div class="req-who">Juan dela Cruz · Jun 3, 2026</div>
+                <div class="req-docs">
+                  <a class="doc-chip" href="#" onclick="return false;">📄 Progress Report</a>
+                </div>
+              </div>
+              <div class="req-actions">
+                <div class="req-amount">₱240,000</div>
+                <button class="btn btn-success btn-sm" onclick="approveB('b-req1', 'ACME-001', 'Progress 40%')">✓ Approve</button>
+                <button class="btn btn-danger-soft btn-sm" onclick="rejectB('b-req1')">✕ Reject</button>
+              </div>
+            </div>
+            <div class="req-row" id="b-req2">
+              <div class="req-info">
+                <div class="req-project">CLMC-ABC-002</div>
+                <div class="req-tranche">Final / Completion (30%) · ₱180,000</div>
+                <div class="req-who">Maria Santos · Jun 4, 2026</div>
+                <div class="req-docs">
+                  <a class="doc-chip" href="#" onclick="return false;">📄 Certificate of Completion</a>
+                  <a class="doc-chip" href="#" onclick="return false;">📄 Completion Report</a>
+                </div>
+              </div>
+              <div class="req-actions">
+                <div class="req-amount">₱180,000</div>
+                <button class="btn btn-success btn-sm" onclick="approveB('b-req2', 'ABC-002', 'Final 30%')">✓ Approve</button>
+                <button class="btn btn-danger-soft btn-sm" onclick="rejectB('b-req2')">✕ Reject</button>
+              </div>
+            </div>
+          </div>
+          <div id="b-empty" style="display:none;padding:1.5rem;text-align:center;font-size:0.75rem;color:#94a3b8;">No pending requests.</div>
+        </div>
+      </div>
+      <div class="opt-note">Two sub-views inside Collectibles: the table and the requests. Finance switches between them. The badge on "Billing Requests" tells them something is waiting.</div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- OPTION C: Slide-in drawer              -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="opt-wrap">
+      <div class="opt-header">
+        <span class="opt-letter">C</span>
+        <span class="opt-name">Slide-in drawer</span>
+      </div>
+      <div class="opt-demo">
+        <div class="tab-bar">
+          <button class="tab">Pending Approvals</button>
+          <button class="tab">Purchase Orders</button>
+          <button class="tab active">Collectibles</button>
+        </div>
+
+        <div class="coll-toolbar">
+          <span class="coll-toolbar-left">Collectibles</span>
+          <div style="display:flex;gap:0.5rem;align-items:center;">
+            <button class="btn btn-outline btn-sm" id="c-drawer-btn" onclick="toggleDrawerC()">
+              ↩ Requests <span class="dot" id="badge-c">2</span>
+            </button>
+            <button class="btn btn-primary btn-sm">+ Create Collectible</button>
+          </div>
+        </div>
+
+        <div class="drawer-shell">
+          <div class="drawer-main">
+            <div class="coll-table-wrap">
+              <table>
+                <thead><tr><th>ID</th><th>Project</th><th>Tranche</th><th>Amount</th><th>Status</th></tr></thead>
+                <tbody id="c-table">
+                  <tr><td class="coll-id">COLL-2026-001</td><td>ACME-001</td><td>Down Payment</td><td>₱180,000</td><td><span class="badge badge-collected">Collected</span></td></tr>
+                  <tr><td style="color:#94a3b8;font-size:0.68rem;" colspan="5">... more rows</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="drawer-side" id="c-drawer">
+            <div class="drawer-inner">
+              <div class="drawer-head">
+                <span class="drawer-head-title">Requests (<span id="c-req-count">2</span>)</span>
+                <button onclick="toggleDrawerC()" style="background:none;border:none;cursor:pointer;font-size:1rem;color:#64748b;">×</button>
+              </div>
+              <div id="c-req-list">
+                <div class="drawer-req-row" id="c-req1">
+                  <div class="drawer-req-project">CLMC-ACME-001</div>
+                  <div class="drawer-req-sub">Progress 40% · ₱240,000<br><span style="color:#94a3b8;">Juan · Jun 3</span></div>
+                  <div class="drawer-docs">
+                    <a class="doc-chip" href="#" onclick="return false;">📄 Progress Rpt</a>
+                  </div>
+                  <div class="drawer-actions">
+                    <button class="btn btn-danger-soft btn-sm" onclick="rejectC('c-req1')">✕</button>
+                    <button class="btn btn-success btn-sm" onclick="approveC('c-req1', 'ACME-001', 'Progress 40%')">✓ Approve</button>
+                  </div>
+                </div>
+                <div class="drawer-req-row" id="c-req2">
+                  <div class="drawer-req-project">CLMC-ABC-002</div>
+                  <div class="drawer-req-sub">Final 30% · ₱180,000<br><span style="color:#94a3b8;">Maria · Jun 4</span></div>
+                  <div class="drawer-docs">
+                    <a class="doc-chip" href="#" onclick="return false;">📄 COC</a>
+                    <a class="doc-chip" href="#" onclick="return false;">📄 Rpt</a>
+                  </div>
+                  <div class="drawer-actions">
+                    <button class="btn btn-danger-soft btn-sm" onclick="rejectC('c-req2')">✕</button>
+                    <button class="btn btn-success btn-sm" onclick="approveC('c-req2', 'ABC-002', 'Final 30%')">✓ Approve</button>
+                  </div>
+                </div>
+              </div>
+              <div id="c-empty" style="display:none;padding:1rem;text-align:center;font-size:0.72rem;color:#94a3b8;">All clear.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="opt-note">Table stays visible. Click "↩ Requests" to slide open a panel on the right. Finance can see both the table and the requests at the same time. Close it when done.</div>
+    </div>
+
+  </div><!-- /grid-3 -->
+</div><!-- /page -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Option A ──
+  let aBadge = 2;
+  let aBannerOpen = true;
+
+  function toggleBannerA() {
+    aBannerOpen = !aBannerOpen;
+    document.getElementById('banner-body-a').style.display = aBannerOpen ? 'block' : 'none';
+    document.getElementById('chevron-a').textContent = aBannerOpen ? '▼' : '▶';
+    document.getElementById('hint-a').textContent = aBannerOpen ? 'click to collapse' : 'click to expand';
+  }
+
+  function approveA(id, project, tranche) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.style.background = '#f0fdf4';
+    row.querySelector('.req-actions').innerHTML = '<span style="font-size:0.7rem;color:#059669;font-weight:600;">✓ Approved — Create Collectible will open</span>';
+    setTimeout(() => {
+      row.remove();
+      aBadge--;
+      updateBadge('badge-a', aBadge);
+      checkEmptyA();
+      addCollRow('a-table', project, tranche);
+    }, 900);
+    showToast(`Approved — Create Collectible modal opens pre-filled: ${project} / ${tranche}`);
+  }
+
+  function rejectA(id) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.style.background = '#fef2f2';
+    row.querySelector('.req-actions').innerHTML = '<span style="font-size:0.7rem;color:#dc2626;font-weight:600;">✕ Rejected</span>';
+    setTimeout(() => {
+      row.remove();
+      aBadge--;
+      updateBadge('badge-a', aBadge);
+      checkEmptyA();
+    }, 900);
+    showToast('Request rejected — project user will be notified');
+  }
+
+  function checkEmptyA() {
+    const remaining = document.querySelectorAll('#req-list-a .req-row').length;
+    if (remaining === 0) {
+      document.getElementById('a-empty').style.display = 'block';
+      document.getElementById('badge-a').style.display = 'none';
+    }
+  }
+
+  // ── Option B ──
+  let bBadge = 2;
+
+  function switchB(view) {
+    document.getElementById('b-itab-coll').classList.toggle('active', view === 'coll');
+    document.getElementById('b-itab-req').classList.toggle('active', view === 'req');
+    document.getElementById('b-panel-coll').classList.toggle('active', view === 'coll');
+    document.getElementById('b-panel-req').classList.toggle('active', view === 'req');
+  }
+
+  function approveB(id, project, tranche) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.style.background = '#f0fdf4';
+    row.querySelector('.req-actions').innerHTML = '<span style="font-size:0.7rem;color:#059669;font-weight:600;">✓ Approved</span>';
+    setTimeout(() => {
+      row.remove();
+      bBadge--;
+      updateBadge('badge-b', bBadge);
+      if (document.querySelectorAll('#b-req-list .req-row').length === 0) {
+        document.getElementById('b-empty').style.display = 'block';
+      }
+    }, 900);
+    showToast(`Approved — Create Collectible modal opens pre-filled: ${project} / ${tranche}`);
+  }
+
+  function rejectB(id) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.style.background = '#fef2f2';
+    row.querySelector('.req-actions').innerHTML = '<span style="font-size:0.7rem;color:#dc2626;font-weight:600;">✕ Rejected</span>';
+    setTimeout(() => {
+      row.remove();
+      bBadge--;
+      updateBadge('badge-b', bBadge);
+      if (document.querySelectorAll('#b-req-list .req-row').length === 0) {
+        document.getElementById('b-empty').style.display = 'block';
+      }
+    }, 900);
+    showToast('Request rejected');
+  }
+
+  // ── Option C ──
+  let cDrawerOpen = false;
+  let cBadge = 2;
+
+  function toggleDrawerC() {
+    cDrawerOpen = !cDrawerOpen;
+    document.getElementById('c-drawer').classList.toggle('open', cDrawerOpen);
+    document.getElementById('c-drawer-btn').innerHTML = cDrawerOpen
+      ? '× Close Requests'
+      : `↩ Requests <span class="dot" id="badge-c">${cBadge}</span>`;
+  }
+
+  function approveC(id, project, tranche) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.style.background = '#f0fdf4';
+    row.querySelector('.drawer-actions').innerHTML = '<span style="font-size:0.65rem;color:#059669;font-weight:600;">✓ Approved</span>';
+    setTimeout(() => {
+      row.remove();
+      cBadge--;
+      document.getElementById('c-req-count').textContent = cBadge;
+      updateBadge('badge-c', cBadge);
+      if (document.querySelectorAll('#c-req-list .drawer-req-row').length === 0) {
+        document.getElementById('c-empty').style.display = 'block';
+      }
+      addCollRow('c-table', project, tranche);
+    }, 900);
+    showToast(`Approved — Create Collectible modal opens pre-filled: ${project} / ${tranche}`);
+  }
+
+  function rejectC(id) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.style.background = '#fef2f2';
+    row.querySelector('.drawer-actions').innerHTML = '<span style="font-size:0.65rem;color:#dc2626;font-weight:600;">✕ Rejected</span>';
+    setTimeout(() => {
+      row.remove();
+      cBadge--;
+      document.getElementById('c-req-count').textContent = cBadge;
+      updateBadge('badge-c', cBadge);
+      if (document.querySelectorAll('#c-req-list .drawer-req-row').length === 0) {
+        document.getElementById('c-empty').style.display = 'block';
+      }
+    }, 900);
+    showToast('Request rejected');
+  }
+
+  // ── Shared helpers ──
+  function updateBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = count;
+    el.style.display = count > 0 ? 'inline-flex' : 'none';
+  }
+
+  function addCollRow(tableId, project, tranche) {
+    const tbody = document.getElementById(tableId);
+    if (!tbody) return;
+    const tr = document.createElement('tr');
+    tr.style.background = '#f0fdf4';
+    tr.innerHTML = `<td class="coll-id">COLL-2026-0XX</td><td>${project}</td><td>${tranche}</td><td>—</td><td><span class="badge badge-pending-coll">Pending</span></td>`;
+    tbody.appendChild(tr);
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3200);
+  }
+</script>
+</body>
+</html>

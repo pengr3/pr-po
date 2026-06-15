@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spike 023b — Plan Card Iteration Label</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; }
+.page { max-width: 960px; margin: 0 auto; padding: 24px; }
+h1 { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+/* Iteration switcher */
+.switcher { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+.switcher-label { font-size: 12px; font-weight: 600; color: #64748b; margin-right: 4px; }
+.switcher button { padding: 7px 16px; font-size: 12px; font-weight: 600; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; color: #475569; cursor: pointer; transition: all 0.15s; }
+.switcher button.active { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+
+/* Plan card */
+.project-plan-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+.plan-heading-new { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; padding: 14px 16px 10px; border-bottom: 1px solid #f1f5f9; }
+.plan-inner { padding: 16px; }
+
+/* Iteration strip — NEW */
+.plan-iter-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  background: #eff6ff;
+  border-bottom: 1px solid #bfdbfe;
+  font-size: 11px;
+  color: #1e40af;
+  font-weight: 600;
+}
+.plan-iter-strip .iter-icon { font-size: 12px; opacity: 0.8; }
+.plan-iter-strip .iter-label { flex: 1; }
+.plan-iter-strip .iter-open-link { font-size: 11px; color: #1a73e8; text-decoration: none; font-weight: 500; }
+.plan-iter-strip .iter-open-link:hover { text-decoration: underline; }
+
+/* Progress */
+.plan-progress-wrap { margin-bottom: 14px; }
+.plan-progress-track { height: 8px; border-radius: 99px; background: #f1f5f9; overflow: hidden; margin-bottom: 6px; }
+.plan-progress-fill { height: 100%; border-radius: 99px; background: #1a73e8; }
+.plan-progress-fill.complete { background: #10b981; }
+.plan-progress-text { display: flex; justify-content: space-between; font-size: 12px; color: #64748b; }
+.plan-pct { font-weight: 600; }
+
+.plan-combined-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.plan-health-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px 3px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+.plan-health-badge.on-track { background: #dcfce7; color: #166534; }
+.plan-health-badge.at-risk   { background: #fffbeb; color: #92400e; }
+.plan-health-badge.behind    { background: #fee2e2; color: #991b1b; }
+.phb-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.plan-overdue-pill { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 99px; }
+.pod-count { color: #b45309; }
+
+.plan-upcoming-section { margin-bottom: 10px; }
+.plan-section-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #94a3b8; margin-bottom: 6px; }
+.plan-upcoming-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; border-bottom: 1px solid #f8fafc; }
+.plan-upcoming-row:last-child { border-bottom: none; }
+.pup-icon { font-size: 11px; flex-shrink: 0; }
+.pup-name { font-size: 12px; color: #1e293b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pup-due { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0; }
+.pup-date { font-size: 11px; color: #64748b; }
+.pup-rel { font-size: 10px; color: #94a3b8; }
+.pup-rel.very-soon { color: #ef4444; font-weight: 600; }
+.pup-rel.soon      { color: #f59e0b; font-weight: 600; }
+
+.plan-last-done { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; border-top: 1px solid #f1f5f9; margin-top: 4px; margin-bottom: 10px; }
+.plan-last-done-lbl { font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #94a3b8; }
+.plan-last-done-val { font-size: 12px; color: #475569; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.plan-footer { display: flex; align-items: center; justify-content: space-between; }
+.plan-footer-count { font-size: 12px; color: #94a3b8; }
+.btn-primary { display: inline-flex; align-items: center; padding: 6px 14px; font-size: 12px; font-weight: 600; background: #1a73e8; color: #fff; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; }
+
+/* Status note */
+.status-note { margin-top: 16px; padding: 12px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #475569; line-height: 1.7; }
+.status-note strong { color: #1e293b; }
+
+/* Implementation box */
+.impl-box { margin-top: 24px; background: #0f172a; color: #94a3b8; font-family: monospace; font-size: 11px; border-radius: 6px; padding: 14px 16px; line-height: 1.9; }
+.impl-box .green { color: #4ade80; }
+.impl-box .blue  { color: #60a5fa; }
+.impl-box .amber { color: #fbbf24; }
+.impl-box .gray  { color: #475569; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Spike 023b — Plan Card Iteration Label</h1>
+  <p class="subtitle">When a named iteration is loaded in the plan page, the inline card on project-detail should show which iteration is active. Task data is already accurate (loading overwrites project_tasks). This spike validates the label strip design.</p>
+
+  <div class="switcher">
+    <span class="switcher-label">Viewing mode:</span>
+    <button class="active" onclick="setMode('live')">Live (no iteration)</button>
+    <button onclick="setMode('iter1')">Iteration 1 loaded</button>
+    <button onclick="setMode('iter2')">Iteration 2 loaded</button>
+    <button onclick="setMode('iter3')">Auto-save (no label)</button>
+  </div>
+
+  <div id="cardContainer"></div>
+  <div id="statusNote" class="status-note"></div>
+
+  <div class="impl-box">
+    <div class="gray">// ─── Implementation plan ────────────────────────────────────────</div>
+    <br>
+    <div class="gray">// 1. Add module-level var to project-detail.js</div>
+    <div class="blue">let currentIterationLabel = null;  // null = live mode</div>
+    <br>
+    <div class="gray">// 2. In ensureTasksListener() or the project onSnapshot callback,</div>
+    <div class="gray">//    when currentProject.last_loaded_iteration_id is set, fetch label:</div>
+    <div class="green">async function ensureIterationLabel() {</div>
+    <div class="green">    const iterationId = currentProject?.last_loaded_iteration_id;</div>
+    <div class="green">    if (!iterationId) { currentIterationLabel = null; return; }</div>
+    <div class="green">    try {</div>
+    <div class="green">        const snap = await getDoc(doc(db, 'project_iterations', iterationId));</div>
+    <div class="green">        currentIterationLabel = snap.exists() ? (snap.data().label || null) : null;</div>
+    <div class="green">    } catch { currentIterationLabel = null; }</div>
+    <div class="green">}</div>
+    <br>
+    <div class="gray">// 3. Call ensureIterationLabel() inside the project onSnapshot callback</div>
+    <div class="gray">//    (already fires when last_loaded_iteration_id changes via the plan page)</div>
+    <div class="amber">// Note: ensureIterationLabel() is async; call it with await BEFORE renderProjectDetail()</div>
+    <br>
+    <div class="gray">// 4. In buildPlanCardHtml(), add the strip between heading and inner content:</div>
+    <div class="green">const iterStrip = currentIterationLabel</div>
+    <div class="green">    ? `&lt;div class="plan-iter-strip"&gt;</div>
+    <div class="green">           &lt;span class="iter-icon"&gt;⎇&lt;/span&gt;</div>
+    <div class="green">           &lt;span class="iter-label"&gt;On: ${escapeHTML(currentIterationLabel)}&lt;/span&gt;</div>
+    <div class="green">           &lt;a href="${planUrl}" class="iter-open-link"&gt;Open Plan&lt;/a&gt;</div>
+    <div class="green">       &lt;/div&gt;`</div>
+    <div class="green">    : '';</div>
+    <br>
+    <div class="gray">// 5. Reset on destroy():</div>
+    <div class="green">currentIterationLabel = null;</div>
+  </div>
+</div>
+
+<script>
+const MODES = {
+  live: {
+    label: null,  // no iteration loaded
+    tasks: [
+      { task_id: 'grp1', name: 'Demo', parent_task_id: null, start_date: '2026-06-02', end_date: '2026-06-27', progress: 0 },
+      { task_id: 't1',   name: '1',   parent_task_id: 'grp1', start_date: '2026-06-02', end_date: '2026-06-02', progress: 100 },
+      { task_id: 't2',   name: '2',   parent_task_id: 'grp1', start_date: '2026-06-04', end_date: '2026-06-04', progress: 100 },
+      { task_id: 't3',   name: '3',   parent_task_id: 'grp1', start_date: '2026-06-18', end_date: '2026-06-27', progress: 0 },
+      { task_id: 'grp2', name: 'Demo',parent_task_id: null,  start_date: '2026-06-06', end_date: '2026-06-17', progress: 0 },
+      { task_id: 'tA',   name: 'A',   parent_task_id: 'grp2', start_date: '2026-06-06', end_date: '2026-06-06', progress: 0 },
+      { task_id: 'tB',   name: 'B',   parent_task_id: 'grp2', start_date: '2026-06-15', end_date: '2026-06-15', progress: 0 },
+      { task_id: 'tC',   name: 'C',   parent_task_id: 'grp2', start_date: '2026-06-17', end_date: '2026-06-17', progress: 0 },
+    ],
+    note: '<strong>Live mode — no iteration loaded.</strong> Card shows current live task state from project_tasks. No strip shown.'
+  },
+  iter1: {
+    label: 'Iteration 1',
+    tasks: [
+      // Iteration 1 snapshot — A and B were completed at time of save
+      { task_id: 'grp2', name: 'Demo', parent_task_id: null, start_date: '2026-06-06', end_date: '2026-06-17', progress: 0 },
+      { task_id: 'tA',   name: 'A',   parent_task_id: 'grp2', start_date: '2026-06-06', end_date: '2026-06-06', progress: 100, updated_at: {seconds: 1748800000} },
+      { task_id: 'tB',   name: 'B',   parent_task_id: 'grp2', start_date: '2026-06-15', end_date: '2026-06-15', progress: 100, updated_at: {seconds: 1748900000} },
+      { task_id: 'tC',   name: 'C',   parent_task_id: 'grp2', start_date: '2026-06-17', end_date: '2026-06-17', progress: 0 },
+    ],
+    note: '<strong>Iteration 1 loaded.</strong> project_tasks was batch-overwritten with this snapshot when the user loaded it. The inline card reflects those tasks (A and B show as completed). The blue strip confirms which iteration is active.'
+  },
+  iter2: {
+    label: 'Baseline Sprint 3',
+    tasks: [
+      { task_id: 'grp1', name: 'Phase 1', parent_task_id: null, start_date: '2026-06-01', end_date: '2026-07-01', progress: 0 },
+      { task_id: 't1',   name: 'Design',  parent_task_id: 'grp1', start_date: '2026-06-01', end_date: '2026-06-10', progress: 100, updated_at: {seconds: 1748800000} },
+      { task_id: 't2',   name: 'Build',   parent_task_id: 'grp1', start_date: '2026-06-11', end_date: '2026-06-25', progress: 60 },
+      { task_id: 't3',   name: 'Testing', parent_task_id: 'grp1', start_date: '2026-06-26', end_date: '2026-07-01', progress: 0 },
+    ],
+    note: '<strong>"Baseline Sprint 3" loaded.</strong> Different task structure — the card accurately reflects this snapshot\'s state. Strip shows the named iteration clearly.'
+  },
+  iter3: {
+    label: null,   // auto-saves don't get a label (auto:true → last_loaded_iteration_id = null)
+    tasks: [
+      { task_id: 'grp1', name: 'Demo', parent_task_id: null, start_date: '2026-06-02', end_date: '2026-06-27', progress: 0 },
+      { task_id: 't1',   name: '1',   parent_task_id: 'grp1', start_date: '2026-06-02', end_date: '2026-06-02', progress: 100 },
+      { task_id: 't2',   name: '2',   parent_task_id: 'grp1', start_date: '2026-06-04', end_date: '2026-06-04', progress: 50 },
+    ],
+    note: '<strong>After loading an auto-save (auto:true).</strong> last_loaded_iteration_id is set to null for auto-saves, so no strip is shown. Card shows live task data normally.'
+  }
+};
+
+function computeDurationDays(s, e) {
+  if (!s || !e) return 1;
+  return Math.max(1, Math.round((new Date(e) - new Date(s)) / 86400000) + 1);
+}
+function todayLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function computeProgress(tasks) {
+  const result = { taskCount: tasks.length, leafCount: 0, percentComplete: 0, doneCount: 0,
+                   health: 'on-track', overdueCount: 0, overdueMore: 0, overdueTasks: [],
+                   upcomingTasks: [], recentDone: null };
+  if (!tasks.length) return result;
+  const childMap = new Map();
+  tasks.forEach(t => {
+    const k = t.parent_task_id || '__root__';
+    if (!childMap.has(k)) childMap.set(k, []);
+    childMap.get(k).push(t);
+  });
+  const leaves = tasks.filter(t => !childMap.has(t.task_id));
+  result.leafCount = leaves.length;
+  if (!leaves.length) return result;
+
+  result.doneCount = leaves.filter(l => (l.progress ?? 0) >= 100).length;
+  let ws = 0, wt = 0;
+  leaves.forEach(l => {
+    const dur = computeDurationDays(l.start_date, l.end_date);
+    ws += (l.progress ?? 0) * dur; wt += dur;
+  });
+  result.percentComplete = wt > 0 ? Math.round(ws / wt) : 0;
+  const today = todayLocal();
+  const overdueFull = leaves.filter(t => t.end_date && t.end_date < today && (t.progress ?? 0) < 100)
+    .sort((a,b) => a.end_date.localeCompare(b.end_date));
+  result.overdueCount = overdueFull.length;
+  result.overdueTasks = overdueFull.slice(0,2).map(t => ({
+    name: t.name, daysLate: Math.max(1, Math.round((new Date(today)-new Date(t.end_date))/86400000))
+  }));
+  result.health = result.overdueCount === 0 ? 'on-track' : result.overdueCount <= 2 ? 'at-risk' : 'behind';
+  result.upcomingTasks = leaves
+    .filter(t => t.end_date && t.end_date >= today && (t.progress ?? 0) < 100)
+    .sort((a,b) => a.end_date.localeCompare(b.end_date)).slice(0,2)
+    .map(t => ({ name: t.name, end_date: t.end_date,
+      daysUntil: Math.max(0, Math.round((new Date(t.end_date)-new Date(today))/86400000)),
+      isMilestone: !!t.is_milestone }));
+  const done = leaves.filter(t => (t.progress ?? 0) >= 100).sort((a,b) => (b.updated_at?.seconds||0)-(a.updated_at?.seconds||0));
+  if (done.length) result.recentDone = done[0].name;
+  return result;
+}
+
+function buildCard(p, iterLabel) {
+  const planUrl = '#';
+  const openBtn = `<a href="${planUrl}" class="btn-primary">Open Plan</a>`;
+
+  // ✅ Iteration strip (new)
+  const iterStrip = iterLabel
+    ? `<div class="plan-iter-strip">
+         <span class="iter-icon">⎇</span>
+         <span class="iter-label">On: ${esc(iterLabel)}</span>
+         <a href="${planUrl}" class="iter-open-link">Open Plan →</a>
+       </div>`
+    : '';
+
+  if (p.taskCount === 0) {
+    return `<div class="project-plan-card">
+      <div class="plan-heading-new">Project Plan</div>
+      ${iterStrip}
+      <div class="plan-inner"><p style="font-size:13px;color:#64748b;">No tasks yet.</p></div>
+    </div>`;
+  }
+
+  const pct = p.percentComplete;
+  const barHtml = `<div class="plan-progress-wrap">
+    <div class="plan-progress-track"><div class="plan-progress-fill${pct===100?' complete':''}" style="width:${pct}%"></div></div>
+    <div class="plan-progress-text"><span>${p.doneCount} of ${p.leafCount} tasks complete</span><span class="plan-pct">${pct}%</span></div>
+  </div>`;
+
+  if (pct === 100) {
+    return `<div class="project-plan-card">
+      <div class="plan-heading-new">Project Plan</div>
+      ${iterStrip}
+      <div class="plan-inner">${barHtml}
+        <div style="text-align:center;padding:12px 0;color:#059669;font-size:13px;font-weight:600;">✓ All tasks complete</div>
+        <div class="plan-footer">${openBtn}</div>
+      </div>
+    </div>`;
+  }
+
+  const hm = {'on-track':'On Track','at-risk':'At Risk','behind':'Behind'}[p.health] || 'On Track';
+  const topRow = `<div class="plan-combined-top">
+    <span class="plan-health-badge ${p.health}"><span class="phb-dot"></span>${hm}</span>
+    ${p.overdueCount > 0 ? `<span class="plan-overdue-pill"><span class="pod-count">${p.overdueCount}</span> overdue</span>` : ''}
+  </div>`;
+
+  let overdueHtml = '';
+  if (p.overdueTasks.length > 0) {
+    const rows = p.overdueTasks.map(t => `<div class="plan-overdue-task-row"><span style="color:#ef4444;font-size:10px;">!</span><span class="plan-overdue-name">${esc(t.name)}</span><span class="plan-overdue-age">${t.daysLate}d late</span></div>`).join('');
+    overdueHtml = `<div class="plan-overdue-section" style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:8px 10px;margin-bottom:10px;">${rows}</div>`;
+  }
+
+  let upcomingHtml = '';
+  if (p.upcomingTasks.length > 0) {
+    const rows = p.upcomingTasks.map(t => {
+      const rel = t.daysUntil === 0 ? 'today' : t.daysUntil === 1 ? 'tomorrow' : `in ${t.daysUntil}d`;
+      const rc = t.daysUntil <= 3 ? 'very-soon' : t.daysUntil <= 7 ? 'soon' : '';
+      const d = new Date(t.end_date + 'T00:00:00');
+      const ds = d.toLocaleDateString('en-PH',{month:'short',day:'numeric'});
+      return `<div class="plan-upcoming-row"><span class="pup-icon" style="color:${t.isMilestone?'#1a73e8':'#94a3b8'}">${t.isMilestone?'◆':'○'}</span><span class="pup-name">${esc(t.name)}</span><span class="pup-due"><span class="pup-date">${ds}</span><span class="pup-rel ${rc}">${rel}</span></span></div>`;
+    }).join('');
+    upcomingHtml = `<div class="plan-upcoming-section"><div class="plan-section-lbl">Next Up</div>${rows}</div>`;
+  } else if (p.overdueCount === 0) {
+    upcomingHtml = `<div style="font-size:11px;color:#94a3b8;padding:4px 0 8px;">Set due dates in the plan to see what's coming up.</div>`;
+  }
+
+  const lastDone = p.recentDone ? `<div class="plan-last-done"><div class="plan-last-done-lbl">Last completed</div><div class="plan-last-done-val">${esc(p.recentDone)}</div></div>` : '';
+  const footer = `<div class="plan-footer"><span class="plan-footer-count">${p.leafCount} tasks</span>${openBtn}</div>`;
+
+  return `<div class="project-plan-card">
+    <div class="plan-heading-new">Project Plan</div>
+    ${iterStrip}
+    <div class="plan-inner">${barHtml}${topRow}${overdueHtml}${upcomingHtml}${lastDone}${footer}</div>
+  </div>`;
+}
+
+function setMode(key) {
+  document.querySelectorAll('.switcher button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  const mode = MODES[key];
+  const p = computeProgress(mode.tasks);
+  document.getElementById('cardContainer').innerHTML = buildCard(p, mode.label);
+  document.getElementById('statusNote').innerHTML = mode.note;
+}
+
+// Initial render
+const initial = MODES['live'];
+const p0 = computeProgress(initial.tasks);
+document.getElementById('cardContainer').innerHTML = buildCard(p0, initial.label);
+document.getElementById('statusNote').innerHTML = initial.note;
+</script>
+</body>
+</html>

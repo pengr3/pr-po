@@ -4,9 +4,10 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
-import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML } from '../utils.js';
+import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, formatCurrency } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
-import { skeletonTableRows } from '../components.js';
+import { createEngagement } from '../engagement-create.js';
+import { renderTrancheBuilder, readTranchesFromDOM, addTranche, removeTranche, recalculateTranches } from '../tranche-builder.js';
 
 // Global state
 let projectsData = [];
@@ -14,15 +15,20 @@ let clientsData = [];
 let usersData = [];  // Active users for personnel selection
 let editingProject = null;
 let selectedPersonnel = []; // Array of { id: string, name: string } for pill state
+let editingProjectTranches = []; // Phase 85: populated from project.collection_tranches when editing; reset on cancel/submit
 let currentPage = 1;
 const itemsPerPage = 15;
 let listeners = [];
+// list-tranche-progress-bar fix: per-project_code collected total (Σ non-voided
+// payment_records[].amount across that project's collectibles). Populated by the
+// portfolio collectibles listener so renderFinancial's On-going bar can show real
+// collection progress. Empty until the listener's first snapshot fires.
+let collectedByProjectCode = {};
 
-// Filtering and sorting state
+// Filtering state
 let allProjects = [];           // Unfiltered data from Firebase
 let filteredProjects = [];      // Filtered subset for display
-let sortColumn = 'created_at';  // Default sort column
-let sortDirection = 'desc';     // Most recent first (PROJ-15)
+let activeStatusFilter = null;
 
 // Status options
 const UNIFIED_STATUS_OPTIONS = [
@@ -37,6 +43,52 @@ const UNIFIED_STATUS_OPTIONS = [
     'Completed',
     'Loss'
 ];
+
+// Predicate: true for non-empty project_status values that fall outside UNIFIED_STATUS_OPTIONS.
+// Empty/missing statuses (renders "—") are NOT legacy — they must NOT be pulled into the Legacy bucket.
+const isLegacyStatus = (s) => !!s && !UNIFIED_STATUS_OPTIONS.includes(s);
+
+// Phase 103.1 D-04 — two-tier urgency thresholds (days). Each funnel stage has its own watch AND
+// urgent trip-point, read against status_changed_at. Operator-confirmed 2026-06-13. Tunable.
+const URGENCY_THRESHOLDS = {
+    FOR_PROPOSAL_WATCH: 2,        FOR_PROPOSAL_URGENT: 5,         // For Proposal
+    INTERNAL_APPROVAL_WATCH: 2,   INTERNAL_APPROVAL_URGENT: 5,    // Proposal for Internal Approval
+    CLIENT_REVIEW_WATCH: 7,       CLIENT_REVIEW_URGENT: 14,       // Proposal Under Client Review
+    FOR_REVISION_WATCH: 2,        FOR_REVISION_URGENT: 3,         // For Revision
+    CLIENT_APPROVED_WATCH: 3,     CLIENT_APPROVED_URGENT: 7,      // Client Approved
+    MOBILIZATION_WATCH: 3,        MOBILIZATION_URGENT: 10,        // For Mobilization
+    FOR_INSPECTION_WATCH: 2,      FOR_INSPECTION_URGENT: 5,       // For Inspection
+    ONGOING_QUIET_WATCH: 7,       ONGOING_QUIET_URGENT: 14,       // On-going (activity clock, D-03)
+    DLP_SOON_DAYS: 14             // DLP expiring soon watch (D-06)
+};
+
+// Phase 103 D-03 — Browse All stage groups (every UNIFIED_STATUS_OPTIONS value maps to exactly one).
+// Inline hex spine colors (NO var(--*) — not defined in this codebase).
+const STAGE_GROUPS = [
+    { key: 'ongoing',     label: 'On-going',                statuses: ['On-going'],                                         color: '#1a73e8' },
+    { key: 'contracted',  label: 'Contracted & Mobilizing', statuses: ['Client Approved', 'For Mobilization'],             color: '#f59e0b' },
+    { key: 'proposal',    label: 'Proposal Stage',          statuses: ['For Proposal', 'Proposal for Internal Approval', 'Proposal Under Client Review', 'For Revision'], color: '#7c3aed' },
+    { key: 'inspection',  label: 'For Inspection',          statuses: ['For Inspection'],                                  color: '#94a3b8' },
+    { key: 'completed',   label: 'Completed',               statuses: ['Completed'],                                       color: '#059669' },
+    { key: 'loss',        label: 'Loss',                    statuses: ['Loss'],                                            color: '#64748b' }
+];
+
+// Phase 103 D-03 — Browse All collapse persistence. Completed AND Loss default-collapsed (terminal).
+function getCollapseState(key) {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('browse-collapse') || '{}'); } catch (_) {}
+    return saved[key] ?? (key === 'completed' || key === 'loss' || key === 'legacy');
+}
+function setCollapseState(key, collapsed) {
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem('browse-collapse') || '{}'); } catch (_) {}
+    saved[key] = collapsed;
+    localStorage.setItem('browse-collapse', JSON.stringify(saved));
+}
+function toggleStageGroup(key) {
+    setCollapseState(key, !getCollapseState(key));
+    renderBrowseAll();
+}
 
 // Debounce utility function
 function debounce(callback, wait) {
@@ -60,15 +112,24 @@ function attachWindowFunctions() {
     window.saveEdit = saveEdit;
     window.deleteProject = deleteProject;
     window.toggleProjectActive = toggleProjectActive;
-    window.changeProjectsPage = changeProjectsPage;
     window.applyFilters = applyFilters;
     window.debouncedFilter = debouncedFilter;
-    window.sortProjects = sortProjects;
     window.exportProjectsCSV = exportProjectsCSV;
     window.selectPersonnel = selectPersonnel;
     window.removePersonnel = removePersonnel;
     window.filterPersonnelDropdown = filterPersonnelDropdown;
     window.showPersonnelDropdown = showPersonnelDropdown;
+    // Phase 85: tranche-builder helpers (shared module). NOTE: procurement.js (Phase 65 PO
+    // tranche-builder) ALSO attaches the same window function names for its PO tranche UI.
+    // Both implementations follow the same DOM contract (id="trancheBuilder_<scopeKey>"),
+    // so whichever view is active "wins" — calls from either view's HTML route correctly
+    // through the shared scopeKey parameter. Procurement's PO scopeKey = poId, projects' = 'projectForm'.
+    window.addTranche = (scopeKey) => addTranche(scopeKey);
+    window.removeTranche = (button, scopeKey) => removeTranche(button, scopeKey);
+    window.recalculateTranches = (scopeKey) => recalculateTranches(scopeKey);
+    window.handleScorecardClick = handleScorecardClick;
+    window.vmSwitch = vmSwitch;   // Phase 103 — portfolio view-mode toggle
+    window.toggleStageGroup = toggleStageGroup;   // Phase 103 — Browse All group collapse
 }
 
 // Render view HTML
@@ -145,6 +206,14 @@ export function render(activeTab = null) {
                         <small class="form-hint">Leave blank if not applicable. Must be positive if provided.</small>
                     </div>
 
+                    <div class="form-group">
+                        <label>Collection Tranches (Optional)</label>
+                        <div id="collTrancheBuilderWrapper">
+                            ${renderTrancheBuilder([], 'projectForm')}
+                        </div>
+                        <small class="form-hint">Define how the contract cost is split into billable tranches. Must sum to 100% if any tranches are provided. Required to bill collectibles against this project (Phase 85).</small>
+                    </div>
+
                     <div class="form-group" style="position: relative;">
                         <label>Personnel *</label>
                         <div class="pill-input-container" id="personnelPillContainer"
@@ -167,16 +236,21 @@ export function render(activeTab = null) {
                     </div>
                 </div>
 
+                <!-- Status Scorecard Strip -->
+                <div id="projectScorecards" class="project-scorecards">
+                    ${UNIFIED_STATUS_OPTIONS.map(s => `
+                    <div class="project-scorecard-card" data-status="${s}" onclick="window.handleScorecardClick('${s}'); event.stopPropagation()">
+                        <span class="scorecard-label">${s}</span>
+                        <span class="scorecard-count" id="scorecard-count-${s.replace(/\s+/g, '_')}">—</span>
+                    </div>`).join('')}
+                    <div class="project-scorecard-card project-scorecard-card--total" data-status="__total__" onclick="window.handleScorecardClick(null); event.stopPropagation()">
+                        <span class="scorecard-label">Total</span>
+                        <span class="scorecard-count" id="scorecard-count-total">—</span>
+                    </div>
+                </div>
+
                 <!-- Filter Bar -->
                 <div class="filter-bar" style="display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; padding: 1rem; background: #f8fafc; border-radius: 0.5rem;">
-                    <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
-                        <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Status</label>
-                        <select id="projectStatusFilter" onchange="window.applyFilters()" style="width: 100%;">
-                            <option value="">All Statuses</option>
-                            ${UNIFIED_STATUS_OPTIONS.map(s => `<option value="${s}">${s}</option>`).join('')}
-                        </select>
-                    </div>
-
                     <div class="form-group" style="margin: 0; flex: 1; min-width: 150px;">
                         <label style="font-size: 0.875rem; margin-bottom: 0.25rem;">Client</label>
                         <select id="clientFilter" onchange="window.applyFilters()" style="width: 100%;">
@@ -194,34 +268,13 @@ export function render(activeTab = null) {
                     </div>
                 </div>
 
-                <!-- Projects Table -->
-                <div class="table-scroll-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th onclick="window.sortProjects('project_code')" style="cursor: pointer; user-select: none;">
-                                Code <span class="sort-indicator" data-col="project_code"></span>
-                            </th>
-                            <th onclick="window.sortProjects('project_name')" style="cursor: pointer; user-select: none;">
-                                Name <span class="sort-indicator" data-col="project_name"></span>
-                            </th>
-                            <th onclick="window.sortProjects('client_code')" style="cursor: pointer; user-select: none;">
-                                Client <span class="sort-indicator" data-col="client_code"></span>
-                            </th>
-                            <th onclick="window.sortProjects('project_status')" style="cursor: pointer; user-select: none;">
-                                Status <span class="sort-indicator" data-col="project_status"></span>
-                            </th>
-                            <th onclick="window.sortProjects('active')" style="cursor: pointer; user-select: none;">
-                                Active <span class="sort-indicator" data-col="active"></span>
-                            </th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="projectsTableBody">
-                        ${skeletonTableRows(6, 5)}
-                    </tbody>
-                </table>
+                <!-- Phase 103 — Portfolio view-mode toggle + dual render containers (replaces flat table) -->
+                <div class="vm-toggle">
+                    <button class="vm-btn" id="vm-feed" onclick="window.vmSwitch('feed')">🔥 Priority Feed</button>
+                    <button class="vm-btn" id="vm-browse" onclick="window.vmSwitch('browse')">≡ Browse All</button>
                 </div>
+                <div id="pdb-feed" class="pdb-mode"></div>
+                <div id="pdb-browse" class="pdb-mode" style="display:none;"></div>
             </div>
         </div>
     `;
@@ -231,9 +284,9 @@ export function render(activeTab = null) {
 export async function init(activeTab = null) {
     attachWindowFunctions();
 
-    // Listen for permission changes and re-render table
+    // Listen for permission changes and re-render the portfolio (Feed + Browse All)
     const permissionChangeHandler = () => {
-        renderProjectsTable();
+        renderPortfolio();
     };
     window.addEventListener('permissionsChanged', permissionChangeHandler);
 
@@ -261,6 +314,16 @@ export async function init(activeTab = null) {
     };
     document.addEventListener('mousedown', clickOutsideHandler);
     window._personnelClickOutside = clickOutsideHandler;
+
+    window._scorecardClickOutside = (e) => {
+        const strip = document.getElementById('projectScorecards');
+        if (!strip) return;
+        if (!strip.contains(e.target)) {
+            activeStatusFilter = null;
+            applyFilters();
+        }
+    };
+    document.addEventListener('click', window._scorecardClickOutside);
 
     await loadClients();
     await loadActiveUsers();
@@ -308,6 +371,7 @@ export async function destroy() {
 
     listeners.forEach(unsubscribe => unsubscribe?.());
     listeners = [];
+    collectedByProjectCode = {};  // list-tranche-progress-bar fix — reset collected map on teardown
     projectsData = [];
     clientsData = [];
     usersData = [];
@@ -315,8 +379,6 @@ export async function destroy() {
     currentPage = 1;
     allProjects = [];
     filteredProjects = [];
-    sortColumn = 'created_at';
-    sortDirection = 'desc';
 
     // Clean up personnel pill state
     if (window._personnelClickOutside) {
@@ -325,6 +387,12 @@ export async function destroy() {
     }
     selectedPersonnel = [];
 
+    if (window._scorecardClickOutside) {
+        document.removeEventListener('click', window._scorecardClickOutside);
+        delete window._scorecardClickOutside;
+    }
+    activeStatusFilter = null;
+
     delete window.toggleAddProjectForm;
     delete window.addProject;
     delete window.editProject;
@@ -332,15 +400,23 @@ export async function destroy() {
     delete window.saveEdit;
     delete window.deleteProject;
     delete window.toggleProjectActive;
-    delete window.changeProjectsPage;
     delete window.applyFilters;
     delete window.debouncedFilter;
-    delete window.sortProjects;
     delete window.exportProjectsCSV;
+    delete window.vmSwitch;   // Phase 103
+    delete window.toggleStageGroup;   // Phase 103
     delete window.selectPersonnel;
     delete window.removePersonnel;
     delete window.filterPersonnelDropdown;
     delete window.showPersonnelDropdown;
+    // Phase 85: tranche-builder window helpers. NOTE: procurement.js attaches the same
+    // names — see comment in attachWindowFunctions(). Whichever view destroys last
+    // leaves a clean slate; whichever destroys first gets re-attached on next mount.
+    delete window.addTranche;
+    delete window.removeTranche;
+    delete window.recalculateTranches;
+    delete window.handleScorecardClick;
+    editingProjectTranches = [];
 }
 
 // Load clients with real-time listener
@@ -568,7 +644,7 @@ function toggleAddProjectForm() {
     } else {
         form.style.display = 'none';
         editingProject = null;
-        renderProjectsTable();
+        renderPortfolio();
     }
 }
 
@@ -629,49 +705,46 @@ async function addProject() {
         return;
     }
 
+    // Phase 85 D-09: read + validate collection_tranches from form
+    const collectionTranches = readTranchesFromDOM('projectForm');
+    const tranchesProvided = collectionTranches.length > 0
+        && collectionTranches.some(t => t.label.trim() !== '' || t.percentage > 0);
+    if (tranchesProvided) {
+        const total = collectionTranches.reduce((s, t) => s + (parseFloat(t.percentage) || 0), 0);
+        if (Math.abs(total - 100) > 0.01) {
+            showToast(`Collection tranches must sum to 100% (currently ${total.toFixed(2)}%)`, 'error');
+            return;
+        }
+        if (collectionTranches.some(t => !t.label.trim())) {
+            showToast('All tranche labels must be filled in', 'error');
+            return;
+        }
+    }
+    const finalTranches = tranchesProvided ? collectionTranches : [];
+
     showLoading(true);
 
     try {
-        // Generate project code
-        // Phase 78 D-04: defer project_code generation until a client is later assigned
-        const project_code = clientCode ? await generateProjectCode(clientCode) : null;
-
-        const docRef = await addDoc(collection(db, 'projects'), {
-            project_code: project_code || null,
-            project_name,
-            client_id: clientId || null,
-            client_code: clientCode || null,
-            project_status,
-            budget,
-            contract_cost,
-            personnel_user_ids: selectedPersonnel.map(u => u.id).filter(Boolean),
-            personnel_names: selectedPersonnel.map(u => u.name),
+        // Phase 88-01: shared engagement-create helper (D-04)
+        const { code: project_code } = await createEngagement({
+            type: 'project',
+            clientId: clientId || null,
+            clientCode: clientCode || null,
+            name: project_name,
             location: location || null,
-            personnel_user_id: null,
-            personnel_name: null,
-            personnel: null,
-            active: true,
-            created_at: new Date().toISOString()
+            projectStatus: project_status,
+            budget,
+            contractCost: contract_cost,
+            personnel: selectedPersonnel,
+            collectionTranches: finalTranches,
+            onAfterCreate: ({ code }) => {
+                // Phase 78 D-04: skip personnel sync when project_code is null (clientless project)
+                if (code) {
+                    syncPersonnelToAssignments(code, [], selectedPersonnel.map(u => u.id).filter(Boolean))
+                        .catch(err => console.error('[Projects] Assignment sync failed:', err));
+                }
+            }
         });
-
-        // Record creation in edit history (fire-and-forget)
-        recordEditHistory(docRef.id, 'create', [
-            { field: 'project_name', old_value: null, new_value: project_name },
-            { field: 'client', old_value: null, new_value: clientCode || null },
-            ...(location ? [{ field: 'location', old_value: null, new_value: location }] : []),
-            { field: 'project_status', old_value: null, new_value: project_status },
-            ...(budget ? [{ field: 'budget', old_value: null, new_value: budget }] : []),
-            ...(contract_cost ? [{ field: 'contract_cost', old_value: null, new_value: contract_cost }] : []),
-            ...(selectedPersonnel.length > 0 ? [{ field: 'personnel', old_value: null, new_value: selectedPersonnel.map(u => u.name).join(', ') }] : [])
-        ]).catch(err => console.error('[EditHistory] addProject failed:', err));
-
-        // Sync personnel to user assignments (fire-and-forget)
-        const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
-        // Phase 78 D-04: skip personnel-to-assignments sync when project_code is null (clientless project) — sync runs on code issuance instead
-        if (project_code) {
-            syncPersonnelToAssignments(project_code, [], newUserIds)
-                .catch(err => console.error('[Projects] Assignment sync failed:', err));
-        }
 
         showToast(`Project "${project_name}" created successfully${project_code ? '' : ' (no code yet — assign a client to issue code)'}!`, 'success');
         toggleAddProjectForm();
@@ -683,24 +756,63 @@ async function addProject() {
     }
 }
 
+// Render status scorecard counts and active highlight
+function renderScorecards(baseProjects) {
+    for (const s of UNIFIED_STATUS_OPTIONS) {
+        const count = baseProjects.filter(p => p.project_status === s).length;
+        const el = document.getElementById(`scorecard-count-${s.replace(/\s+/g, '_')}`);
+        if (el) el.textContent = count;
+    }
+    const totalEl = document.getElementById('scorecard-count-total');
+    if (totalEl) totalEl.textContent = baseProjects.length;
+
+    document.querySelectorAll('.project-scorecard-card').forEach(card => {
+        card.classList.remove('project-scorecard-card--active');
+    });
+    const activeKey = activeStatusFilter || '__total__';
+    document.querySelector(`.project-scorecard-card[data-status="${activeKey}"]`)
+        ?.classList.add('project-scorecard-card--active');
+}
+
+// Handle scorecard card click — toggle filter
+function handleScorecardClick(status) {
+    if (status === null || status === activeStatusFilter) {
+        activeStatusFilter = null;
+    } else {
+        activeStatusFilter = status;
+    }
+    applyFilters();
+}
+
 // Apply filters
 function applyFilters() {
     const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
-    const projectStatusFilter = document.getElementById('projectStatusFilter')?.value || '';
     const clientFilter = document.getElementById('clientFilter')?.value || '';
 
     // Phase 7: Scope to assigned projects for operations_user
     // getAssignedProjectCodes() returns null (no filter) for all roles except
     // operations_user without all_projects. Returns [] if zero assignments.
-    const assignedCodes = window.getAssignedProjectCodes?.();
-    let scopedProjects = allProjects;
-    if (assignedCodes !== null) {
-        // Filter to assigned projects only. Defensively include any project that
-        // lacks a project_code field (legacy pre-Phase-4 data) so they are never
-        // accidentally hidden.
-        scopedProjects = allProjects.filter(project =>
-            !project.project_code || assignedCodes.includes(project.project_code)
-        );
+    //
+    // Debug: services-user-access-scoping (2026-06-15). Services roles have no project domain
+    // (their assignments are service_codes), yet the Projects tab is granted view-only by their
+    // role_template — so the page was showing ALL projects. Scope services roles to their (empty)
+    // project assignments so the portfolio is empty for them, mirroring the operations_user scope.
+    const role = window.getCurrentUser?.()?.role || '';
+    let scopedProjects;
+    if (role === 'services_user' || role === 'services_admin') {
+        scopedProjects = [];
+    } else {
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        if (assignedCodes !== null) {
+            // Filter to assigned projects only. Defensively include any project that
+            // lacks a project_code field (legacy pre-Phase-4 data) so they are never
+            // accidentally hidden.
+            scopedProjects = allProjects.filter(project =>
+                !project.project_code || assignedCodes.includes(project.project_code)
+            );
+        } else {
+            scopedProjects = allProjects;
+        }
     }
 
     filteredProjects = scopedProjects.filter(project => {
@@ -710,8 +822,8 @@ function applyFilters() {
             (project.project_name && project.project_name.toLowerCase().includes(searchTerm));
 
         // Status filter (exact match)
-        const matchesProjectStatus = !projectStatusFilter ||
-            project.project_status === projectStatusFilter;
+        const matchesProjectStatus = !activeStatusFilter ||
+            project.project_status === activeStatusFilter;
 
         // Client filter (match by ID)
         const matchesClient = !clientFilter ||
@@ -721,113 +833,14 @@ function applyFilters() {
         return matchesSearch && matchesProjectStatus && matchesClient;
     });
 
-    // Reset pagination when filters change
-    currentPage = 1;
-
-    // Apply current sort
-    sortFilteredProjects();
-
-    renderProjectsTable();
-}
-
-// Rebuild status filter dropdown — injects legacy values not in UNIFIED_STATUS_OPTIONS
-// under an "Other (legacy)" optgroup so users can filter to find and update them.
-function rebuildStatusFilterOptions() {
-    const select = document.getElementById('projectStatusFilter');
-    if (!select) return;
-    const previousValue = select.value;
-    const legacyValues = new Set();
-    for (const project of allProjects) {
-        const v = project.project_status;
-        if (v && !UNIFIED_STATUS_OPTIONS.includes(v)) {
-            legacyValues.add(v);
-        }
-    }
-    const unifiedHtml = UNIFIED_STATUS_OPTIONS
-        .map(s => `<option value="${s}">${s}</option>`)
-        .join('');
-    const legacyHtml = legacyValues.size > 0
-        ? `<optgroup label="Other (legacy)">${[...legacyValues].sort().map(v => `<option value="${escapeHTML(v)}">${escapeHTML(v)} (legacy)</option>`).join('')}</optgroup>`
-        : '';
-    select.innerHTML = `<option value="">All Statuses</option>${unifiedHtml}${legacyHtml}`;
-    // Restore previous selection if it still exists (either unified or legacy)
-    if (previousValue && [...select.options].some(o => o.value === previousValue)) {
-        select.value = previousValue;
-    }
-}
-
-// Sort filtered projects
-function sortFilteredProjects() {
-    filteredProjects.sort((a, b) => {
-        let aVal = a[sortColumn];
-        let bVal = b[sortColumn];
-
-        // Handle null/undefined (sort to end)
-        if (aVal == null) return sortDirection === 'asc' ? 1 : -1;
-        if (bVal == null) return sortDirection === 'asc' ? -1 : 1;
-
-        // Handle dates
-        if (sortColumn === 'created_at' || sortColumn === 'updated_at') {
-            aVal = new Date(aVal);
-            bVal = new Date(bVal);
-        }
-
-        // Handle booleans
-        if (sortColumn === 'active') {
-            // Active first when descending, inactive first when ascending
-            return sortDirection === 'asc'
-                ? (aVal === bVal ? 0 : aVal ? 1 : -1)
-                : (aVal === bVal ? 0 : aVal ? -1 : 1);
-        }
-
-        // String comparison
-        if (typeof aVal === 'string') {
-            return sortDirection === 'asc'
-                ? aVal.localeCompare(bVal)
-                : bVal.localeCompare(aVal);
-        }
-
-        // Numeric/date comparison
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-    });
+    // Phase 103: the new renderers impose their own ordering (Feed partitions by urgency,
+    // Browse All groups by stage), so no global sort of filteredProjects is needed (W-3).
+    renderPortfolio();
+    renderScorecards(scopedProjects);
 }
 
 // Create debounced filter
 const debouncedFilter = debounce(applyFilters, 300);
-
-// Sort projects by column
-function sortProjects(column) {
-    // Toggle direction if clicking same column
-    if (sortColumn === column) {
-        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
-    } else {
-        sortColumn = column;
-        sortDirection = 'asc'; // Default to ascending on new column
-    }
-
-    // Reset pagination (per RESEARCH.md Pitfall 3)
-    currentPage = 1;
-
-    // Sort the filtered data
-    sortFilteredProjects();
-
-    // Re-render table with updated headers
-    renderProjectsTable();
-}
-
-// Update sort indicators
-function updateSortIndicators() {
-    document.querySelectorAll('.sort-indicator').forEach(indicator => {
-        const col = indicator.dataset.col;
-        if (col === sortColumn) {
-            indicator.textContent = sortDirection === 'asc' ? ' ↑' : ' ↓';
-            indicator.style.color = '#1a73e8';
-        } else {
-            indicator.textContent = ' ⇅';
-            indicator.style.color = '#94a3b8';
-        }
-    });
-}
 
 // Load projects with real-time listener
 async function loadProjects() {
@@ -843,82 +856,372 @@ async function loadProjects() {
         });
 
         listeners.push(listener);
+
+        // list-tranche-progress-bar fix — portfolio-wide collectibles listener that feeds
+        // collectedByProjectCode so renderFinancial's On-going bar reflects real collection
+        // progress. Mirrors the canonical detail-page formula (non-voided payment_records[].amount).
+        // Reverses the Phase 103 D-05 "no new listener" constraint, which was the root cause of the
+        // bar never advancing. Re-renders on each snapshot so recording a collection updates the bar.
+        const collectiblesListener = onSnapshot(collection(db, 'collectibles'), (snapshot) => {
+            const map = {};
+            snapshot.forEach(d => {
+                const c = d.data();
+                const code = c.project_code;
+                if (!code) return;
+                const collected = (c.payment_records || [])
+                    .filter(r => r.status !== 'voided')
+                    .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+                map[code] = (map[code] || 0) + collected;
+            });
+            collectedByProjectCode = map;
+            // Re-render so On-going progress bars reflect the latest collected totals.
+            applyFilters();
+        }, (err) => {
+            console.error('[Projects] Collectibles listener error:', err);
+        });
+
+        listeners.push(collectiblesListener);
     } catch (error) {
         console.error('[Projects] Error loading projects:', error);
     }
 }
 
 // Render projects table
-function renderProjectsTable() {
-    rebuildStatusFilterOptions();
-    const tbody = document.getElementById('projectsTableBody');
-    if (!tbody) return;
+// Phase 102 Plan 05 — DLP state machine mirroring the D-16 contract from project-detail.js.
+// Drives the portfolio-table 4-state DLP visuals (left-accent border + status tag).
+// NOTE: project-detail's copy gained an extra isRetentionCollected()->'released' short-circuit
+// (commit 9229c21) that needs per-project collectible payment records. The portfolio table is
+// render-only and does NOT load collectible docs (Plan 05 must-have: no new listener), so that
+// auto-detect branch is intentionally omitted here. retention_released_at — set by Finance via
+// Plan 04's Record Release — is the canonical 'released' signal honored by both surfaces.
+function getDlpState(project) {
+    if (!project || !project.dlp_months || project.project_status !== 'Completed') return 'active';
+    if (project.retention_released_at) return 'released';
+    if (Date.now() > new Date(project.dlp_expires_at || null).getTime()) return 'expired';
+    return 'in-dlp';
+}
 
-    if (filteredProjects.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;">No projects found matching filters.</td></tr>';
-        const paginationDiv = document.getElementById('projectsPagination');
-        if (paginationDiv) paginationDiv.style.display = 'none';
-        return;
+/* ========================================
+   Phase 103 — Portfolio redesign helpers (Plan 02)
+   Shared computation layer for Priority Feed (this plan) + Browse All (Plan 03).
+   ======================================== */
+
+// Phase 103 D-08 — updated_at is written as ISO string AND Firestore Timestamp; normalize both.
+// Returns epoch-ms number, or null when missing/unparseable (caller degrades to On Track).
+function normalizeUpdatedAt(v) {
+    if (v == null) return null;
+    if (typeof v === 'object') {
+        if (typeof v.toDate === 'function') { const d = v.toDate(); return isNaN(d) ? null : d.getTime(); }
+        if (typeof v.seconds === 'number') return v.seconds * 1000;
+        return null;
+    }
+    if (typeof v === 'number') return isNaN(v) ? null : v;
+    const t = new Date(v).getTime();
+    return isNaN(t) ? null : t;
+}
+
+// Phase 103.1 D-02 — stage-duration clock: time since the current stage began.
+// status_changed_at ?? updated_at ?? created_at; legacy docs degrade until their next transition.
+function stageDaysInStage(p, now) {
+    const ms = normalizeUpdatedAt(p.status_changed_at) ?? normalizeUpdatedAt(p.updated_at) ?? normalizeUpdatedAt(p.created_at);
+    return ms == null ? null : (now - ms) / 86400000;
+}
+
+// Phase 103 D-07 — a status-appropriate "On Track" phrase for the default ok signal.
+function getDefaultOkSignal(p) {
+    switch (p.project_status) {
+        case 'On-going':   return 'On track';
+        case 'Completed':  return getDlpState(p) === 'released' ? 'Fully collected' : 'Completed';
+        case 'Loss':       return 'Lost engagement';
+        default:           return p.project_status || '—';
+    }
+}
+
+// Phase 103.1 D-04 — two-tier urgency signal. Stage-duration statuses read status_changed_at; On-going
+// reads last_activity_at (D-03); DLP-soon watch (D-06). Returns { level, text, hint }.
+function getProjectSignal(p, now) {
+    const status = p.project_status;
+    const dlp = getDlpState(p);
+
+    // (1) DLP expired — highest urgent (unchanged from Phase 103)
+    if (dlp === 'expired')
+        return { level: 'urgent', text: 'Retention release overdue', hint: 'DLP expired — retention not yet released' };
+
+    // (2) On-going — activity-recency clock (D-03), two-tier 7d/14d on last_activity_at ?? updated_at
+    if (status === 'On-going') {
+        const ms = normalizeUpdatedAt(p.last_activity_at) ?? normalizeUpdatedAt(p.updated_at);
+        const d = ms == null ? null : (now - ms) / 86400000;
+        if (d != null && d > URGENCY_THRESHOLDS.ONGOING_QUIET_URGENT)
+            return { level: 'urgent', text: `No activity in ${Math.round(d)} days`, hint: 'On-going project has gone quiet' };
+        if (d != null && d > URGENCY_THRESHOLDS.ONGOING_QUIET_WATCH)
+            return { level: 'watch', text: `Quiet for ${Math.round(d)} days`, hint: 'No journal activity recently' };
+        if (dlp === 'in-dlp') return { level: 'ok', text: 'In defect liability period', hint: 'Retention held pending DLP' };
+        return { level: 'ok', text: getDefaultOkSignal(p), hint: '' };
     }
 
-    // Pagination
-    const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, filteredProjects.length);
-    const pageItems = filteredProjects.slice(startIndex, endIndex);
+    // (3) Stage-duration funnel statuses — two-tier on status_changed_at
+    const d = stageDaysInStage(p, now);
+    const FUNNEL = {
+        'For Proposal': {
+            watch: URGENCY_THRESHOLDS.FOR_PROPOSAL_WATCH, urgent: URGENCY_THRESHOLDS.FOR_PROPOSAL_URGENT,
+            watchText: dd => ({ text: `Proposal not yet sent — ${dd}d`, hint: 'Client awaiting our quote' }),
+            urgentText: dd => ({ text: `Proposal stalled — ${dd}d`, hint: `No proposal sent in ${dd} days` })
+        },
+        'Proposal for Internal Approval': {
+            watch: URGENCY_THRESHOLDS.INTERNAL_APPROVAL_WATCH, urgent: URGENCY_THRESHOLDS.INTERNAL_APPROVAL_URGENT,
+            watchText: dd => ({ text: `Awaiting internal sign-off — ${dd}d`, hint: 'Proposal ready, pending approval' }),
+            urgentText: dd => ({ text: `Sign-off overdue — ${dd}d`, hint: 'Finished proposal blocked internally' })
+        },
+        'Proposal Under Client Review': {
+            watch: URGENCY_THRESHOLDS.CLIENT_REVIEW_WATCH, urgent: URGENCY_THRESHOLDS.CLIENT_REVIEW_URGENT,
+            watchText: dd => ({ text: `Awaiting client response — ${dd}d`, hint: 'Client reviewing the proposal' }),
+            urgentText: dd => ({ text: `Proposal stale — ${dd}d`, hint: "Client hasn't responded" })
+        },
+        'For Revision': {
+            watch: URGENCY_THRESHOLDS.FOR_REVISION_WATCH, urgent: URGENCY_THRESHOLDS.FOR_REVISION_URGENT,
+            watchText: dd => ({ text: `Revision requested — ${dd}d`, hint: 'Tight turnaround expected' }),
+            urgentText: dd => ({ text: `Revision overdue — ${dd}d`, hint: 'Revision turnaround exceeded' })
+        },
+        'Client Approved': {
+            watch: URGENCY_THRESHOLDS.CLIENT_APPROVED_WATCH, urgent: URGENCY_THRESHOLDS.CLIENT_APPROVED_URGENT,
+            watchText: dd => ({ text: `Won — not yet mobilized — ${dd}d`, hint: 'Client expects kickoff' }),
+            urgentText: dd => ({ text: `Kickoff overdue — ${dd}d`, hint: `Won work idle ${dd} days` })
+        },
+        'For Mobilization': {
+            watch: URGENCY_THRESHOLDS.MOBILIZATION_WATCH, urgent: URGENCY_THRESHOLDS.MOBILIZATION_URGENT,
+            watchText: dd => ({ text: 'Contract signed, not mobilized', hint: `${dd}d since For Mobilization` }),
+            urgentText: dd => ({ text: `Mobilization overdue — ${dd}d`, hint: 'Not mobilized after sign-off' })
+        },
+        'For Inspection': {
+            watch: URGENCY_THRESHOLDS.FOR_INSPECTION_WATCH, urgent: URGENCY_THRESHOLDS.FOR_INSPECTION_URGENT,
+            watchText: dd => ({ text: `Inspection pending — ${dd}d`, hint: 'Chase inspection' }),
+            urgentText: dd => ({ text: `Inspection overdue — ${dd}d`, hint: 'No progress since assigned' })
+        }
+    };
+    const cfg = FUNNEL[status];
+    if (cfg && d != null) {
+        const dd = Math.round(d);
+        if (d > cfg.urgent) return { level: 'urgent', ...cfg.urgentText(dd) };
+        if (d > cfg.watch)  return { level: 'watch', ...cfg.watchText(dd) };
+    }
 
-    // Check edit permission for action buttons
-    const canEdit = window.canEditTab?.('projects');
-    const showEditControls = canEdit !== false;
+    // (4) DLP-soon watch (D-06) — in-dlp and dlp_expires_at within DLP_SOON_DAYS
+    if (dlp === 'in-dlp') {
+        const exp = normalizeUpdatedAt(p.dlp_expires_at);
+        if (exp != null) {
+            const daysToExpiry = (exp - now) / 86400000;
+            if (daysToExpiry >= 0 && daysToExpiry <= URGENCY_THRESHOLDS.DLP_SOON_DAYS)
+                return { level: 'watch', text: `Retention release due in ${Math.ceil(daysToExpiry)}d`, hint: 'Finance lead time before overdue' };
+        }
+        return { level: 'ok', text: 'In defect liability period', hint: 'Retention held pending DLP' };
+    }
 
-    tbody.innerHTML = pageItems.map(project => {
-        // Find client name
-        const client = clientsData.find(c => c.id === project.client_id);
-        // Phase 78 D-09: clientless projects render em-dash in Client column
-        const clientName = client ? client.company_name : (project.client_code || '—');
-        // Phase 78 D-09: clientless projects render em-dash in Code column
-        const codeDisplay = project.project_code || '—';
-        // Phase 78 D-06: deep link uses project_code if available, otherwise Firestore doc ID
-        const detailParam = project.project_code || project.id;
+    // (5) On Track
+    return { level: 'ok', text: getDefaultOkSignal(p), hint: '' };
+}
 
+// Phase 103 — partition a project list into { urgent, watch, ok }, each row carrying its signal.
+function computeUrgencySignals(projects) {
+    const now = Date.now();
+    const urgent = [], watch = [], ok = [];
+    for (const p of projects) {
+        const signal = getProjectSignal(p, now);
+        if (signal.level === 'urgent') urgent.push({ ...p, signal });
+        else if (signal.level === 'watch') watch.push({ ...p, signal });
+        else ok.push({ ...p, signal });
+    }
+    return { urgent, watch, ok };
+}
+
+// list-tranche-progress-bar fix — the Phase 103 D-05 "no new listener" constraint left this
+// hardcoded to null, so the On-going progress bar never advanced when a collectible was recorded
+// (the detail page advanced because it loads collectibles; the list did not). We now load a scoped
+// collectibles listener in loadProjects() and derive collected% here from the canonical formula
+// mirrored from project-detail.js renderDlpFinanceBar(): Σ non-voided payment_records[].amount over
+// contract_cost, clamped 0–100. Returns null only when contract_cost is missing/0 (no meaningful %).
+function computeBillingPct(project) {
+    const contract = parseFloat(project?.contract_cost) || 0;
+    if (contract <= 0) return null;
+    const collected = collectedByProjectCode[project?.project_code] || 0;
+    return Math.max(0, Math.min(100, (collected / contract) * 100));
+}
+
+// Phase 103 D-06 — stage-aware finance cell (4 display states). Reuses the Plan-01 .fin-* classes
+// and the Phase 102 .portfolio-dlp-tag visuals (via getDlpState) for the Completed branch.
+function renderFinancial(project) {
+    const status = project.project_status;
+    const pre = ['For Inspection', 'For Proposal', 'Proposal for Internal Approval', 'Proposal Under Client Review', 'For Revision'];
+    const contracted = ['Client Approved', 'For Mobilization'];
+
+    if (pre.includes(status)) {
+        const val = project.budget ? `Est. ₱${formatCurrency(project.budget)}` : '—';
+        return `<div class="fin-pre"><div class="fin-pre-amount">${val}</div><div class="fin-pre-label">Pre-contract</div></div>`;
+    }
+    if (contracted.includes(status)) {
+        return `<div class="fin-ready"><div class="fin-ready-amount">₱${formatCurrency(project.contract_cost)}</div><div class="fin-ready-label">Contract signed · billing not started</div></div>`;
+    }
+    if (status === 'On-going') {
+        const trancheCount = (project.collection_tranches || []).length;
+        const sub = trancheCount > 0 ? `${trancheCount} tranches defined` : 'Billing in progress';
+        const pct = computeBillingPct(project);   // null this phase → empty track (no fake %)
+        const fillW = pct == null ? 0 : pct;
+        return `<div class="fin-active">
+            <div class="fin-active-top"><span>₱${formatCurrency(project.contract_cost)}</span></div>
+            <div class="mini-bar"><div class="mini-fill fill-blue" style="width:${fillW}%"></div></div>
+            <div class="fin-active-sub">${sub}</div></div>`;
+    }
+    if (status === 'Completed') {
+        const dlpState = getDlpState(project);
+        const amount = `<div class="fin-done-amount" style="margin-top:4px;">₱${formatCurrency(project.contract_cost)}</div>`;
+        if (dlpState === 'in-dlp')
+            return `<div class="fin-done"><span class="portfolio-dlp-tag" style="background:#fef3c7;color:#92400e;">◑ In DLP</span>${amount}</div>`;
+        if (dlpState === 'expired')
+            return `<div class="fin-done"><span class="portfolio-dlp-tag" style="background:#fee2e2;color:#991b1b;">⚠ Retention Overdue</span>${amount}</div>`;
+        if (dlpState === 'released')
+            return `<div class="fin-done"><span class="portfolio-dlp-tag" style="background:#dcfce7;color:#166534;">✓ Fully Collected</span>${amount}</div>`;
+        return `<div class="fin-done"><div class="fin-done-amount">₱${formatCurrency(project.contract_cost)}</div><div class="fin-done-label">Fully billed · 100% ✓</div></div>`;
+    }
+    if (status === 'Loss') {
+        return `<div class="fin-loss"><div class="fin-loss-label">Lost engagement</div></div>`;
+    }
+    return `<div class="fin-pre"><div class="fin-pre-amount">—</div><div class="fin-pre-label">Pre-contract</div></div>`;
+}
+
+// Phase 103 — view-mode toggle: swap the Priority Feed / Browse All containers, persist choice (D-04).
+function vmSwitch(mode) {
+    const feed = document.getElementById('pdb-feed');
+    const browse = document.getElementById('pdb-browse');
+    if (!feed || !browse) return;
+    feed.style.display   = mode === 'feed'   ? 'block' : 'none';
+    browse.style.display = mode === 'browse' ? 'block' : 'none';
+    document.getElementById('vm-feed')?.classList.toggle('vm-on', mode === 'feed');
+    document.getElementById('vm-browse')?.classList.toggle('vm-on', mode === 'browse');
+    localStorage.setItem('projects-view-mode', mode);
+    if (mode === 'browse') renderBrowseAll();   // Plan 03 supplies the real impl; placeholder until then
+}
+
+// Phase 103 — portfolio dispatcher: applyFilters() calls this instead of the old flat-table renderer.
+// Renders BOTH modes from filteredProjects, then restores the persisted mode (default Feed for
+// first-time users — D-04).
+function renderPortfolio() {
+    renderPriorityFeed();
+    renderBrowseAll();   // placeholder until Plan 03 replaces it
+    const saved = localStorage.getItem('projects-view-mode') || 'feed';
+    vmSwitch(saved);
+}
+
+// Phase 103 — Priority Feed (Option D, default). Three urgency sections over filteredProjects.
+// Confirm-in-plan resolution: HIDE empty Needs Attention / Worth Watching; ALWAYS show On Track.
+function renderPriorityFeed() {
+    const el = document.getElementById('pdb-feed');
+    if (!el) return;
+    const { urgent, watch, ok } = computeUrgencySignals(filteredProjects);
+    // Pull legacy-status rows out of the ok bucket so they don't mislabel as On Track.
+    const legacy = ok.filter(p => isLegacyStatus(p.project_status));
+    const okClean = ok.filter(p => !isLegacyStatus(p.project_status));
+    const sections = [
+        { tier: 'urgent', label: 'Needs Attention', icon: '🔴', rows: urgent,  hideWhenEmpty: true },
+        { tier: 'watch',  label: 'Worth Watching',  icon: '🟠', rows: watch,   hideWhenEmpty: true },
+        { tier: 'ok',     label: 'On Track',        icon: '🟢', rows: okClean, hideWhenEmpty: false },
+        { tier: 'legacy', label: 'Legacy',          icon: '🗂️', rows: legacy,  hideWhenEmpty: true }
+    ];
+    el.innerHTML = sections.map(sec => {
+        if (sec.hideWhenEmpty && sec.rows.length === 0) return '';
+        const body = sec.rows.length
+            ? sec.rows.map(buildFeedRow).join('')
+            : '<div class="feed-empty">Nothing here</div>';
         return `
-            <tr onclick="window.location.hash = '#/projects/detail/${escapeHTML(detailParam)}'"
-                style="cursor: pointer;"
-                class="clickable-row">
-                <td><strong>${escapeHTML(codeDisplay)}</strong></td>
-                <td>${escapeHTML(project.project_name)}</td>
-                <td>${escapeHTML(clientName)}</td>
-                <td>${(() => {
-                    const v = project.project_status || '';
-                    if (v && !UNIFIED_STATUS_OPTIONS.includes(v)) {
-                        return `<span style="color: #94a3b8; font-style: italic;">${escapeHTML(v)} (legacy)</span>`;
-                    }
-                    return escapeHTML(v);
-                })()}</td>
-                <td>
-                    <span class="status-badge clickable-badge ${project.active ? 'approved' : 'rejected'}"
-                          ${showEditControls ? `onclick="event.stopPropagation(); toggleProjectActive('${escapeHTML(project.id)}', ${project.active})" title="Click to ${project.active ? 'deactivate' : 'activate'}" style="cursor: pointer;"` : ''}>
-                        ${project.active ? 'Active' : 'Inactive'}
-                    </span>
-                </td>
-                ${showEditControls ? `
-                    <td style="white-space: nowrap;" onclick="event.stopPropagation()">
-                        <button class="btn btn-sm btn-primary" onclick="editProject('${escapeHTML(project.id)}')">Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteProject('${escapeHTML(project.id)}', '${project.project_name.replace(/'/g, "\\'")}')">Delete</button>
-                    </td>
-                ` : `
-                    <td class="actions-cell" onclick="event.stopPropagation()">
-                        <span class="view-only-badge">View Only</span>
-                    </td>
-                `}
-            </tr>
-        `;
+            <div class="feed-section tier-${sec.tier}">
+                <div class="feed-section-header">${sec.icon} ${sec.label}
+                    <span class="feed-section-count">${sec.rows.length}</span>
+                </div>
+                ${body}
+            </div>`;
+    }).join('') || '<div class="feed-empty">No projects match the current filters.</div>';
+}
+
+// Phase 103.1 D-04 — scoped ambient day-count for on-track stage-duration rows. "In {stage} · {d}d".
+// Stage-duration statuses ONLY — never On-going (activity clock) and never terminal Completed/Loss.
+function getStageAmbient(p, now = Date.now()) {
+    const STAGE_LABEL = {
+        'For Proposal': 'proposal stage',
+        'Proposal for Internal Approval': 'internal approval',
+        'Proposal Under Client Review': 'client review',
+        'For Revision': 'revision',
+        'Client Approved': 'won · awaiting kickoff',
+        'For Mobilization': 'mobilization',
+        'For Inspection': 'inspection'
+    };
+    const label = STAGE_LABEL[p.project_status];
+    if (!label) return '';
+    const d = stageDaysInStage(p, now);
+    if (d == null) return '';
+    return `In ${label} · ${Math.round(d)}d`;
+}
+
+// Phase 103 — shared row builder for BOTH Feed rows and Browse All rows (Plan 03 reuses this).
+// Derives the signal on demand if the row was not pre-tagged by computeUrgencySignals (Browse path).
+function buildFeedRow(p) {
+    const signal = p.signal || getProjectSignal(p, Date.now());
+    const level = signal.level;
+    const ambient = (signal.level === 'ok') ? getStageAmbient(p) : '';   // Phase 103.1 D-04 — scoped ambient subtext
+    const dlpState = getDlpState(p);
+    const dlpClass = dlpState === 'in-dlp' ? 'dlp-amber' : dlpState === 'expired' ? 'dlp-red' : dlpState === 'released' ? 'dlp-green' : '';
+    const detailParam = p.project_code || p.id;
+    const codeDisplay = p.project_code || '—';
+    const client = clientsData.find(c => c.id === p.client_id);
+    const clientName = client ? client.company_name : (p.client_code || '—');
+    const statusRaw = p.project_status || '';
+    const statusDisplay = (statusRaw && !UNIFIED_STATUS_OPTIONS.includes(statusRaw))
+        ? `<span style="color:#94a3b8;font-style:italic;">${escapeHTML(statusRaw)} (legacy)</span>`
+        : escapeHTML(statusRaw);
+    return `
+        <div class="feed-row tier-${level} ${dlpClass}"
+             onclick="window.location.hash = '#/projects/detail/${escapeHTML(detailParam)}'">
+            <div class="feed-row-main">
+                <div class="feed-row-title">${escapeHTML(codeDisplay)}${p.project_name ? ' — ' + escapeHTML(p.project_name) : ''}</div>
+                <div class="feed-row-sub">${escapeHTML(clientName)} · ${statusDisplay}</div>
+                ${ambient ? `<div class="feed-row-ambient" style="color:#94a3b8;font-size:12px;margin-top:2px;">${escapeHTML(ambient)}</div>` : ''}
+            </div>
+            <div class="feed-row-signal tier-${level}">${escapeHTML(signal.text)}${signal.hint ? `<div class="feed-row-hint">${escapeHTML(signal.hint)}</div>` : ''}</div>
+            <div class="feed-row-fin">${renderFinancial(p)}</div>
+        </div>`;
+}
+
+// Phase 103 D-03 — Browse All (Option B): stage-grouped collapsible list over the SAME filtered pool
+// as the Feed (filteredProjects → all client/search/scorecard/Phase-7 filters already applied, SC-7).
+// Rows reuse buildFeedRow so they look identical to Feed rows (DLP accent + stage-aware finance).
+// Always renders all 6 groups (the browse skeleton); empty groups show a placeholder line.
+// Legacy group constant — mid-grey (#6b7280), distinct from the inspection group (#94a3b8).
+// Membership is predicate-based (isLegacyStatus), not a fixed statuses[] list.
+const LEGACY_GROUP = { key: 'legacy', label: 'Legacy / Unmapped', color: '#6b7280' };
+
+function renderBrowseAll() {
+    const el = document.getElementById('pdb-browse');
+    if (!el) return;
+    el.innerHTML = [...STAGE_GROUPS, LEGACY_GROUP].map(group => {
+        const rows = (group.key === 'legacy'
+            ? filteredProjects.filter(p => isLegacyStatus(p.project_status))
+            : filteredProjects.filter(p => group.statuses.includes(p.project_status))
+        ).sort((a, b) => (a.project_code || a.project_name || '').localeCompare(b.project_code || b.project_name || ''));
+        // Legacy is an exception group: hide the whole accordion when empty (the fixed
+        // canonical stage groups still render their "No projects in this stage" placeholder).
+        if (group.key === 'legacy' && rows.length === 0) return '';
+        const collapsed = getCollapseState(group.key);
+        const body = rows.length
+            ? rows.map(buildFeedRow).join('')
+            : '<div class="stage-group-empty">No projects in this stage</div>';
+        return `
+            <div class="stage-group${collapsed ? ' collapsed' : ''}">
+                <div class="stage-group-header" onclick="window.toggleStageGroup('${group.key}')">
+                    <span class="stage-group-color" style="background:${group.color}"></span>
+                    <span class="stage-group-chevron">▾</span>
+                    ${escapeHTML(group.label)}
+                    <span class="stage-group-count">${rows.length}</span>
+                </div>
+                <div class="stage-group-body">${body}</div>
+            </div>`;
     }).join('');
-
-    updatePaginationControls(totalPages, startIndex, endIndex, filteredProjects.length);
-
-    // Update sort indicators
-    updateSortIndicators();
 }
 
 // Edit project
@@ -948,6 +1251,13 @@ function editProject(projectId) {
     document.getElementById('projectStatus').value = project.project_status;
     document.getElementById('projectBudget').value = project.budget || '';
     document.getElementById('contractCost').value = project.contract_cost || '';
+
+    // Phase 85: rebuild tranche editor with existing tranches
+    editingProjectTranches = Array.isArray(project.collection_tranches) ? project.collection_tranches : [];
+    const trancheWrapper = document.getElementById('collTrancheBuilderWrapper');
+    if (trancheWrapper) {
+        trancheWrapper.innerHTML = renderTrancheBuilder(editingProjectTranches, 'projectForm');
+    }
 
     // Populate pills from existing personnel data (handles all legacy formats)
     const normalized = normalizePersonnel(project);
@@ -1025,6 +1335,46 @@ async function saveEdit() {
     const oldNormalized = normalizePersonnel(existingProject);
     const oldUserIds = oldNormalized.userIds;
 
+    // Phase 85 D-09: read + validate collection_tranches
+    const collectionTranches = readTranchesFromDOM('projectForm');
+    const tranchesProvided = collectionTranches.length > 0
+        && collectionTranches.some(t => t.label.trim() !== '' || t.percentage > 0);
+    if (tranchesProvided) {
+        const total = collectionTranches.reduce((s, t) => s + (parseFloat(t.percentage) || 0), 0);
+        if (Math.abs(total - 100) > 0.01) {
+            showToast(`Collection tranches must sum to 100% (currently ${total.toFixed(2)}%)`, 'error');
+            return;
+        }
+        if (collectionTranches.some(t => !t.label.trim())) {
+            showToast('All tranche labels must be filled in', 'error');
+            return;
+        }
+    }
+    const finalTranches = tranchesProvided ? collectionTranches : [];
+
+    // Phase 85 D-25: warn if existing collectibles exist when tranches are being changed
+    const oldTranchesJson = JSON.stringify(existingProject.collection_tranches || []);
+    const newTranchesJson = JSON.stringify(finalTranches);
+    if (oldTranchesJson !== newTranchesJson && existingProject.project_code) {
+        try {
+            const existingColl = await getDocs(
+                query(collection(db, 'collectibles'), where('project_code', '==', existingProject.project_code))
+            );
+            if (existingColl.size > 0) {
+                const ok = confirm(
+                    `This project has ${existingColl.size} existing collectible(s). ` +
+                    `Existing collectibles keep their original tranche label and amount — only future collectibles will use the new tranches. Continue?`
+                );
+                if (!ok) {
+                    return;
+                }
+            }
+        } catch (queryErr) {
+            console.error('[Projects] Existing-collectibles check failed:', queryErr);
+            // Non-blocking — proceed without the warning if Firestore query fails
+        }
+    }
+
     showLoading(true);
 
     try {
@@ -1038,6 +1388,7 @@ async function saveEdit() {
             budget,
             contract_cost,
             ...personnelUpdate,
+            collection_tranches: finalTranches,  // Phase 85 D-09: always-written, [] if user cleared
             updated_at: new Date().toISOString()
         });
 
@@ -1063,6 +1414,10 @@ async function saveEdit() {
         const oldContract = existingProject.contract_cost != null ? parseFloat(existingProject.contract_cost) : null;
         if (oldContract !== contract_cost) {
             editChanges.push({ field: 'contract_cost', old_value: oldContract, new_value: contract_cost });
+        }
+        // Phase 85 D-09: record collection_tranches change in edit history
+        if (oldTranchesJson !== newTranchesJson) {
+            editChanges.push({ field: 'collection_tranches', old_value: oldTranchesJson, new_value: newTranchesJson });
         }
         // Check personnel changes
         const oldPersonnelNames = (existingProject.personnel_names || []).sort().join(',');
@@ -1157,64 +1512,3 @@ async function toggleProjectActive(projectId, currentStatus) {
 }
 
 // Change page
-function changeProjectsPage(direction) {
-    const totalPages = Math.ceil(filteredProjects.length / itemsPerPage);
-
-    if (direction === 'prev' && currentPage > 1) {
-        currentPage--;
-    } else if (direction === 'next' && currentPage < totalPages) {
-        currentPage++;
-    } else if (typeof direction === 'number') {
-        currentPage = direction;
-    }
-
-    renderProjectsTable();
-}
-
-// Update pagination controls
-function updatePaginationControls(totalPages, startIndex, endIndex, totalItems) {
-    let paginationDiv = document.getElementById('projectsPagination');
-
-    if (!paginationDiv) {
-        paginationDiv = document.createElement('div');
-        paginationDiv.id = 'projectsPagination';
-        paginationDiv.className = 'pagination-container';
-
-        const section = document.querySelector('.container');
-        const table = section?.querySelector('table');
-        if (table && table.parentNode) {
-            table.parentNode.insertBefore(paginationDiv, table.nextSibling);
-        }
-    }
-
-    let paginationHTML = `
-        <div class="pagination-info">
-            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> projects
-        </div>
-        <div class="pagination-controls">
-            <button class="pagination-btn" onclick="changeProjectsPage('prev')" ${currentPage === 1 ? 'disabled' : ''}>
-                ← Previous
-            </button>
-    `;
-
-    for (let i = 1; i <= totalPages; i++) {
-        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
-            paginationHTML += `
-                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" onclick="changeProjectsPage(${i})">
-                    ${i}
-                </button>
-            `;
-        } else if (i === currentPage - 2 || i === currentPage + 2) {
-            paginationHTML += '<span class="pagination-ellipsis">...</span>';
-        }
-    }
-
-    paginationHTML += `
-            <button class="pagination-btn" onclick="changeProjectsPage('next')" ${currentPage === totalPages ? 'disabled' : ''}>
-                Next →
-            </button>
-        </div>
-    `;
-
-    paginationDiv.innerHTML = paginationHTML;
-}

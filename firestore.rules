@@ -119,9 +119,19 @@ service cloud.firestore {
         (isRole('services_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'services_user')
       );
 
-      // List: super_admin OR operations_admin OR services_admin
-      // Note: operations_admin and services_admin list access must be filtered client-side to their respective user roles
-      allow list: if isRole('super_admin') || isRole('operations_admin') || isRole('services_admin');
+      // List: any active user. Aligns users.list with the read-rule pattern used by every other operational
+      // collection (projects/clients/suppliers/mrfs/prs/pos/transport_requests/rfps/services/role_templates).
+      // Required for createNotificationForRoles fan-out from non-admin actors (mrf-form.js NOTIF-14, etc.).
+      // Exposed fields: full_name / email / role / status — no SSN/address/financial PII. Role separation
+      // on WRITES is unchanged (allow update gates still apply). Threat T-84.1-01 accepted.
+      allow list: if isActiveUser();
+
+      // Phase 84 D-12: allow any signed-in user to read super_admin user docs
+      // Required for createNotificationForRoles({roles:['super_admin']}) called from register.js
+      // This exposes only name/email to other internal users — super_admin docs are not sensitive to authenticated staff
+      // WR-01: use allow get (single-document) not allow read — resource.data is unavailable
+      //        during collection-level list queries so the role check would not restrict list results.
+      allow get: if isSignedIn() && resource.data.role == 'super_admin';
 
       // Create: signed-in user creating own doc AND status is 'pending'
       allow create: if isSignedIn() &&
@@ -199,11 +209,45 @@ service cloud.firestore {
       // Phase 78 D-12: once project_code is issued (non-null), client_id/client_code/project_code are PERMANENTLY LOCKED at the DB level.
       // Pre-issuance (project_code == null): all updates allowed (lets runCodeIssuance set the codes).
       // Post-issuance: updates allowed ONLY if the request preserves project_code, client_id, and client_code unchanged.
-      allow update: if hasRole(['super_admin', 'operations_admin', 'finance']) &&
+      // Phase 87.2 G3-fix: operations_user assigned to the project may update project_status + updated_at only
+      //   (mirrors the proposal BRANCH 2 field-mask pattern — unblocks _applyProposalStateTransition writeBatch).
+      allow update: if (
+        hasRole(['super_admin', 'operations_admin', 'finance']) &&
         (resource.data.project_code == null ||
           (request.resource.data.project_code == resource.data.project_code &&
            request.resource.data.client_id == resource.data.client_id &&
-           request.resource.data.client_code == resource.data.client_code));
+           request.resource.data.client_code == resource.data.client_code))
+      ) || (
+        isRole('operations_user') &&
+        request.auth.uid in resource.data.personnel_user_ids &&
+        // Phase 100 — lifecycle fields: doc attachments + gate timestamps
+        // Phase 102 Plan 04 — DLP capture fields (assigned ops user marking completion writes these in the same update)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'project_status', 'updated_at',
+          // Quick 260615-osa — assigned ops user marking the project Loss writes the reason
+          // alongside project_status (stage-agnostic Mark as Loss, project-detail.js submitProjectLoss).
+          'loss_reason',
+          // Phase 103.1 D-02/D-03 — stage-duration + activity-recency clocks (denormalized feed signals)
+          'status_changed_at', 'last_activity_at',
+          'inspection_report_url', 'inspection_report_kind', 'inspection_report_filename',
+          'ntp_document_url', 'ntp_document_kind', 'ntp_document_filename',
+          'mobilization_started_at', 'project_started_at',
+          'completion_report_url', 'completion_report_kind', 'completion_report_filename',
+          'certificate_of_completion_url', 'certificate_of_completion_kind', 'certificate_of_completion_filename',
+          'project_completed_at',
+          'dlp_months', 'dlp_start_date', 'dlp_expires_at',
+          'retention_percentage', 'retention_amount', 'retention_released_at',
+          // Assigned ops user sets up the project's collection tranche schedule
+          // (project-detail.js saveTrancheEditor writes collection_tranches + updated_at).
+          // Advisory billing schedule only — the authoritative collectible amounts are
+          // re-derived by Finance at approval time (mirrors billing_requests posture).
+          'collection_tranches'
+        ])
+      ) || (
+        // Phase 102 Plan 04 — Finance records the retention release (field-masked; allowed even on a code-locked project)
+        hasRole(['finance']) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['retention_released_at', 'updated_at'])
+      );
 
       // Delete: super_admin, operations_admin
       allow delete: if hasRole(['super_admin', 'operations_admin']);
@@ -220,6 +264,90 @@ service cloud.firestore {
         allow update: if false;
         allow delete: if false;
       }
+
+      // baselines subcollection (Phase 86.12 — immutable schedule baseline snapshots)
+      match /baselines/{baselineId} {
+        allow read: if isActiveUser();
+        allow create: if hasRole(['super_admin', 'operations_admin']);
+        allow update: if false;   // baselines are immutable once written
+        allow delete: if hasRole(['super_admin', 'operations_admin']);
+      }
+
+      // audit_log subcollection (Phase 100 — append-only project lifecycle audit trail)
+      match /audit_log/{entryId} {
+        allow read: if isActiveUser();
+        // Create: admin roles OR operations_user assigned to this project (mirrors lifecycle gate permissions)
+        allow create: if hasRole(['super_admin', 'operations_admin']) ||
+                         (isRole('operations_user') && request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.personnel_user_ids);
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // activity_entries subcollection (Phase 101 — append-only journal entries)
+      // Create: any active user (D-15: all roles with project access can post, no role-gating within journal)
+      // No update — append-only audit trail
+      // Delete: admin-only per spike-032 contract (mirrors baselines block admin-delete pattern)
+      match /activity_entries/{entryId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if false;
+        allow delete: if hasRole(['super_admin', 'operations_admin']);
+      }
+
+      // progress_updates subcollection (Phase 101 — structured periodic check-ins)
+      // Create: any active user.
+      // Update: admin OR any project member (personnel_user_ids) — edit_history audit trail enforced in JS.
+      // Delete: admin-only per spike-032 contract
+      match /progress_updates/{updateId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if isActiveUser() && (
+          hasRole(['super_admin', 'operations_admin']) ||
+          request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.personnel_user_ids
+        );
+        allow delete: if hasRole(['super_admin', 'operations_admin']);
+      }
+
+      // issues subcollection (Phase 101 — categorized punch list with open/resolved state)
+      // Create: any active user. Update: any active user (open↔resolved transitions per D-13/D-14).
+      // Delete: admin-only per spike-032 contract
+      match /issues/{issueId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if isActiveUser();  // open↔resolved transitions per D-13/D-14
+        allow delete: if hasRole(['super_admin', 'operations_admin']);
+      }
+    }
+
+    // =============================================
+    // project_iterations collection (Phase 97 — rewindable plan save-states)
+    // =============================================
+    // Top-level collection; project_id field used for project-scoping at JS query layer.
+    // Read: all active users.
+    // Write: super_admin, operations_admin (same write gate as project_tasks creates).
+    // Delete: allowed for auto-snapshot cleanup on Undo (operations_admin creates these).
+    // Note: iterations are NOT immutable — auto-snapshots are deleted on Undo.
+    match /project_iterations/{iterationId} {
+      allow read: if isActiveUser();
+      allow create: if hasRole(['super_admin', 'operations_admin']);
+      // Update (quick task 260602-q50 — Save vs Save-As): allow overwriting a loaded
+      // iteration's task snapshot IN PLACE. Previously `allow update: if false`, which
+      // denied overwriteLoadedIteration() (project-plan.js:3422 updateDoc → "Missing or
+      // insufficient permissions" on UAT #8/#9). Field-masked so identity fields remain
+      // write-once and the original Phase 97 intent is preserved:
+      //   - label, project_id, auto are PINNED (cannot rename, re-parent to a different
+      //     project, or flip an auto-snapshot ↔ named iteration to smuggle entries between
+      //     the rewind list and the named list).
+      //   - ONLY tasks + saved_at may change (exactly the keys overwriteLoadedIteration writes).
+      // Doc shape at create time is exactly { project_id, label, saved_at, auto, tasks }
+      // (project-plan.js:3522-3528 / :3762-3766) — there is no doc-level created_at/created_by,
+      // so none are referenced (referencing a non-existent field would make the rule fail).
+      allow update: if hasRole(['super_admin', 'operations_admin'])
+        && request.resource.data.label      == resource.data.label
+        && request.resource.data.project_id == resource.data.project_id
+        && request.resource.data.auto       == resource.data.auto
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tasks', 'saved_at']);
+      allow delete: if hasRole(['super_admin', 'operations_admin']); // needed for Undo mechanic
     }
 
     // =============================================
@@ -273,11 +401,19 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: cross-dept roles unrestricted; operations_user project-scoped; services_admin unrestricted (tracks their MRFs); services_user service-scoped
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user unrestricted
+      // NOTE: services_user list is unrestricted (mirrors the mrfs/pos/transport_requests collections).
+      // renderPRPORecords() runs a per-MRF-row PR fetch query(collection(db,'prs'),
+      // where('mrf_id','==', mrf.mrf_id)) at procurement.js:5797 with no service_code constraint.
+      // Firestore authorizes list queries by their CONSTRAINTS, not the returned docs, so an unscoped
+      // query is denied wholesale when the rule requires isAssignedToService(service_code) — this spammed
+      // "Error fetching PRs for MRF-XXXX" once per MRF row (procurement.js:5824, in its own try/catch so
+      // it did not abort the render). PR metadata is not sensitive, services_user can already 'get' any
+      // single PR doc, and the client re-scopes records by assigned services. WRITES remain blocked for
+      // services_user (see create/update/delete below).
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'services_user', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
       );
 
       // Create: super_admin, operations_admin, procurement
@@ -297,11 +433,18 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: cross-dept roles unrestricted; operations_user project-scoped; services_admin unrestricted; services_user service-scoped
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user unrestricted
+      // NOTE: services_user list is unrestricted (mirrors the mrfs collection). loadPRPORecords()
+      // runs an unscoped getDocs(collection(db,'pos')) at procurement.js:5420 to build the PO
+      // scoreboards, with no service_code constraint. Firestore authorizes list queries by their
+      // CONSTRAINTS, not the returned docs, so an unscoped query is denied wholesale when the rule
+      // requires isAssignedToService(service_code) — which aborted the entire MRF Records render
+      // (the getDocs had no inner try/catch, so it hit the catch at procurement.js:5441). PO metadata
+      // is not sensitive, services_user can already 'get' any single PO doc, and the client re-scopes
+      // records by assigned services. WRITES remain blocked for services_user (see below).
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'services_user', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
       );
 
       // Create: super_admin, finance (Finance issues POs after approving PRs)
@@ -321,11 +464,18 @@ service cloud.firestore {
       // Get: all active users
       allow get: if isActiveUser();
 
-      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user service-scoped
+      // List: cross-dept roles unrestricted; operations_user project-scoped; services_user unrestricted
+      // NOTE: services_user list is unrestricted (mirrors the mrfs/pos collections). The procurement
+      // view runs collection-wide TR queries that omit a service_code constraint — e.g. the Rejected
+      // TR listener query(transport_requests, where('finance_status','==','Rejected')) at
+      // procurement.js:3033, started unconditionally in init(). Firestore authorizes list queries by
+      // their CONSTRAINTS, not the returned docs, so an unscoped query is denied wholesale when the
+      // rule requires isAssignedToService(service_code). TR metadata is not sensitive, services_user
+      // can already 'get' any single TR doc, and the client re-scopes results by assigned services.
+      // WRITES remain blocked for services_user (see update/delete below).
       allow list: if isActiveUser() && (
-        hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code)) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+        hasRole(['super_admin', 'operations_admin', 'services_admin', 'services_user', 'finance', 'procurement']) ||
+        (isRole('operations_user') && isLegacyOrAssigned(resource.data.project_code))
       );
 
       // Create: super_admin, dept admins, dept users, procurement
@@ -398,22 +548,31 @@ service cloud.firestore {
       // services_user can get individual docs — more permissive than list.
       allow get: if hasRole(['super_admin', 'operations_admin', 'services_admin', 'services_user', 'finance', 'procurement']);
 
-      // List (collection query): scoped by assignment for services_user
+      // List (collection query): scoped by assignment for services_user and operations_user
       // operations_admin included so generateProjectCode() / generateServiceCode() can
       // query the services collection when creating a new project (collision check).
       // CRITICAL: isAssignedToService() is ONLY called when isRole('services_user') is true
       // (short-circuit || prevents accessing assigned_service_codes on non-services_user docs)
+      // operations_user is scoped to assigned services only: it may list a service doc
+      // solely when its uid is in that doc's personnel_user_ids. This mirrors how ops users
+      // only see assigned projects, and service-detail.js canDrive (personnel_user_ids.includes(uid)).
+      // The matching JS query in services.js is array-contains on personnel_user_ids, so every
+      // returned doc satisfies this per-doc predicate. WRITES remain blocked for ops users.
       allow list: if isActiveUser() && (
         hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+        (isRole('services_user') && isAssignedToService(resource.data.service_code)) ||
+        (isRole('operations_user') && request.auth.uid in resource.data.personnel_user_ids)
       );
 
       // Create: super_admin and services_admin only (SEC-04: services_user CANNOT write)
       allow create: if hasRole(['super_admin', 'services_admin']);
 
       // Update: super_admin and services_admin unrestricted; services_user scoped to assigned services
+      // Phase 104 D-15 — Finance records the retention release (field-masked; mirrors projects:238-242)
       allow update: if hasRole(['super_admin', 'services_admin']) ||
-                       (isRole('services_user') && isAssignedToService(resource.data.service_code));
+                       (isRole('services_user') && isAssignedToService(resource.data.service_code)) ||
+                       (hasRole(['finance']) &&
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['retention_released_at', 'updated_at']));
 
       // Delete: super_admin and services_admin only
       allow delete: if hasRole(['super_admin', 'services_admin']);
@@ -424,6 +583,43 @@ service cloud.firestore {
         allow create: if hasRole(['super_admin', 'services_admin', 'services_user']);
         allow update: if false;
         allow delete: if false;
+      }
+
+      // audit_log subcollection (Phase 104 — append-only service lifecycle audit trail; mirrors projects:268-276)
+      match /audit_log/{entryId} {
+        allow read: if isActiveUser();
+        // Create: admin roles OR services_user assigned to this service (mirrors lifecycle gate permissions)
+        allow create: if hasRole(['super_admin', 'services_admin']) ||
+                         (isRole('services_user') && request.auth.uid in get(/databases/$(database)/documents/services/$(serviceId)).data.personnel_user_ids);
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // activity_entries subcollection (Phase 104 — append-only journal entries; mirrors projects:282-287)
+      match /activity_entries/{entryId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if false;
+        allow delete: if hasRole(['super_admin', 'services_admin']);
+      }
+
+      // progress_updates subcollection (Phase 104 — structured periodic check-ins; mirrors projects:293-301)
+      match /progress_updates/{updateId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if isActiveUser() && (
+          hasRole(['super_admin', 'services_admin']) ||
+          request.auth.uid in get(/databases/$(database)/documents/services/$(serviceId)).data.personnel_user_ids
+        );
+        allow delete: if hasRole(['super_admin', 'services_admin']);
+      }
+
+      // issues subcollection (Phase 104 — categorized punch list with open/resolved state; mirrors projects:306-311)
+      match /issues/{issueId} {
+        allow read: if isActiveUser();
+        allow create: if isActiveUser();
+        allow update: if isActiveUser();  // open↔resolved transitions
+        allow delete: if hasRole(['super_admin', 'services_admin']);
       }
     }
 
@@ -442,6 +638,332 @@ service cloud.firestore {
 
       // Delete: super_admin or procurement (cancel mis-filed RFPs with zero payments; client-side payment guard enforced)
       allow delete: if hasRole(['super_admin', 'procurement']);
+    }
+
+    // =============================================
+    // collectibles collection (Phase 85 — COLL-09)
+    // =============================================
+    // Manual money-in tracking against projects + services. Mirrors rfps schema:
+    // payment_records array with void semantics, denormalized tranche fields.
+    // Schema (Phase 85 D-13): coll_id, department, project_id/service_id,
+    //                         project_code/service_code, project_name/service_name,
+    //                         tranche_index, tranche_label, tranche_percentage,
+    //                         amount_requested, due_date, description,
+    //                         payment_records[], created_by_user_id, date_created.
+    match /collectibles/{collId} {
+      // All active users can read (Financial Summary cells on project-detail / service-detail need read)
+      allow read: if isActiveUser();
+
+      // Create / Update: operations_admin, finance, super_admin
+      // (Operations Admin or Finance files collectibles; Finance records payments via array updateDoc)
+      allow create: if hasRole(['super_admin', 'operations_admin', 'finance']);
+      allow update: if hasRole(['super_admin', 'operations_admin', 'finance']);
+
+      // Delete: zero-payment cancellation (client-side guard) — same roles
+      allow delete: if hasRole(['super_admin', 'operations_admin', 'finance']);
+    }
+
+    // =============================================
+    // billing_requests collection (Phase 99 — BILL-06)
+    // =============================================
+    // Project-assigned users (operations_user) submit billing requests with
+    // supporting doc links from project-detail; Finance reviews inline in the
+    // Collectibles tab and approves (pre-fills Create-Collectible) or rejects
+    // (with a reason). The billing_request amount is ADVISORY only — the
+    // authoritative collectible amount is re-derived by submitCollectible() at
+    // approval time, so create being open to any active user is safe (Finance
+    // review is the gate). Schema (D-04): project_code/name, tranche_index/
+    // label/percentage, amount_requested, billing_type, documents[], notes,
+    // status, requested_by_uid/name, requested_at, reviewed_by/at, rejection_reason.
+    match /billing_requests/{id} {
+      // Read: any active user (Finance banner + project-detail own-requests list both read)
+      allow read: if isActiveUser();
+
+      // Create: any active user (operations_user is the intended creator; they
+      // lack collectible authority — this is their billing surface). Amount is
+      // advisory; Finance re-derives the real collectible amount at approval.
+      allow create: if isActiveUser();
+
+      // Update: status transitions only (approve/reject) — Finance / operations_admin / super_admin
+      allow update: if hasRole(['super_admin', 'operations_admin', 'finance']);
+
+      // Delete: same finance-authority set (no UI delete path is built this phase, but lock it down)
+      allow delete: if hasRole(['super_admin', 'operations_admin', 'finance']);
+    }
+
+    // =============================================
+    // project_tasks collection (Phase 86 — PM-11, D-18)
+    // =============================================
+    // Native PM tasks for projects. project_code denormalized for project-scoped
+    // operations_user assignments (mirrors mrfs.project_code pattern).
+    //
+    // Two-tier update rule (D-18):
+    //   1. WBS field updates (name, description, dates, parent_task_id,
+    //      dependencies, is_milestone, assignees, progress + updated_at):
+    //      admins + assigned ops_user.
+    //   2. Progress-only updates (request affects ONLY progress + updated_at):
+    //      admins OR uid in resource.data.assignees.
+    //
+    // Schema (D-20): task_id (==doc id), project_id, project_code, parent_task_id,
+    //   name, description, start_date, end_date, progress (0-100),
+    //   is_milestone, dependencies[], assignees[uid], created_at, updated_at, created_by.
+    //
+    // Read scope: any active user. Project-scoping for ops_user happens at the
+    // JS query layer via where('project_id','==',X) — mirrors mrfs/prs/pos pattern.
+    match /project_tasks/{taskId} {
+      // Read: any active user (project-scoping at JS query layer)
+      allow read: if isActiveUser();
+
+      // Create: admins or operations_user assigned to this project
+      allow create: if hasRole(['super_admin', 'operations_admin']) ||
+                       (isRole('operations_user') &&
+                        isAssignedToProject(request.resource.data.project_code));
+
+      // Update — two-tier:
+      //  Tier 1 (full WBS edit): admins or assigned ops_user
+      //  Tier 2 (progress-only): admins OR uid in resource.data.assignees
+      //         (Phase 83 affectedKeys().hasOnly() technique mirrors notifications block)
+      allow update: if (
+        // Tier 1: full edit
+        hasRole(['super_admin', 'operations_admin']) ||
+        (isRole('operations_user') && isAssignedToProject(resource.data.project_code))
+      ) || (
+        // Tier 2: progress-only update — request changes ONLY 'progress' + 'updated_at'
+        // D-15 + D-14: only operations_user (or admins) may write progress; finance/services/procurement
+        // are READ-ONLY even if accidentally added to task.assignees.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress', 'updated_at']) &&
+        (hasRole(['super_admin', 'operations_admin']) ||
+         (isRole('operations_user') &&
+          resource.data.keys().hasAny(['assignees']) &&
+          resource.data.assignees is list &&
+          request.auth.uid in resource.data.assignees))
+      );
+
+      // Delete: admins or operations_user assigned to this project (D-14)
+      allow delete: if hasRole(['super_admin', 'operations_admin']) ||
+                       (isRole('operations_user') && isAssignedToProject(resource.data.project_code));
+    }
+
+    // =============================================
+    // service_tasks collection (Phase 105 — service plan parity, D-02, D-03, D-06)
+    // =============================================
+    // Native PM tasks for services. Mirrors project_tasks exactly (D-01 zero-divergence).
+    // service_code is denormalized for service-scoped services_user assignments
+    // (identical pattern to project_code in project_tasks).
+    //
+    // Two-tier update rule (D-06, mirrors project_tasks D-18):
+    //   Tier 1 (full WBS edit): services_admin or assigned services_user.
+    //   Tier 2 (progress-only — affectedKeys hasOnly ['progress','updated_at']):
+    //     services_admin, or uid in resource.data.assignees.
+    //
+    // Schema: task_id (==doc id), service_id, service_code, parent_task_id,
+    //   name, description, start_date, end_date, progress (0-100),
+    //   is_milestone, dependencies[], assignees[uid], created_at, updated_at, created_by.
+    //
+    // Read scope (D-06 DECISION — isActiveUser, NOT the stricter services list shape):
+    //   The ID generator and both card/view listeners query service_tasks filtered
+    //   only by service_code/service_id. A services_user-assignment-scoped list rule
+    //   would block reads for cross-team viewers and complicate the generator's
+    //   max-seq scan. Mirrors the project_tasks plain isActiveUser() pattern exactly
+    //   (JS-layer scoping via where('service_id','==',X)). T-105-04 ACCEPTED posture.
+    //
+    // isRole('services_user') short-circuit guard in every branch ensures
+    // non-services_user docs never dereference assigned_service_codes (T-105-03).
+    match /service_tasks/{taskId} {
+      // Read: any active user (service-scoping at JS query layer, D-06)
+      allow read: if isActiveUser();
+
+      // Create: admins or services_user assigned to this service
+      allow create: if hasRole(['super_admin', 'services_admin']) ||
+                       (isRole('services_user') &&
+                        isAssignedToService(request.resource.data.service_code));
+
+      // Update — two-tier:
+      //  Tier 1 (full WBS edit): admins or assigned services_user
+      //  Tier 2 (progress-only): admins OR uid in resource.data.assignees
+      //         (affectedKeys().hasOnly() technique mirrors project_tasks + notifications block)
+      allow update: if (
+        // Tier 1: full edit
+        hasRole(['super_admin', 'services_admin']) ||
+        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+      ) || (
+        // Tier 2: progress-only update — request changes ONLY 'progress' + 'updated_at'
+        // services_user (or admins) may write progress; finance/operations/procurement
+        // are READ-ONLY even if accidentally added to task.assignees.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress', 'updated_at']) &&
+        (hasRole(['super_admin', 'services_admin']) ||
+         (isRole('services_user') &&
+          resource.data.keys().hasAny(['assignees']) &&
+          resource.data.assignees is list &&
+          request.auth.uid in resource.data.assignees))
+      );
+
+      // Delete: admins or services_user assigned to this service
+      allow delete: if hasRole(['super_admin', 'services_admin']) ||
+                       (isRole('services_user') && isAssignedToService(resource.data.service_code));
+    }
+
+    // =============================================
+    // proposals collection (Phase 87 — PROP-11, D-10; Phase 87.2 — D-16..D-20;
+    //                        Phase 87.3 — D-09, D-10)
+    // =============================================
+    // Proposal lifecycle docs. audit_log + comms_log are embedded arrays
+    // (D-04 — no subcollections). Schema (D-02):
+    //   proposal_id (e.g. PROP-2026-001), project_id, project_code,
+    //   title, description, amount, target_client_id, target_client_name,
+    //   status (draft|pending_internal|pending_client|for_revision|client_approved|loss),
+    //   attachment_kind, attachment_url, attachment_storage_path, attachment_filename,
+    //   audit_log[], comms_log[], loss_reason, current_status_since,
+    //   parent_collection (Phase 87.1 D-06 — 'projects' | 'services', defaults to 'projects'),
+    //   created_by, created_at, updated_at.
+    //
+    // Create gate:
+    //   BRANCH A — Admin (Phase 87 D-05): super_admin + operations_admin can create any
+    //     proposal with created_by pinned to caller's UID.
+    //   BRANCH B — Assigned ops/services user (Phase 87.3 D-10): operations_user or
+    //     services_user can create a proposal ONLY when assigned to the parent project/service
+    //     (caller UID in parent doc's personnel_user_ids) AND department alignment matches
+    //     (operations_user → parent_collection 'projects'; services_user → 'services').
+    //     created_by is pinned to caller's UID — prevents impersonation. This mirrors
+    //     BRANCH 2 of the update rule and enables the "Start Proposal" button for
+    //     non-admin users on the project/service detail page.
+    //     NOTE: uses request.resource.data.* (doc doesn't exist yet at create time).
+    //
+    // Update gate (Phase 87.2 D-16/D-17/D-18/D-19; Phase 87.3 D-09):
+    //   BRANCH 1 — Admin (existing, preserved): super_admin + operations_admin can update
+    //     any field (subject to created_at/created_by immutability checks).
+    //   BRANCH 2 — Attached user (Phase 87.2 D-16, expanded Phase 87.3 D-09): operations_user
+    //     or services_user can update ONLY when ALL of:
+    //       (a) field-mask: affectedKeys().hasOnly([14-key allow-list]) — expanded in Phase 87.3
+    //           D-09 to include editable proposal content fields (title, description, amount,
+    //           target_client_id, target_client_name, version, attachment_kind, attachment_url,
+    //           attachment_filename) so that assigned ops/services users can save edits via the
+    //           full proposal modal. The original 5 status/log keys are preserved.
+    //       (b) department alignment: operations_user requires
+    //           parent_collection == 'projects' (default when absent);
+    //           services_user requires parent_collection == 'services'.
+    //       (c) parent-assignment: caller's UID is in the parent doc's
+    //           personnel_user_ids array (one get() per write — same cost shape
+    //           as Phase 84 NOTIF-12 create rule).
+    //   The field-mask prevents an authorized-but-adversarial caller from rewriting
+    //   created_by / loss_reason / attachment_storage_path or any unlisted field.
+    //   Loss writes (which touch loss_reason) remain admin-only by construction.
+    match /proposals/{proposalId} {
+      // Read: any active user (Operations Admin / Super Admin approve; all staff view)
+      allow read: if isActiveUser();
+
+      // Create: admin (BRANCH A) OR assigned ops/services user (BRANCH B — Phase 87.3 D-10)
+      allow create: if (
+        // BRANCH A — Admin: super_admin or operations_admin, created_by pinned to caller.
+        hasRole(['super_admin', 'operations_admin'])
+        && request.resource.data.created_by == request.auth.uid
+      ) || (
+        // BRANCH B — Assigned operations_user: parent_collection is 'projects' (default),
+        //            caller must be in project's personnel_user_ids, created_by pinned.
+        isRole('operations_user')
+        && request.resource.data.get('parent_collection', 'projects') == 'projects'
+        && request.auth.uid in get(/databases/$(database)/documents/projects/$(request.resource.data.project_id)).data.personnel_user_ids
+        && request.resource.data.created_by == request.auth.uid
+      ) || (
+        // BRANCH B — Assigned services_user: parent_collection must be 'services',
+        //            caller must be in service's personnel_user_ids, created_by pinned.
+        isRole('services_user')
+        && request.resource.data.get('parent_collection', 'projects') == 'services'
+        && request.auth.uid in get(/databases/$(database)/documents/services/$(request.resource.data.project_id)).data.personnel_user_ids
+        && request.resource.data.created_by == request.auth.uid
+      );
+
+      // Update branches — see expanded block comment above for the full rationale.
+      // Both branches preserve the existing created_at + created_by immutability invariants.
+      // Phase 87.4 D-03/D-04 — attachment-presence gate on pending_internal transition (data-integrity, applies to both branches).
+      // The top-level conjunction below requires attachment_kind to be set whenever the
+      // transition INTO 'pending_internal' is being performed. Disjunction reads as:
+      //   (new status is NOT pending_internal) OR (old status was already pending_internal,
+      //   so this isn't a transition) OR (attachment_kind is present on the new doc).
+      // Only the "transition INTO pending_internal with null attachment" path fails.
+      // Admins do NOT bypass — this is data integrity, not authorization (D-04).
+      allow update: if (
+        (
+          request.resource.data.status != 'pending_internal'
+          || resource.data.status == 'pending_internal'
+          || request.resource.data.attachment_kind != null
+        )
+        &&
+        (
+          (
+            // BRANCH 1 — Admin (existing, preserved verbatim from Phase 87 D-10).
+            hasRole(['super_admin', 'operations_admin'])
+            && request.resource.data.created_by == resource.data.created_by
+            && request.resource.data.created_at == resource.data.created_at
+          ) || (
+            // BRANCH 2 — Attached operations_user / services_user, expanded field-mask
+            //            (Phase 87.2 D-16 / D-17 / D-18; expanded Phase 87.3 D-09).
+            // Field-mask: 14-key allow-list (5 original status/log keys + 9 editable content keys).
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comms_log', 'audit_log', 'status', 'current_status_since', 'updated_at', 'title', 'description', 'amount', 'target_client_id', 'target_client_name', 'version', 'attachment_kind', 'attachment_url', 'attachment_filename', 'loss_reason'])
+            // Same created_at + created_by immutability as BRANCH 1.
+            && request.resource.data.created_by == resource.data.created_by
+            && request.resource.data.created_at == resource.data.created_at
+            && (
+              // Operations branch: parent_collection is 'projects' (defaults when absent).
+              (
+                isRole('operations_user')
+                && (!('parent_collection' in resource.data) || resource.data.parent_collection == 'projects')
+                && request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids
+              )
+              ||
+              // Services branch: parent_collection is 'services' (explicit).
+              (
+                isRole('services_user')
+                && 'parent_collection' in resource.data
+                && resource.data.parent_collection == 'services'
+                && request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.project_id)).data.personnel_user_ids
+              )
+            )
+          )
+        )
+      );
+
+      // Delete: super_admin only — proposals are not normally deleted
+      allow delete: if isRole('super_admin');
+    }
+
+    // =============================================
+    // notifications collection (Phase 83 — NOTIF-13)
+    // =============================================
+    // Per-user in-app notifications. Each user only touches their own.
+    // Schema (D-05): user_id, type, message, link, source_collection, source_id,
+    //                actor_id, read (bool), read_at, created_at.
+    // Create rule (D-18): any active user can write to ANY user's feed (the actor
+    //                     writes the recipient's notification — needed because we
+    //                     have no Cloud Functions). actor_id pinned to request.auth.uid
+    //                     prevents impersonation.
+    // Update rule (D-19): only `read` and `read_at` are mutable post-create.
+    match /notifications/{docId} {
+      allow read: if isActiveUser() && resource.data.user_id == request.auth.uid;
+
+      allow list: if isActiveUser() && resource.data.user_id == request.auth.uid;
+
+      // CR-04 / Phase 84: relaxed to isSignedIn() (was isActiveUser()) so that
+      // NOTIF-12 can fire from register.js while the new user's status is 'pending'.
+      // Impersonation is still prevented by actor_id == request.auth.uid.
+      allow create: if isSignedIn()
+        && request.resource.data.user_id is string
+        && request.resource.data.type is string
+        && request.resource.data.message is string
+        && request.resource.data.link is string
+        && request.resource.data.read == false
+        && request.resource.data.actor_id == request.auth.uid;
+
+      allow update: if isActiveUser()
+        && resource.data.user_id == request.auth.uid
+        && request.resource.data.user_id == resource.data.user_id
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.message == resource.data.message
+        && request.resource.data.link == resource.data.link
+        && request.resource.data.created_at == resource.data.created_at
+        && request.resource.data.actor_id == resource.data.actor_id;
+
+      allow delete: if isActiveUser() && resource.data.user_id == request.auth.uid;
     }
   }
 }

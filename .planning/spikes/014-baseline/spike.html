@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spike 014 — Baseline</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@1.2.2/dist/frappe-gantt.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      background: #f8fafc;
+      color: #1e293b;
+    }
+
+    /* ---- Top bar ---- */
+    .top-bar {
+      background: #1e293b;
+      color: #f1f5f9;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .top-bar .badge { background: #1a73e8; color: #fff; border-radius: 4px; padding: 2px 8px; font-weight: 700; font-size: 11px; }
+    .top-bar .label { color: #94a3b8; font-size: 12px; }
+    .top-bar .today-badge { margin-left: auto; background: #334155; border-radius: 4px; padding: 2px 10px; font-size: 11px; color: #cbd5e1; }
+
+    /* ---- Summary bar ---- */
+    .summary-bar {
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      font-size: 12.5px;
+    }
+    .sum-label { color: #64748b; font-size: 12px; }
+    .sum-stat { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #1e293b; }
+    .sum-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .sum-dot.late    { background: #ef4444; }
+    .sum-dot.ahead   { background: #059669; }
+    .sum-dot.ontrack { background: #94a3b8; }
+    .sum-baseline-set { margin-left: auto; font-size: 11px; background: #f1f5f9; border-radius: 4px; padding: 3px 10px; color: #475569; }
+
+    /* ---- Page layout ---- */
+    .page { padding: 16px 20px; display: flex; flex-direction: column; gap: 20px; }
+
+    /* ---- Slip table ---- */
+    .slip-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .slip-card-header {
+      padding: 8px 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #64748b;
+    }
+    table.slip {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    table.slip thead th {
+      background: #f8fafc;
+      color: #64748b;
+      font-weight: 700;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 12px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    table.slip tbody tr { border-bottom: 1px solid #f1f5f9; }
+    table.slip tbody tr:last-child { border-bottom: none; }
+    table.slip tbody tr:hover { background: #f8fafc; }
+    table.slip td { padding: 7px 12px; vertical-align: middle; }
+    .slip-name { font-weight: 500; color: #1e293b; }
+    .slip-date { font-size: 12px; color: #475569; font-variant-numeric: tabular-nums; }
+    .slip-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .slip-badge.late     { background: #fee2e2; color: #dc2626; }
+    .slip-badge.ahead    { background: #dcfce7; color: #16a34a; }
+    .slip-badge.on-track { background: #f1f5f9; color: #64748b; }
+    .slip-bar-mini {
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      position: relative;
+      min-width: 80px;
+      max-width: 160px;
+    }
+    .slip-bar-mini .live-fill  { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: #1a73e8; }
+    .slip-bar-mini .base-mark  { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #94a3b8; border-radius: 1px; }
+
+    /* ---- Variant section ---- */
+    .variant-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .variant-header {
+      padding: 10px 14px;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .variant-header h3 { font-size: 13px; font-weight: 700; color: #1e293b; margin-top: 1px; }
+    .variant-tag {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.06em; padding: 2px 7px; border-radius: 3px; flex-shrink: 0; margin-top: 2px;
+    }
+    .tag-a { background: #dbeafe; color: #1e40af; }
+    .tag-b { background: #fef3c7; color: #92400e; }
+    .tag-c { background: #dcfce7; color: #166534; }
+    .tag-d { background: #f3e8ff; color: #6b21a8; }
+    .tag-e { background: #ffe4e6; color: #9f1239; }
+    .tag-f { background: #e0f2fe; color: #075985; }
+    .variant-desc { font-size: 11.5px; color: #64748b; line-height: 1.5; }
+    .variant-legend {
+      padding: 8px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      gap: 16px;
+      background: #fafbfc;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #64748b; }
+    .legend-swatch { border-radius: 2px; }
+
+    /* ---- Toggle buttons ---- */
+    .toggle-btn {
+      padding: 5px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .toggle-btn:hover { border-color: #1a73e8; color: #1a73e8; }
+    .toggle-btn.active { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+
+    /* ---- Gantt container ---- */
+    .gantt-wrap {
+      padding: 12px 14px;
+      overflow-x: auto;
+      min-height: 180px;
+    }
+    /* Frappe Gantt overrides */
+    .gantt-wrap .gantt-container { font-family: inherit; }
+    /* Baseline ghost bar (Variant A) */
+    .gantt-wrap .baseline-ghost {
+      fill: #94a3b8;
+      fill-opacity: 0.3;
+      stroke: #94a3b8;
+      stroke-width: 1;
+      stroke-opacity: 0.5;
+      pointer-events: none;
+    }
+    /* Baseline slim rail (Variant B) */
+    .gantt-wrap .baseline-rail {
+      fill: #64748b;
+      fill-opacity: 0.55;
+      pointer-events: none;
+    }
+    /* Bar color by slip status */
+    .gantt-wrap .bar-wrapper.slip-late    .bar { fill: #ef4444 !important; }
+    .gantt-wrap .bar-wrapper.slip-ahead   .bar { fill: #059669 !important; }
+    .gantt-wrap .bar-wrapper.slip-ontrack .bar { fill: #1a73e8 !important; }
+    .gantt-wrap .bar-wrapper.slip-late    .bar-progress { fill: #dc2626 !important; }
+    .gantt-wrap .bar-wrapper.slip-ahead   .bar-progress { fill: #16a34a !important; }
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <span class="badge">SPIKE 014</span>
+  <span>Baseline</span>
+  <span class="label">G9 — plan snapshot vs current dates; schedule drift at a glance</span>
+  <span class="today-badge">Today: 2026-05-29</span>
+</div>
+
+<div class="summary-bar">
+  <div class="sum-label">Baseline set 2026-05-15 &rarr; current date 2026-05-29</div>
+  <div class="sum-stat"><span class="sum-dot late"></span> <span id="cntLate">—</span> behind schedule</div>
+  <div class="sum-stat"><span class="sum-dot ahead"></span> <span id="cntAhead">—</span> ahead</div>
+  <div class="sum-stat"><span class="sum-dot ontrack"></span> <span id="cntOnTrack">—</span> on track</div>
+</div>
+
+<div class="page">
+
+  <!-- Slip table -->
+  <div class="slip-card">
+    <div class="slip-card-header">Task Slippage vs Baseline</div>
+    <table class="slip">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Task</th>
+          <th>Baseline End</th>
+          <th>Current End</th>
+          <th>Slippage</th>
+          <th>Visual</th>
+        </tr>
+      </thead>
+      <tbody id="slipTableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Toggle + single Gantt -->
+  <div class="variant-card">
+    <div class="variant-header" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="variant-tag tag-a" id="tagLabel">Variant A</span>
+        <div>
+          <h3 id="variantTitle">Ghost Bars</h3>
+          <div class="variant-desc" id="variantDesc">Baseline shown as a translucent grey bar at the same height as the live bar. Extension past the grey tail = slip. Bar colors: red=late, green=ahead, blue=on track.</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;">
+        <button class="toggle-btn active" id="btnA" onclick="switchVariant('A')">A — Ghost</button>
+        <button class="toggle-btn" id="btnB" onclick="switchVariant('B')">B — Slim rail</button>
+        <button class="toggle-btn" id="btnC" onclick="switchVariant('C')">C — End tick</button>
+        <button class="toggle-btn" id="btnD" onclick="switchVariant('D')">D — Dashed outline</button>
+        <button class="toggle-btn" id="btnE" onclick="switchVariant('E')">E — Slip badge</button>
+        <button class="toggle-btn" id="btnF" onclick="switchVariant('F')">D+E — Outline + Badge</button>
+      </div>
+    </div>
+    <div class="variant-legend" id="variantLegend">
+      <div class="legend-item"><svg width="28" height="10"><rect x="0" y="2" width="28" height="6" rx="2" fill="#94a3b8" fill-opacity="0.35" stroke="#94a3b8" stroke-opacity="0.5" stroke-width="1"/></svg> Baseline (original plan)</div>
+      <div class="legend-item"><svg width="28" height="10"><rect x="0" y="2" width="28" height="6" rx="2" fill="#ef4444"/></svg> Late</div>
+      <div class="legend-item"><svg width="28" height="10"><rect x="0" y="2" width="28" height="6" rx="2" fill="#059669"/></svg> Ahead</div>
+      <div class="legend-item"><svg width="28" height="10"><rect x="0" y="2" width="28" height="6" rx="2" fill="#1a73e8"/></svg> On track</div>
+    </div>
+    <div class="gantt-wrap" id="ganttMain"></div>
+  </div>
+
+</div><!-- /page -->
+
+<script src="https://cdn.jsdelivr.net/npm/frappe-gantt@1.2.2/dist/frappe-gantt.umd.js"></script>
+<script>
+  const TODAY = '2026-05-29';
+
+  // Current task dates
+  const TASKS = [
+    { id: 't1', name: 'Structural Design',   start: '2026-05-01', end: '2026-05-12', progress: 100 },
+    { id: 't2', name: 'Foundation Work',      start: '2026-05-08', end: '2026-05-23', progress: 100 },
+    { id: 't3', name: 'MEP Installation',     start: '2026-05-15', end: '2026-05-28', progress: 80  },
+    { id: 't4', name: 'Electrical Rough-in',  start: '2026-05-20', end: '2026-06-12', progress: 45  },
+    { id: 't5', name: 'Concrete Pour',        start: '2026-05-25', end: '2026-06-05', progress: 30  },
+    { id: 't6', name: 'Interior Fit-out',     start: '2026-06-01', end: '2026-07-15', progress: 0   },
+  ];
+
+  // Baseline snapshot (captured 2026-05-15)
+  const BASELINE = {
+    t1: { start: '2026-05-01', end: '2026-05-12' }, // 0d  — on track
+    t2: { start: '2026-05-08', end: '2026-05-18' }, // +5d — late
+    t3: { start: '2026-05-15', end: '2026-05-31' }, // -3d — ahead
+    t4: { start: '2026-05-20', end: '2026-06-04' }, // +8d — late
+    t5: { start: '2026-05-25', end: '2026-06-05' }, // 0d  — on track
+    t6: { start: '2026-06-01', end: '2026-07-03' }, // +12d — late
+  };
+
+  function daysBetween(a, b) {
+    return Math.round((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000);
+  }
+
+  function slipStatus(taskId) {
+    const t = TASKS.find(x => x.id === taskId);
+    const b = BASELINE[taskId];
+    if (!t || !b) return { slip: 0, status: 'ontrack' };
+    const slip = daysBetween(b.end, t.end);
+    return { slip, status: slip > 0 ? 'late' : slip < 0 ? 'ahead' : 'ontrack' };
+  }
+
+  // ---- Slip table ----
+  function renderSlipTable() {
+    let late = 0, ahead = 0, ontrack = 0;
+    const rows = TASKS.map((t, i) => {
+      const b = BASELINE[t.id];
+      const { slip, status } = slipStatus(t.id);
+      if (status === 'late') late++;
+      else if (status === 'ahead') ahead++;
+      else ontrack++;
+
+      const badgeClass = status === 'late' ? 'late' : status === 'ahead' ? 'ahead' : 'on-track';
+      const badgeText = status === 'late' ? `+${slip}d late` : status === 'ahead' ? `${Math.abs(slip)}d ahead` : 'On track';
+
+      // Mini slip bar: show baseline width vs current width proportional
+      const totalDays = Math.max(
+        daysBetween(b.start, t.end),
+        daysBetween(b.start, b.end)
+      ) || 1;
+      const liveW = Math.round(daysBetween(b.start, t.end) / totalDays * 100);
+      const baseMarkW = Math.round(daysBetween(b.start, b.end) / totalDays * 100);
+
+      return `
+        <tr>
+          <td style="color:#94a3b8;font-size:11px;text-align:center;">${i + 1}</td>
+          <td class="slip-name">${t.name}</td>
+          <td class="slip-date">${b.end}</td>
+          <td class="slip-date">${t.end}</td>
+          <td><span class="slip-badge ${badgeClass}">${badgeText}</span></td>
+          <td>
+            <div class="slip-bar-mini" style="width:120px;">
+              <div class="live-fill" style="width:${Math.min(100, liveW)}%;background:${status === 'late' ? '#ef4444' : status === 'ahead' ? '#059669' : '#1a73e8'};opacity:0.7;"></div>
+              <div class="base-mark" style="left:${Math.min(99, baseMarkW)}%;"></div>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('slipTableBody').innerHTML = rows;
+    document.getElementById('cntLate').textContent = late;
+    document.getElementById('cntAhead').textContent = ahead;
+    document.getElementById('cntOnTrack').textContent = ontrack;
+  }
+
+  // ---- Gantt helpers ----
+  function xPerDay(ganttInst) {
+    if (!ganttInst || typeof ganttInst.config !== 'object') return 45;
+    const unitDays = { day: 1, week: 7, month: 30, year: 365 };
+    const daysPerCol = (unitDays[ganttInst.config.unit] || 1) * (ganttInst.config.step || 1);
+    return (ganttInst.config.column_width || 45) / daysPerCol;
+  }
+
+  function ganttStartDate(ganttInst) {
+    const d = ganttInst.gantt_start instanceof Date
+      ? new Date(ganttInst.gantt_start)
+      : new Date(ganttInst.gantt_start);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  function dateToX(ganttInst, dateStr) {
+    const anchor = ganttStartDate(ganttInst);
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setHours(0, 0, 0, 0);
+    return Math.round((d - anchor) / 86400000) * xPerDay(ganttInst);
+  }
+
+  // ---- Apply slip CSS classes to bar-wrappers ----
+  function applySlipClasses(svg) {
+    TASKS.forEach(t => {
+      const wrapper = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(t.id)}"]`);
+      if (!wrapper) return;
+      const { status } = slipStatus(t.id);
+      wrapper.classList.add(`slip-${status}`);
+    });
+  }
+
+  // ---- Variant A: ghost bars ----
+  function injectGhostBars(ganttInst, svg) {
+    svg.querySelectorAll('.baseline-ghost').forEach(el => el.remove());
+    const ns = 'http://www.w3.org/2000/svg';
+
+    TASKS.forEach(t => {
+      const b = BASELINE[t.id];
+      if (!b) return;
+      const wrapper = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(t.id)}"]`);
+      if (!wrapper) return;
+      const livebar = wrapper.querySelector('.bar');
+      if (!livebar) return;
+
+      const barY = parseFloat(livebar.getAttribute('y') || '0');
+      const barH = parseFloat(livebar.getAttribute('height') || '24');
+      const bx   = dateToX(ganttInst, b.start);
+      const bw   = Math.max(2, dateToX(ganttInst, b.end) - bx);
+
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('class', 'baseline-ghost');
+      rect.setAttribute('x', bx);
+      rect.setAttribute('y', barY);
+      rect.setAttribute('width', bw);
+      rect.setAttribute('height', barH);
+      rect.setAttribute('rx', '3');
+      wrapper.insertBefore(rect, livebar);
+    });
+  }
+
+  // ---- Variant B: slim rails ----
+  function injectSlimRails(ganttInst, svg) {
+    svg.querySelectorAll('.baseline-rail').forEach(el => el.remove());
+    const ns = 'http://www.w3.org/2000/svg';
+
+    TASKS.forEach(t => {
+      const b = BASELINE[t.id];
+      if (!b) return;
+      const wrapper = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(t.id)}"]`);
+      if (!wrapper) return;
+      const livebar = wrapper.querySelector('.bar');
+      if (!livebar) return;
+
+      const barY = parseFloat(livebar.getAttribute('y') || '0');
+      const barH = parseFloat(livebar.getAttribute('height') || '24');
+      const railH = 5;
+      const bx    = dateToX(ganttInst, b.start);
+      const bw    = Math.max(2, dateToX(ganttInst, b.end) - bx);
+
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('class', 'baseline-rail');
+      rect.setAttribute('x', bx);
+      rect.setAttribute('y', barY + barH + 2); // sit below the live bar, not behind it
+      rect.setAttribute('width', bw);
+      rect.setAttribute('height', railH);
+      rect.setAttribute('rx', '2');
+      wrapper.appendChild(rect); // append last so it renders on top, not buried under bar
+    });
+  }
+
+  // ---- Today line ----
+  function injectTodayLine(ganttInst, svg) {
+    svg.querySelectorAll('.spike-today-line').forEach(el => el.remove());
+    const ns   = 'http://www.w3.org/2000/svg';
+    const x    = dateToX(ganttInst, TODAY);
+    const line = document.createElementNS(ns, 'line');
+    line.setAttribute('class', 'spike-today-line');
+    line.setAttribute('x1', x); line.setAttribute('x2', x);
+    line.setAttribute('y1', 0); line.setAttribute('y2', '100%');
+    line.setAttribute('stroke', '#ef4444');
+    line.setAttribute('stroke-width', '1.5');
+    line.setAttribute('stroke-opacity', '0.6');
+    line.setAttribute('stroke-dasharray', '4 3');
+    svg.appendChild(line);
+  }
+
+  // ---- Variant C: end tick ----
+  function injectEndTicks(ganttInst, svg) {
+    svg.querySelectorAll('.baseline-tick').forEach(el => el.remove());
+    const ns = 'http://www.w3.org/2000/svg';
+    TASKS.forEach(t => {
+      const b = BASELINE[t.id];
+      if (!b) return;
+      const wrapper = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(t.id)}"]`);
+      if (!wrapper) return;
+      const livebar = wrapper.querySelector('.bar');
+      if (!livebar) return;
+      const barY = parseFloat(livebar.getAttribute('y') || '0');
+      const barH = parseFloat(livebar.getAttribute('height') || '22');
+      const tx   = dateToX(ganttInst, b.end);
+      // Vertical tick line spanning full bar height
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('class', 'baseline-tick');
+      line.setAttribute('x1', tx); line.setAttribute('x2', tx);
+      line.setAttribute('y1', barY - 3); line.setAttribute('y2', barY + barH + 3);
+      line.setAttribute('stroke', '#64748b');
+      line.setAttribute('stroke-width', '2.5');
+      line.setAttribute('stroke-linecap', 'round');
+      wrapper.appendChild(line);
+      // Small diamond at the tick midpoint
+      const cx = tx, cy = barY + barH / 2;
+      const d = 4;
+      const diamond = document.createElementNS(ns, 'polygon');
+      diamond.setAttribute('class', 'baseline-tick');
+      diamond.setAttribute('points', `${cx},${cy - d} ${cx + d},${cy} ${cx},${cy + d} ${cx - d},${cy}`);
+      diamond.setAttribute('fill', '#64748b');
+      wrapper.appendChild(diamond);
+    });
+  }
+
+  // ---- Variant D: dashed outline ----
+  function injectDashedOutlines(ganttInst, svg) {
+    svg.querySelectorAll('.baseline-outline').forEach(el => el.remove());
+    const ns = 'http://www.w3.org/2000/svg';
+    TASKS.forEach(t => {
+      const b = BASELINE[t.id];
+      if (!b) return;
+      const wrapper = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(t.id)}"]`);
+      if (!wrapper) return;
+      const livebar = wrapper.querySelector('.bar');
+      if (!livebar) return;
+      const barY = parseFloat(livebar.getAttribute('y') || '0');
+      const barH = parseFloat(livebar.getAttribute('height') || '22');
+      const bx   = dateToX(ganttInst, b.start);
+      const bw   = Math.max(2, dateToX(ganttInst, b.end) - bx);
+      const rect = document.createElementNS(ns, 'rect');
+      rect.setAttribute('class', 'baseline-outline');
+      rect.setAttribute('x', bx);
+      rect.setAttribute('y', barY);
+      rect.setAttribute('width', bw);
+      rect.setAttribute('height', barH);
+      rect.setAttribute('rx', '3');
+      rect.setAttribute('fill', 'none');
+      rect.setAttribute('stroke', '#94a3b8');
+      rect.setAttribute('stroke-width', '1.5');
+      rect.setAttribute('stroke-dasharray', '5 3');
+      wrapper.appendChild(rect);
+    });
+  }
+
+  // ---- Variant E: slip badge on bar ----
+  function injectSlipBadges(svg) {
+    svg.querySelectorAll('.baseline-badge').forEach(el => el.remove());
+    const ns = 'http://www.w3.org/2000/svg';
+    TASKS.forEach(t => {
+      const { slip, status } = slipStatus(t.id);
+      if (status === 'ontrack') return;
+      const wrapper = svg.querySelector(`.bar-wrapper[data-id="${CSS.escape(t.id)}"]`);
+      if (!wrapper) return;
+      const livebar = wrapper.querySelector('.bar');
+      if (!livebar) return;
+      const barX = parseFloat(livebar.getAttribute('x') || '0');
+      const barW = parseFloat(livebar.getAttribute('width') || '0');
+      const barY = parseFloat(livebar.getAttribute('y') || '0');
+      const barH = parseFloat(livebar.getAttribute('height') || '22');
+      const label = status === 'late' ? `+${slip}d` : `−${Math.abs(slip)}d`;
+      const color = status === 'late' ? '#dc2626' : '#16a34a';
+      const bgCol = status === 'late' ? '#fee2e2' : '#dcfce7';
+      const bx = barX + barW + 4;
+      const by = barY + barH / 2;
+      // Badge pill background
+      const tw = label.length * 6 + 8;
+      const pill = document.createElementNS(ns, 'rect');
+      pill.setAttribute('class', 'baseline-badge');
+      pill.setAttribute('x', bx);
+      pill.setAttribute('y', by - 8);
+      pill.setAttribute('width', tw);
+      pill.setAttribute('height', 16);
+      pill.setAttribute('rx', '8');
+      pill.setAttribute('fill', bgCol);
+      wrapper.appendChild(pill);
+      // Badge text
+      const text = document.createElementNS(ns, 'text');
+      text.setAttribute('class', 'baseline-badge');
+      text.setAttribute('x', bx + tw / 2);
+      text.setAttribute('y', by + 4);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('font-size', '10');
+      text.setAttribute('font-weight', '700');
+      text.setAttribute('font-family', 'system-ui, sans-serif');
+      text.setAttribute('fill', color);
+      text.textContent = label;
+      wrapper.appendChild(text);
+    });
+  }
+
+  // ---- Single Gantt instance + toggle ----
+  let ganttInst = null;
+  let activeVariant = 'A';
+
+  const VARIANT_META = {
+    A: {
+      tag: 'Variant A', tagClass: 'tag-a',
+      title: 'Ghost Bars',
+      desc: 'Baseline shown as a translucent grey bar at the same height as the live bar. Extension past the grey tail = slip. Bar colors: red=late, green=ahead, blue=on track.',
+      legend: `
+        <div class="legend-item"><svg width="28" height="10"><rect x="0" y="2" width="28" height="6" rx="2" fill="#94a3b8" fill-opacity="0.35" stroke="#94a3b8" stroke-opacity="0.5" stroke-width="1"/></svg> Baseline (original plan)</div>
+        <div class="legend-item"><svg width="28" height="10"><rect x="0" y="2" width="28" height="6" rx="2" fill="#ef4444"/></svg> Late</div>
+        <div class="legend-item"><svg width="28" height="10"><rect x="0" y="2" width="28" height="6" rx="2" fill="#059669"/></svg> Ahead</div>
+        <div class="legend-item"><svg width="28" height="10"><rect x="0" y="2" width="28" height="6" rx="2" fill="#1a73e8"/></svg> On track</div>`,
+    },
+    B: {
+      tag: 'Variant B', tagClass: 'tag-b',
+      title: 'Slim Rail',
+      desc: 'Baseline shown as a 5px grey rail directly below each live bar. Rail extends past the bar on the right = late. Rail shorter than the bar = ahead. Live bars stay blue.',
+      legend: `
+        <div class="legend-item"><svg width="40" height="14"><rect x="0" y="1" width="28" height="8" rx="2" fill="#1a73e8"/><rect x="0" y="10" width="40" height="5" rx="2" fill="#64748b" fill-opacity="0.65"/></svg> Rail below bar — extends right = slip</div>
+        <div class="legend-item"><svg width="28" height="10"><rect x="0" y="1" width="28" height="8" rx="2" fill="#1a73e8"/></svg> Live bar (current dates)</div>`,
+    },
+    C: {
+      tag: 'Variant C', tagClass: 'tag-c',
+      title: 'End Tick',
+      desc: 'A vertical tick + diamond marks where the baseline end date falls on the bar row. If the live bar extends past the tick = late. No extra bar drawn — minimal visual noise.',
+      legend: `
+        <div class="legend-item"><svg width="14" height="14"><line x1="7" y1="0" x2="7" y2="14" stroke="#64748b" stroke-width="2.5" stroke-linecap="round"/><polygon points="7,4 11,7 7,10 3,7" fill="#64748b"/></svg> Baseline end tick (where you planned to finish)</div>
+        <div class="legend-item"><svg width="28" height="10"><rect x="0" y="1" width="28" height="8" rx="2" fill="#1a73e8"/></svg> Live bar — extends past tick = late</div>`,
+    },
+    D: {
+      tag: 'Variant D', tagClass: 'tag-d',
+      title: 'Dashed Outline',
+      desc: 'Baseline drawn as a dashed-border rectangle (no fill) at the original planned dates. The live solid bar sits inside or overlaps it. Unambiguous which is plan vs actual.',
+      legend: `
+        <div class="legend-item"><svg width="36" height="10"><rect x="1" y="1" width="34" height="8" rx="2" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 2"/></svg> Baseline outline (original plan)</div>
+        <div class="legend-item"><svg width="28" height="10"><rect x="0" y="1" width="28" height="8" rx="2" fill="#1a73e8"/></svg> Live bar (current dates)</div>`,
+    },
+    E: {
+      tag: 'Variant E', tagClass: 'tag-e',
+      title: 'Slip Badge',
+      desc: 'No baseline shape drawn at all. A "+5d" or "−3d" pill badge appears beside each slipped bar. On-track tasks show nothing extra — zero visual noise unless there is drift.',
+      legend: `
+        <div class="legend-item"><svg width="28" height="10"><rect x="0" y="1" width="28" height="8" rx="2" fill="#1a73e8"/></svg> Live bar (unchanged)</div>
+        <div class="legend-item"><svg width="32" height="16"><rect x="0" y="2" width="32" height="14" rx="7" fill="#fee2e2"/><text x="16" y="13" text-anchor="middle" font-size="9" font-weight="700" fill="#dc2626" font-family="system-ui">+5d</text></svg> Late badge</div>
+        <div class="legend-item"><svg width="36" height="16"><rect x="0" y="2" width="36" height="14" rx="7" fill="#dcfce7"/><text x="18" y="13" text-anchor="middle" font-size="9" font-weight="700" fill="#16a34a" font-family="system-ui">−3d</text></svg> Ahead badge</div>`,
+    },
+    F: {
+      tag: 'D + E', tagClass: 'tag-f',
+      title: 'Dashed Outline + Slip Badge',
+      desc: 'Dashed outline shows the original planned date range. Slip badge (+5d / −3d) appears beside bars that have drifted. On-track tasks show the outline only — no badge clutter.',
+      legend: `
+        <div class="legend-item"><svg width="36" height="10"><rect x="1" y="1" width="34" height="8" rx="2" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4 2"/></svg> Dashed outline (original plan)</div>
+        <div class="legend-item"><svg width="28" height="10"><rect x="0" y="1" width="28" height="8" rx="2" fill="#1a73e8"/></svg> Live bar (current dates)</div>
+        <div class="legend-item"><svg width="32" height="16"><rect x="0" y="2" width="32" height="14" rx="7" fill="#fee2e2"/><text x="16" y="13" text-anchor="middle" font-size="9" font-weight="700" fill="#dc2626" font-family="system-ui">+5d</text></svg> Late</div>
+        <div class="legend-item"><svg width="36" height="16"><rect x="0" y="2" width="36" height="14" rx="7" fill="#dcfce7"/><text x="18" y="13" text-anchor="middle" font-size="9" font-weight="700" fill="#16a34a" font-family="system-ui">−3d</text></svg> Ahead</div>`,
+    },
+  };
+
+  function applyVariantOverlay(variant) {
+    const svg = document.querySelector('#ganttMain svg');
+    if (!svg || !ganttInst) return;
+    svg.querySelectorAll('.baseline-ghost, .baseline-rail, .baseline-tick, .baseline-outline, .baseline-badge').forEach(el => el.remove());
+    // Variant E doesn't use slip classes (bars stay plain blue)
+    // Only A/B/C color the bars by status. D, E, F keep bars plain blue — badge/outline carry the signal.
+    const colorBars = ['A', 'B', 'C'].includes(variant);
+    svg.querySelectorAll('.bar-wrapper').forEach(w =>
+      w.classList.remove('slip-late', 'slip-ahead', 'slip-ontrack')
+    );
+    if (colorBars) applySlipClasses(svg);
+    if (variant === 'A') injectGhostBars(ganttInst, svg);
+    else if (variant === 'B') injectSlimRails(ganttInst, svg);
+    else if (variant === 'C') injectEndTicks(ganttInst, svg);
+    else if (variant === 'D') injectDashedOutlines(ganttInst, svg);
+    else if (variant === 'E') injectSlipBadges(svg);
+    else if (variant === 'F') { injectDashedOutlines(ganttInst, svg); injectSlipBadges(svg); }
+    injectTodayLine(ganttInst, svg);
+  }
+
+  window.switchVariant = function(variant) {
+    if (variant === activeVariant) return;
+    activeVariant = variant;
+    const meta = VARIANT_META[variant];
+    const tag = document.getElementById('tagLabel');
+    tag.textContent = meta.tag;
+    tag.className = `variant-tag ${meta.tagClass}`;
+    document.getElementById('variantTitle').textContent = meta.title;
+    document.getElementById('variantDesc').textContent = meta.desc;
+    document.getElementById('variantLegend').innerHTML = meta.legend;
+    ['A','B','C','D','E','F'].forEach(v =>
+      document.getElementById(`btn${v}`).classList.toggle('active', v === variant)
+    );
+    applyVariantOverlay(variant);
+  };
+
+  function initGantt() {
+    const frappeTasks = TASKS.map(t => ({
+      id: t.id,
+      name: t.name,
+      start: t.start,
+      end: t.end,
+      progress: t.progress,
+    }));
+
+    ganttInst = new Gantt(document.getElementById('ganttMain'), frappeTasks, {
+      view_mode: 'Week',
+      bar_height: 22,
+      padding: 14,
+    });
+
+    applyVariantOverlay('A');
+  }
+
+  renderSlipTable();
+  initGantt();
+</script>
+</body>
+</html>

@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 019 — Fee Row Variants</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary: #1a73e8;
+    --primary-dark: #1557b0;
+    --success: #059669;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --fee-bg: #f8fafc;
+    --fee-text: #94a3b8;
+    --radius: 8px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f1f5f9;
+    color: var(--text);
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* Variant switcher bar */
+  .variant-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 1rem;
+    border-bottom: 2px solid #1e293b;
+  }
+  .variant-bar-label {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-right: 1rem;
+    white-space: nowrap;
+  }
+  .variant-btn {
+    padding: 0.75rem 1.25rem;
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .variant-btn:hover { color: #e2e8f0; }
+  .variant-btn.active {
+    color: #fff;
+    border-bottom-color: #1a73e8;
+  }
+  .variant-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .badge-current { background: #1e293b; color: #64748b; }
+  .badge-new { background: #1a73e8; color: #fff; }
+
+  /* Modal shell */
+  .shell {
+    max-width: 780px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-title { font-size: 16px; font-weight: 600; }
+  .modal-close {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  /* Summary cards */
+  .summary-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+  }
+  .card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+  }
+  .card.highlight-green { border-color: #a7f3d0; background: #f0fdf4; }
+  .card.highlight-blue { border-color: #bfdbfe; background: #eff6ff; }
+  .card.highlight-red { border-color: #fca5a5; background: #fef2f2; }
+  .card-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; }
+  .card-value { font-size: 22px; font-weight: 700; }
+  .card.highlight-green .card-value { color: #059669; }
+  .card.highlight-blue .card-value { color: #1a73e8; }
+  .card.highlight-red .card-value { color: #ef4444; }
+  .card-sub { font-size: 11px; color: var(--muted); margin-top: 0.25rem; }
+
+  .summary-small {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    padding: 0 1.25rem 1rem;
+  }
+  .card-sm { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem; }
+  .card-sm .card-label { font-size: 10px; }
+  .card-sm .card-value { font-size: 15px; font-weight: 600; }
+  .card-sm .card-sub { font-size: 10px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 2px solid var(--border);
+    padding: 0 1.25rem;
+  }
+  .tab {
+    padding: 0.6rem 1rem;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+  }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+  /* Payables content */
+  .payables-content { padding: 1rem 1.25rem 1.5rem; }
+
+  /* Category card / collapsible */
+  .cat-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .cat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    user-select: none;
+    background: #fff;
+  }
+  .cat-header:hover { background: #f8fafc; }
+  .cat-header-left { display: flex; align-items: center; gap: 0.5rem; }
+  .cat-toggle { font-size: 10px; color: var(--muted); transition: transform 0.15s; }
+  .cat-toggle.open { transform: rotate(90deg); }
+  .cat-name { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--text); }
+  .cat-amount { font-weight: 700; font-size: 15px; color: var(--primary); }
+
+  /* Table */
+  .payables-table { width: 100%; border-collapse: collapse; }
+  .payables-table thead th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: #f8fafc;
+  }
+  .payables-table thead th:nth-child(3),
+  .payables-table thead th:nth-child(4) { text-align: right; }
+  .payables-table tbody tr.main-row { transition: background 0.1s; }
+  .payables-table tbody tr.main-row:hover { background: #f8fafc; }
+  .payables-table td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+  }
+  .payables-table td:nth-child(3),
+  .payables-table td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+  .status-badge { font-weight: 600; }
+
+  /* ── VARIANT A: flat grey sub-rows (baseline) ── */
+  .fee-subrow td {
+    background: #f8fafc;
+    padding: 0.45rem 1rem 0.45rem 2.5rem;
+    font-size: 11.5px;
+    color: #94a3b8;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .fee-subrow td:nth-child(3),
+  .fee-subrow td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ── VARIANT B: accordion ── */
+  .acc-trigger { cursor: pointer; }
+  .acc-trigger .particulars-wrap { display: flex; align-items: center; gap: 0.5rem; }
+  .acc-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px; height: 18px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    font-size: 9px;
+    color: var(--muted);
+    transition: all 0.15s;
+    flex-shrink: 0;
+    background: #fff;
+  }
+  .acc-trigger.expanded .acc-icon {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+  .acc-fees {
+    overflow: hidden;
+    transition: max-height 0.2s ease;
+    max-height: 0;
+  }
+  .acc-fees.open { max-height: 200px; }
+  .acc-fee-row td {
+    background: linear-gradient(to right, #eff6ff 0px, #f8fafc 24px);
+    padding: 0.4rem 1rem 0.4rem 2.5rem;
+    font-size: 12px;
+    color: #475569;
+    border-bottom: 1px solid #dbeafe;
+  }
+  .acc-fee-row td:nth-child(3),
+  .acc-fee-row td:nth-child(4) { text-align: right; font-variant-numeric: tabular-nums; }
+  .acc-fee-label { color: #1a73e8; font-weight: 500; }
+  .acc-fee-amount { color: #1a73e8; font-weight: 600; }
+
+  /* ── VARIANT C: fee chip + popover ── */
+  .fee-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1557b0;
+    background: #dbeafe;
+    border: 1px solid #bfdbfe;
+    border-radius: 99px;
+    padding: 1px 8px;
+    margin-left: 8px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.1s;
+    white-space: nowrap;
+  }
+  .fee-chip:hover { background: #bfdbfe; }
+  .fee-chip-icon { font-size: 10px; }
+
+  /* Popover */
+  .popover-wrap { position: relative; display: inline-block; }
+  .fee-popover {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: #f1f5f9;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    min-width: 200px;
+    font-size: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    z-index: 200;
+    display: none;
+    white-space: nowrap;
+  }
+  .fee-popover.show { display: block; }
+  .fee-popover::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #1e293b;
+  }
+  .fee-popover-title { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; margin-bottom: 0.5rem; }
+  .fee-popover-row { display: flex; justify-content: space-between; gap: 1.5rem; padding: 0.2rem 0; border-top: 1px solid #334155; }
+  .fee-popover-row:first-of-type { border-top: none; }
+  .fee-popover-key { color: #94a3b8; }
+  .fee-popover-val { font-weight: 600; color: #e2e8f0; }
+  .fee-popover-total { border-top: 1px solid #475569; margin-top: 0.25rem; padding-top: 0.4rem; display: flex; justify-content: space-between; gap: 1.5rem; }
+  .fee-popover-total .fee-popover-key { color: #e2e8f0; font-weight: 600; }
+  .fee-popover-total .fee-popover-val { color: #93c5fd; font-weight: 700; }
+
+  /* Variant panels */
+  .variant-panel { display: none; }
+  .variant-panel.active { display: block; }
+
+  /* Log pane */
+  .log-pane {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 56px;
+    background: #0f172a;
+    border-top: 1px solid #1e293b;
+    display: flex;
+    align-items: center;
+    padding: 0 1.5rem;
+    gap: 1rem;
+    font-size: 11px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    overflow: hidden;
+    transition: height 0.2s;
+    z-index: 50;
+  }
+  .log-pane.expanded { height: 160px; align-items: flex-start; padding-top: 0.75rem; }
+  .log-pane-label { color: #475569; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; flex-shrink: 0; align-self: center; }
+  .log-entries { flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 3px; }
+  .log-pane.expanded .log-entries { overflow-y: auto; }
+  .log-entry { color: #64748b; white-space: nowrap; }
+  .log-entry .ts { color: #334155; margin-right: 0.5rem; }
+  .log-entry.interaction { color: #93c5fd; }
+  .log-toggle { flex-shrink: 0; color: #475569; cursor: pointer; font-size: 10px; align-self: center; padding: 4px 8px; border: 1px solid #334155; border-radius: 4px; }
+  .log-toggle:hover { color: #94a3b8; }
+
+  /* spacer for log */
+  .log-spacer { height: 64px; }
+</style>
+</head>
+<body>
+
+<!-- Variant switcher -->
+<div class="variant-bar">
+  <span class="variant-bar-label">Spike 019</span>
+  <button class="variant-btn active" data-variant="a" onclick="setVariant('a', this)">
+    A — Flat sub-rows <span class="variant-badge badge-current">current</span>
+  </button>
+  <button class="variant-btn" data-variant="b" onclick="setVariant('b', this)">
+    B — Accordion <span class="variant-badge badge-new">new</span>
+  </button>
+  <button class="variant-btn" data-variant="c" onclick="setVariant('c', this)">
+    C — Chip + popover <span class="variant-badge badge-new">new</span>
+  </button>
+</div>
+
+<div class="shell">
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- VARIANT A — flat grey sub-rows (baseline) -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="variant-panel active" id="panel-a">
+    <div class="modal" style="margin-top:0;">
+      <div class="modal-header">
+        <span class="modal-title">Financial Breakdown: San Juan River Bridge Rehabilitation</span>
+        <button class="modal-close">✕</button>
+      </div>
+
+      <div class="summary-cards">
+        <div class="card highlight-green">
+          <div class="card-label">Budget</div>
+          <div class="card-value">₱18,500,000.00</div>
+        </div>
+        <div class="card highlight-green">
+          <div class="card-label">Remaining Budget</div>
+          <div class="card-value">₱18,259,577.00</div>
+        </div>
+      </div>
+      <div class="summary-small">
+        <div class="card-sm">
+          <div class="card-label">Material Purchases</div>
+          <div class="card-value">₱180,923.00</div>
+          <div class="card-sub">2 POs</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-label">Transport Fees</div>
+          <div class="card-value">₱59,500.00</div>
+          <div class="card-sub">1 TR</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-label">Subcon Cost</div>
+          <div class="card-value">₱0.00</div>
+          <div class="card-sub">0 POs</div>
+        </div>
+      </div>
+
+      <div class="summary-cards" style="padding-top:0; padding-bottom:0.75rem;">
+        <div class="card highlight-blue">
+          <div class="card-label">Projected Cost</div>
+          <div class="card-value">₱240,423.00</div>
+        </div>
+        <div class="card highlight-red">
+          <div class="card-label">Remaining Payable</div>
+          <div class="card-value">₱90,200.00</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab">By Category</div>
+        <div class="tab">Transport Fees</div>
+        <div class="tab active">Payables</div>
+        <div class="tab">Collectibles</div>
+      </div>
+
+      <div class="payables-content">
+        <div class="cat-card">
+          <div class="cat-header" onclick="toggleCat(this)">
+            <div class="cat-header-left">
+              <span class="cat-toggle open">▶</span>
+              <span class="cat-name">PAYABLES</span>
+            </div>
+            <span class="cat-amount">240,423.00</span>
+          </div>
+          <div>
+            <table class="payables-table">
+              <thead>
+                <tr>
+                  <th>PARTICULARS</th>
+                  <th>STATUS</th>
+                  <th>TOTAL PAYABLE</th>
+                  <th>TOTAL PAID</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- PO-2026-001 Metro — no fees -->
+                <tr class="main-row">
+                  <td>PO-2026-001 — Metro Construction Materials</td>
+                  <td class="status-badge" style="color:#1d4ed8;">Tranche — 50% Paid</td>
+                  <td>180,800.00</td>
+                  <td>90,000.00</td>
+                </tr>
+
+                <!-- ACME — has fees, grey sub-rows -->
+                <tr class="main-row">
+                  <td>PO_2026_06-001-ACME — ACME Hardware Supply</td>
+                  <td class="status-badge" style="color:#166534;">Fully Paid</td>
+                  <td>123.00</td>
+                  <td>723.00</td>
+                </tr>
+                <tr class="fee-subrow">
+                  <td style="padding-left:2.5rem;color:#94a3b8;font-size:11.5px;">Transfer fee</td>
+                  <td style="color:#94a3b8;font-size:11.5px;font-style:italic;">fee</td>
+                  <td style="color:#94a3b8;font-size:11.5px;">500.00</td>
+                  <td style="color:#94a3b8;font-size:11.5px;">—</td>
+                </tr>
+                <tr class="fee-subrow">
+                  <td style="padding-left:2.5rem;color:#94a3b8;font-size:11.5px;">Cash-out fee</td>
+                  <td style="color:#94a3b8;font-size:11.5px;font-style:italic;">fee</td>
+                  <td style="color:#94a3b8;font-size:11.5px;">100.00</td>
+                  <td style="color:#94a3b8;font-size:11.5px;">—</td>
+                </tr>
+
+                <!-- TR-2026-001 FastTrack -->
+                <tr class="main-row">
+                  <td>TR-2026-001 — FastTrack Logistics</td>
+                  <td class="status-badge" style="color:#166534;">Fully Paid</td>
+                  <td>59,500.00</td>
+                  <td>59,500.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /modal -->
+    <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:1rem;">Variant A: grey sub-rows always visible — simple, zero interaction required</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- VARIANT B — accordion expand/collapse      -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="variant-panel" id="panel-b">
+    <div class="modal" style="margin-top:0;">
+      <div class="modal-header">
+        <span class="modal-title">Financial Breakdown: San Juan River Bridge Rehabilitation</span>
+        <button class="modal-close">✕</button>
+      </div>
+
+      <div class="summary-cards">
+        <div class="card highlight-green">
+          <div class="card-label">Budget</div>
+          <div class="card-value">₱18,500,000.00</div>
+        </div>
+        <div class="card highlight-green">
+          <div class="card-label">Remaining Budget</div>
+          <div class="card-value">₱18,259,577.00</div>
+        </div>
+      </div>
+      <div class="summary-small">
+        <div class="card-sm">
+          <div class="card-label">Material Purchases</div>
+          <div class="card-value">₱180,923.00</div>
+          <div class="card-sub">2 POs</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-label">Transport Fees</div>
+          <div class="card-value">₱59,500.00</div>
+          <div class="card-sub">1 TR</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-label">Subcon Cost</div>
+          <div class="card-value">₱0.00</div>
+          <div class="card-sub">0 POs</div>
+        </div>
+      </div>
+
+      <div class="summary-cards" style="padding-top:0; padding-bottom:0.75rem;">
+        <div class="card highlight-blue">
+          <div class="card-label">Projected Cost</div>
+          <div class="card-value">₱240,423.00</div>
+        </div>
+        <div class="card highlight-red">
+          <div class="card-label">Remaining Payable</div>
+          <div class="card-value">₱90,200.00</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab">By Category</div>
+        <div class="tab">Transport Fees</div>
+        <div class="tab active">Payables</div>
+        <div class="tab">Collectibles</div>
+      </div>
+
+      <div class="payables-content">
+        <div class="cat-card">
+          <div class="cat-header" onclick="toggleCat(this)">
+            <div class="cat-header-left">
+              <span class="cat-toggle open">▶</span>
+              <span class="cat-name">PAYABLES</span>
+            </div>
+            <span class="cat-amount">240,423.00</span>
+          </div>
+          <div>
+            <table class="payables-table" id="acc-table">
+              <thead>
+                <tr>
+                  <th>PARTICULARS</th>
+                  <th>STATUS</th>
+                  <th>TOTAL PAYABLE</th>
+                  <th>TOTAL PAID</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Metro — no fees, no toggle icon -->
+                <tr class="main-row">
+                  <td>PO-2026-001 — Metro Construction Materials</td>
+                  <td class="status-badge" style="color:#1d4ed8;">Tranche — 50% Paid</td>
+                  <td>180,800.00</td>
+                  <td>90,000.00</td>
+                </tr>
+
+                <!-- ACME — accordion -->
+                <tr class="main-row acc-trigger" onclick="toggleAcc('acme-fees', this)" style="cursor:pointer;">
+                  <td>
+                    <div class="particulars-wrap">
+                      <span class="acc-icon" id="acc-icon-acme">▶</span>
+                      PO_2026_06-001-ACME — ACME Hardware Supply
+                    </div>
+                  </td>
+                  <td class="status-badge" style="color:#166534;">Fully Paid</td>
+                  <td>723.00</td>
+                  <td>723.00</td>
+                </tr>
+                <!-- Accordion fee rows — hidden by default -->
+                <tr id="acme-fees" style="display:none;">
+                  <td colspan="4" style="padding:0; border:none;">
+                    <table style="width:100%;border-collapse:collapse;">
+                      <tr class="acc-fee-row">
+                        <td style="padding-left:2.5rem;" class="acc-fee-label">Transfer fee</td>
+                        <td class="acc-fee-label">fee</td>
+                        <td style="text-align:right;" class="acc-fee-amount">500.00</td>
+                        <td style="text-align:right;" class="acc-fee-amount">500.00</td>
+                      </tr>
+                      <tr class="acc-fee-row">
+                        <td style="padding-left:2.5rem;" class="acc-fee-label">Cash-out fee</td>
+                        <td class="acc-fee-label">fee</td>
+                        <td style="text-align:right;" class="acc-fee-amount">100.00</td>
+                        <td style="text-align:right;" class="acc-fee-amount">100.00</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- FastTrack TR — no fees -->
+                <tr class="main-row">
+                  <td>TR-2026-001 — FastTrack Logistics</td>
+                  <td class="status-badge" style="color:#166534;">Fully Paid</td>
+                  <td>59,500.00</td>
+                  <td>59,500.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:1rem;">Variant B: click a row to expand fee detail — table stays clean by default</p>
+    <p style="text-align:center;color:#64748b;font-size:11px;margin-top:0.25rem;">Note: In B, Total Payable and Total Paid on ACME row are fee-inclusive (723) — numbers now match</p>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- VARIANT C — chip + popover                 -->
+  <!-- ══════════════════════════════════════════ -->
+  <div class="variant-panel" id="panel-c">
+    <div class="modal" style="margin-top:0;">
+      <div class="modal-header">
+        <span class="modal-title">Financial Breakdown: San Juan River Bridge Rehabilitation</span>
+        <button class="modal-close">✕</button>
+      </div>
+
+      <div class="summary-cards">
+        <div class="card highlight-green">
+          <div class="card-label">Budget</div>
+          <div class="card-value">₱18,500,000.00</div>
+        </div>
+        <div class="card highlight-green">
+          <div class="card-label">Remaining Budget</div>
+          <div class="card-value">₱18,259,577.00</div>
+        </div>
+      </div>
+      <div class="summary-small">
+        <div class="card-sm">
+          <div class="card-label">Material Purchases</div>
+          <div class="card-value">₱180,923.00</div>
+          <div class="card-sub">2 POs</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-label">Transport Fees</div>
+          <div class="card-value">₱59,500.00</div>
+          <div class="card-sub">1 TR</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-label">Subcon Cost</div>
+          <div class="card-value">₱0.00</div>
+          <div class="card-sub">0 POs</div>
+        </div>
+      </div>
+
+      <div class="summary-cards" style="padding-top:0; padding-bottom:0.75rem;">
+        <div class="card highlight-blue">
+          <div class="card-label">Projected Cost</div>
+          <div class="card-value">₱240,423.00</div>
+        </div>
+        <div class="card highlight-red">
+          <div class="card-label">Remaining Payable</div>
+          <div class="card-value">₱90,200.00</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab">By Category</div>
+        <div class="tab">Transport Fees</div>
+        <div class="tab active">Payables</div>
+        <div class="tab">Collectibles</div>
+      </div>
+
+      <div class="payables-content">
+        <div class="cat-card">
+          <div class="cat-header" onclick="toggleCat(this)">
+            <div class="cat-header-left">
+              <span class="cat-toggle open">▶</span>
+              <span class="cat-name">PAYABLES</span>
+            </div>
+            <span class="cat-amount">240,423.00</span>
+          </div>
+          <div>
+            <table class="payables-table">
+              <thead>
+                <tr>
+                  <th>PARTICULARS</th>
+                  <th>STATUS</th>
+                  <th>TOTAL PAYABLE</th>
+                  <th>TOTAL PAID</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Metro — no fees -->
+                <tr class="main-row">
+                  <td>PO-2026-001 — Metro Construction Materials</td>
+                  <td class="status-badge" style="color:#1d4ed8;">Tranche — 50% Paid</td>
+                  <td>180,800.00</td>
+                  <td>90,000.00</td>
+                </tr>
+
+                <!-- ACME — chip + popover -->
+                <tr class="main-row">
+                  <td>
+                    PO_2026_06-001-ACME — ACME Hardware Supply
+                    <span class="popover-wrap">
+                      <span class="fee-chip" onclick="togglePopover('pop-acme', event)">
+                        <span class="fee-chip-icon">⊕</span> +₱600 fees
+                      </span>
+                      <div class="fee-popover" id="pop-acme">
+                        <div class="fee-popover-title">Fee Breakdown</div>
+                        <div class="fee-popover-row">
+                          <span class="fee-popover-key">Transfer fee</span>
+                          <span class="fee-popover-val">₱500.00</span>
+                        </div>
+                        <div class="fee-popover-row">
+                          <span class="fee-popover-key">Cash-out fee</span>
+                          <span class="fee-popover-val">₱100.00</span>
+                        </div>
+                        <div class="fee-popover-total">
+                          <span class="fee-popover-key">Total fees</span>
+                          <span class="fee-popover-val">₱600.00</span>
+                        </div>
+                      </div>
+                    </span>
+                  </td>
+                  <td class="status-badge" style="color:#166534;">Fully Paid</td>
+                  <td>723.00</td>
+                  <td>723.00</td>
+                </tr>
+
+                <!-- FastTrack TR — no fees -->
+                <tr class="main-row">
+                  <td>TR-2026-001 — FastTrack Logistics</td>
+                  <td class="status-badge" style="color:#166534;">Fully Paid</td>
+                  <td>59,500.00</td>
+                  <td>59,500.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:1rem;">Variant C: fee chip inline on parent row — click for popover breakdown, table stays flat</p>
+    <p style="text-align:center;color:#64748b;font-size:11px;margin-top:0.25rem;">Note: In C, Total Payable and Total Paid are fee-inclusive (723) — no row duplication</p>
+  </div>
+
+</div><!-- /shell -->
+
+<div class="log-spacer"></div>
+
+<!-- Log pane -->
+<div class="log-pane" id="logPane">
+  <span class="log-pane-label">LOG</span>
+  <div class="log-entries" id="logEntries">
+    <div class="log-entry"><span class="ts">00:00</span>spike-019 ready — try all three variants</div>
+  </div>
+  <span class="log-toggle" onclick="toggleLog()">▲ expand</span>
+</div>
+
+<script>
+  let logExpanded = false;
+  const startTime = Date.now();
+
+  function ts() {
+    const s = Math.floor((Date.now() - startTime) / 1000);
+    return String(Math.floor(s / 60)).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0');
+  }
+
+  function log(msg, type = '') {
+    const el = document.getElementById('logEntries');
+    const div = document.createElement('div');
+    div.className = 'log-entry' + (type ? ' ' + type : '');
+    div.innerHTML = `<span class="ts">${ts()}</span>${msg}`;
+    el.appendChild(div);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function toggleLog() {
+    logExpanded = !logExpanded;
+    const pane = document.getElementById('logPane');
+    const btn = pane.querySelector('.log-toggle');
+    pane.classList.toggle('expanded', logExpanded);
+    btn.textContent = logExpanded ? '▼ collapse' : '▲ expand';
+  }
+
+  function setVariant(v, btn) {
+    document.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.variant-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + v).classList.add('active');
+    log(`switched to Variant ${v.toUpperCase()}`, 'interaction');
+    closeAllPopovers();
+  }
+
+  function toggleCat(header) {
+    const toggle = header.querySelector('.cat-toggle');
+    toggle.classList.toggle('open');
+    const content = header.nextElementSibling;
+    content.style.display = content.style.display === 'none' ? '' : 'none';
+  }
+
+  // Variant B accordion
+  function toggleAcc(id, triggerRow) {
+    const fees = document.getElementById(id);
+    const icon = triggerRow.querySelector('.acc-icon');
+    const isOpen = fees.style.display !== 'none';
+    fees.style.display = isOpen ? 'none' : '';
+    triggerRow.classList.toggle('expanded', !isOpen);
+    icon.textContent = isOpen ? '▶' : '▼';
+    log(`accordion ${isOpen ? 'collapsed' : 'expanded'}: ${id}`, 'interaction');
+  }
+
+  // Variant C popover
+  function closeAllPopovers() {
+    document.querySelectorAll('.fee-popover.show').forEach(p => p.classList.remove('show'));
+  }
+
+  function togglePopover(id, e) {
+    e.stopPropagation();
+    const pop = document.getElementById(id);
+    const wasShown = pop.classList.contains('show');
+    closeAllPopovers();
+    if (!wasShown) {
+      pop.classList.add('show');
+      log(`popover opened: ${id}`, 'interaction');
+    }
+  }
+
+  document.addEventListener('click', closeAllPopovers);
+</script>
+
+</body>
+</html>

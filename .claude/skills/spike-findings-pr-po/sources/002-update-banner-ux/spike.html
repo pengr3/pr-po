@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spike 002 — Update Banner UX</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1e293b; background: #f8fafc; min-height: 100vh; }
+
+    /* ── App mock ── */
+    .app-wrap { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* Variant A strip lives here, above the nav */
+    .strip-slot { overflow: hidden; height: 0; transition: height 0.3s cubic-bezier(0.4,0,0.2,1); }
+    .strip-slot.open { height: 46px; }
+    .strip-inner { background: #1557b0; color: white; height: 46px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+    .strip-text { font-size: 0.9375rem; display: flex; align-items: center; gap: 10px; }
+    .strip-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+    /* Nav bar */
+    .app-nav { background: #1a73e8; color: white; padding: 0 24px; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; flex-shrink: 0; }
+    .nav-brand { font-weight: 700; font-size: 1.0625rem; }
+    .nav-links { display: flex; gap: 2px; }
+    .nav-link { color: rgba(255,255,255,0.85); padding: 6px 12px; border-radius: 5px; font-size: 0.875rem; cursor: pointer; user-select: none; position: relative; }
+    .nav-link:hover { background: rgba(255,255,255,0.12); }
+    .nav-link.active { background: rgba(255,255,255,0.2); color: white; }
+
+    /* Variant C — nav badge */
+    .update-nav-item { display: none; }
+    .update-nav-item.show { display: block; }
+    .update-badge-dot { position: absolute; top: 5px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: #fbbf24; border: 1.5px solid #1a73e8; }
+    .nav-popover { position: absolute; top: calc(100% + 10px); right: 0; width: 276px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); display: none; z-index: 200; }
+    .nav-popover.show { display: block; }
+    .popover-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .popover-icon { width: 28px; height: 28px; border-radius: 6px; background: #fffbeb; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .popover-title { font-weight: 600; font-size: 0.875rem; color: #1e293b; }
+    .popover-body { font-size: 0.8125rem; color: #64748b; margin-bottom: 10px; line-height: 1.55; }
+    .popover-footer { display: flex; gap: 6px; }
+
+    /* Main content mock */
+    .app-content { max-width: 1100px; margin: 0 auto; padding: 28px 24px; flex: 1; }
+    .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 6px; }
+    .page-sub { font-size: 0.9375rem; color: #64748b; margin-bottom: 24px; }
+    .mock-card { background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 12px; }
+    .mock-row { height: 13px; background: #f1f5f9; border-radius: 3px; margin-bottom: 9px; }
+    .mock-row.short { width: 38%; }
+    .mock-row.medium { width: 62%; }
+    .mock-row:last-child { margin-bottom: 0; }
+    .mock-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .mock-field { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; height: 38px; }
+    .mock-label { height: 10px; background: #f1f5f9; border-radius: 3px; width: 80px; margin-bottom: 6px; }
+
+    /* ── Variant B: Bottom-right toast ── */
+    .toast { position: fixed; bottom: 24px; right: 24px; width: 338px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; box-shadow: 0 8px 28px rgba(0,0,0,0.12); transform: translateY(16px); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; z-index: 200; pointer-events: none; }
+    .toast.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
+    .toast-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .toast-icon { width: 36px; height: 36px; border-radius: 8px; background: #eff6ff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .toast-title { font-weight: 600; font-size: 0.9375rem; color: #1e293b; }
+    .toast-close { margin-left: auto; background: none; border: none; cursor: pointer; color: #94a3b8; font-size: 1.125rem; line-height: 1; padding: 2px; }
+    .toast-close:hover { color: #64748b; }
+    .toast-body { font-size: 0.875rem; color: #475569; margin-bottom: 12px; line-height: 1.55; }
+    .toast-footer { display: flex; gap: 8px; }
+
+    /* ── Buttons ── */
+    .btn { padding: 6px 14px; border-radius: 5px; border: none; cursor: pointer; font-size: 0.875rem; font-weight: 500; line-height: 1.4; }
+    .btn-sm { padding: 5px 11px; font-size: 0.8125rem; }
+    .btn-primary { background: #1a73e8; color: white; }
+    .btn-primary:hover { background: #1557b0; }
+    .btn-secondary { background: #f1f5f9; color: #475569; }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn-white { background: white; color: #1557b0; }
+    .btn-white:hover { background: #f0f7ff; }
+    .btn-ghost { background: transparent; color: rgba(255,255,255,0.8); border: 1px solid rgba(255,255,255,0.4); }
+    .btn-ghost:hover { color: white; border-color: rgba(255,255,255,0.6); }
+
+    /* ── Controls overlay ── */
+    .controls { position: fixed; bottom: 24px; left: 24px; z-index: 300; }
+    .ctrl-card { background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); min-width: 210px; }
+    .ctrl-heading { font-size: 0.6875rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
+    .ctrl-btns { display: flex; flex-direction: column; gap: 5px; }
+    .ctrl-btn { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 0.8125rem; color: #475569; text-align: left; display: flex; align-items: center; gap: 10px; transition: background 0.15s; }
+    .ctrl-btn:hover { background: #f1f5f9; color: #1e293b; }
+    .ctrl-letter { background: #1a73e8; color: white; width: 20px; height: 20px; border-radius: 4px; font-size: 0.6875rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ctrl-divider { height: 1px; background: #f1f5f9; margin: 4px 0; }
+    .ctrl-btn.reset { color: #ef4444; }
+    .ctrl-btn.reset:hover { background: #fef2f2; }
+
+    /* Active state for ctrl buttons */
+    .ctrl-btn.active { background: #eff6ff; border-color: #bfdbfe; color: #1a73e8; }
+  </style>
+</head>
+<body>
+
+<div class="app-wrap" id="appWrap">
+
+  <!-- Variant A: Top strip (pushes nav down) -->
+  <div class="strip-slot" id="stripSlot">
+    <div class="strip-inner">
+      <div class="strip-text">
+        <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/></svg>
+        A new version is available — refresh to get the latest updates.
+      </div>
+      <div class="strip-actions">
+        <button class="btn btn-white" onclick="location.reload()">Refresh Now</button>
+        <button class="btn btn-ghost" onclick="hideA()">Dismiss</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nav bar -->
+  <nav class="app-nav">
+    <div class="nav-brand">CLMC Procurement</div>
+    <div class="nav-links">
+      <div class="nav-link active">Dashboard</div>
+      <div class="nav-link">MRF Form</div>
+      <div class="nav-link">Procurement</div>
+      <div class="nav-link">Finance</div>
+      <!-- Variant C: update nav item -->
+      <div class="nav-link update-nav-item" id="updateNavItem" onclick="togglePopover()">
+        Updates
+        <span class="update-badge-dot"></span>
+        <div class="nav-popover" id="navPopover" onclick="event.stopPropagation()">
+          <div class="popover-header">
+            <div class="popover-icon">
+              <svg width="15" height="15" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </div>
+            <div class="popover-title">Update available</div>
+          </div>
+          <div class="popover-body">A new version of CLMC Procurement has been deployed. Refresh to get the latest changes.</div>
+          <div class="popover-footer">
+            <button class="btn btn-primary btn-sm" onclick="location.reload()">Refresh Now</button>
+            <button class="btn btn-secondary btn-sm" onclick="hideC()">Later</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Mock page content -->
+  <div class="app-content">
+    <div class="page-title">Dashboard</div>
+    <div class="page-sub">Overview of procurement activity — CLMC Engineering</div>
+    <div class="mock-card">
+      <div class="mock-row"></div>
+      <div class="mock-row medium"></div>
+      <div class="mock-row short"></div>
+    </div>
+    <div class="mock-card">
+      <div style="font-size:0.875rem;font-weight:600;color:#64748b;margin-bottom:14px;text-transform:uppercase;letter-spacing:0.05em;font-size:0.75rem;">Active MRF (example form)</div>
+      <div class="mock-form">
+        <div><div class="mock-label"></div><div class="mock-field"></div></div>
+        <div><div class="mock-label"></div><div class="mock-field"></div></div>
+        <div><div class="mock-label"></div><div class="mock-field"></div></div>
+        <div><div class="mock-label"></div><div class="mock-field"></div></div>
+      </div>
+    </div>
+    <div class="mock-card">
+      <div class="mock-row"></div>
+      <div class="mock-row medium"></div>
+    </div>
+  </div>
+
+</div><!-- /app-wrap -->
+
+<!-- Variant B: Toast -->
+<div class="toast" id="toast">
+  <div class="toast-header">
+    <div class="toast-icon">
+      <svg width="18" height="18" fill="none" stroke="#1a73e8" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+    </div>
+    <div class="toast-title">Update Available</div>
+    <button class="toast-close" onclick="hideB()">×</button>
+  </div>
+  <div class="toast-body">A new version of CLMC Procurement has been deployed. Refresh to pick up the latest changes.</div>
+  <div class="toast-footer">
+    <button class="btn btn-primary btn-sm" onclick="location.reload()">Refresh Now</button>
+    <button class="btn btn-secondary btn-sm" onclick="hideB()">Later</button>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <div class="ctrl-card">
+    <div class="ctrl-heading">Try each variant</div>
+    <div class="ctrl-btns">
+      <button class="ctrl-btn" id="btnA" onclick="showA()">
+        <span class="ctrl-letter">A</span>
+        Top strip banner
+      </button>
+      <button class="ctrl-btn" id="btnB" onclick="showB()">
+        <span class="ctrl-letter">B</span>
+        Bottom-right toast
+      </button>
+      <button class="ctrl-btn" id="btnC" onclick="showC()">
+        <span class="ctrl-letter">C</span>
+        Nav badge + popover
+      </button>
+      <div class="ctrl-divider"></div>
+      <button class="ctrl-btn reset" onclick="resetAll()">Reset all</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showA() {
+    document.getElementById('stripSlot').classList.add('open');
+    document.getElementById('btnA').classList.add('active');
+  }
+  function hideA() {
+    document.getElementById('stripSlot').classList.remove('open');
+    document.getElementById('btnA').classList.remove('active');
+  }
+
+  function showB() {
+    document.getElementById('toast').classList.add('show');
+    document.getElementById('btnB').classList.add('active');
+  }
+  function hideB() {
+    document.getElementById('toast').classList.remove('show');
+    document.getElementById('btnB').classList.remove('active');
+  }
+
+  function showC() {
+    document.getElementById('updateNavItem').classList.add('show');
+    document.getElementById('btnC').classList.add('active');
+  }
+  function hideC() {
+    document.getElementById('navPopover').classList.remove('show');
+    document.getElementById('updateNavItem').classList.remove('show');
+    document.getElementById('btnC').classList.remove('active');
+  }
+  function togglePopover() {
+    document.getElementById('navPopover').classList.toggle('show');
+  }
+
+  function resetAll() {
+    hideA(); hideB(); hideC();
+  }
+
+  // Close popover when clicking outside
+  document.addEventListener('click', (e) => {
+    const navItem = document.getElementById('updateNavItem');
+    if (!navItem.contains(e.target)) {
+      document.getElementById('navPopover').classList.remove('show');
+    }
+  });
+</script>
+</body>
+</html>

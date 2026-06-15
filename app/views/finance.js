@@ -3,11 +3,13 @@
    PR/TR Approval, PO Generation, Project Expenses
    ======================================== */
 
-import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, getAggregateFromServer, sum, count, serverTimestamp, arrayUnion, arrayRemove } from '../firebase.js';
-import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp, getStatusClass, downloadCSV, escapeHTML } from '../utils.js';
+import { db, collection, query, where, onSnapshot, getDocs, getDoc, doc, updateDoc, addDoc, deleteDoc, getAggregateFromServer, sum, count, serverTimestamp, arrayUnion, arrayRemove } from '../firebase.js';
+import { showToast, showLoading, formatCurrency, formatDate, formatTimestamp, getStatusClass, downloadCSV, escapeHTML, getRFPTotal, getRFPFees, getRFPFeeBreakdown } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { getMRFLabel, getDeptBadgeHTML, skeletonTableRows, createModal } from '../components.js';
 import { showProofModal } from '../proof-modal.js';
+import { createNotification, NOTIFICATION_TYPES, createNotificationForRoles, createNotificationForUsers } from '../notifications.js';
+import { generateCollectibleId } from '../coll-id.js';
 
 // ========================================
 // UTILITY: Debounce helper for search inputs
@@ -24,6 +26,61 @@ function debounce(callback, wait) {
     };
 }
 
+/* ===== Phase 91.3 — RFP fee display (cue pill + tooltip + breakdown card) ===== */
+
+// Monotonic id source so each cue gets a UNIQUE DOM id — the same RFP renders in both
+// the RFP table and the PO-summary sub-table, so an rfp_id-keyed id would collide.
+let _feeCueSeq = 0;
+
+// Collapsed "incl. fees" cue pill + breakdown tooltip. Returns '' for legacy/no-fee RFPs.
+// Labels are RAW from the breakdown — ALWAYS escapeHTML before interpolation (T-91.3-02).
+function renderFeeCue(rfp) {
+    const bd = getRFPFeeBreakdown(rfp);
+    if (!bd.hasFees) return '';
+    const cueId = `cue-${++_feeCueSeq}`;
+    const lines = bd.lines.map(l =>
+        `<div style="display:flex;justify-content:space-between;gap:12px;"><span>${escapeHTML(l.label)}</span><span style="font-variant-numeric:tabular-nums;">${formatCurrency(l.amount)}</span></div>`
+    ).join('');
+    const totalRow = `<div style="display:flex;justify-content:space-between;gap:12px;border-top:1px solid #334155;margin-top:6px;padding-top:6px;font-weight:700;"><span>Total</span><span style="font-variant-numeric:tabular-nums;">${formatCurrency(bd.grandTotal)}</span></div>`;
+    return `<span style="position:relative;display:inline-block;">`
+        + `<span id="${cueId}" class="cue" role="button" tabindex="0" aria-expanded="false" `
+        + `onclick="window.toggleFeeCue('${cueId}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.toggleFeeCue('${cueId}')}">incl. fees</span>`
+        + `<span class="cue-tip">${lines}${totalRow}</span>`
+        + `</span>`;
+}
+
+// Touch fallback: tap toggles the tooltip open (desktop uses CSS :hover from Plan 04).
+function toggleFeeCue(cueId) {
+    const cue = document.getElementById(cueId);
+    if (!cue) return;
+    const open = cue.classList.toggle('cue-open');
+    cue.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+window.toggleFeeCue = toggleFeeCue;
+
+// D-07 canonical itemization card (Base → fees → Grand total) for the record-payment modal.
+// Legacy/no-fee RFP → Base + Grand total equal, no fee lines, no pill. Labels escaped (T-91.3-02).
+function renderFeeBreakdownCard(rfp) {
+    const bd = getRFPFeeBreakdown(rfp);
+    const feeLines = bd.lines.filter(l => l.kind !== 'base').map(l =>
+        `<div style="display:flex;justify-content:space-between;padding-left:12px;font-size:0.8rem;color:#475569;"><span>${escapeHTML(l.label)}</span><span style="font-variant-numeric:tabular-nums;">${formatCurrency(l.amount)}</span></div>`
+    ).join('');
+    const pill = bd.hasFees ? `<span class="cue">incl. fees</span>` : '';
+    return `<div class="fee-card" style="grid-column:span 2;">
+        <div style="font-size:0.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#64748b;margin-bottom:6px;">Amount breakdown</div>
+        <div style="display:flex;justify-content:space-between;font-size:0.875rem;"><span>Base amount</span><span style="font-variant-numeric:tabular-nums;">${formatCurrency(bd.base)}</span></div>
+        ${feeLines}
+        <div class="grand" style="display:flex;justify-content:space-between;align-items:baseline;border-top:1px dashed #bae6fd;margin-top:6px;padding-top:6px;"><span style="font-weight:700;">Grand total ${pill}</span><span class="amt">${formatCurrency(bd.grandTotal)}</span></div>
+    </div>`;
+}
+
+// PO Payment Summary roll-up note (D-16). Fees summed over regular (non-Delivery-Fee) RFPs —
+// matches the feesTotal derivePOSummary already folded into the fee-inclusive Total payable.
+function renderPOFeeSubnote(po) {
+    const poFees = (po.rfps || []).filter(r => r.tranche_label !== 'Delivery Fee').reduce((s, r) => s + getRFPFees(r).feesTotal, 0);
+    return poFees > 0 ? `<div class="fee-subnote">incl. ${formatCurrency(poFees)} fees</div>` : '';
+}
+
 /**
  * Derive RFP payment status from payment_records arithmetic.
  * Status is NEVER stored in Firestore — always computed at render time.
@@ -34,10 +91,76 @@ function deriveRFPStatus(rfp) {
         .filter(r => r.status !== 'voided')
         .reduce((s, r) => s + (r.amount || 0), 0);
     const isOverdue = rfp.due_date && new Date(rfp.due_date) < new Date();
-    if (totalPaid >= rfp.amount_requested && rfp.amount_requested > 0) return 'Fully Paid';
+    const total = getRFPTotal(rfp);
+    if (totalPaid >= total && total > 0) return 'Fully Paid';
     if (isOverdue) return 'Overdue';
     if (totalPaid > 0) return 'Partially Paid';
     return 'Pending';
+}
+
+/**
+ * Derive collectible payment status from payment_records arithmetic.
+ * Status is NEVER stored in Firestore — always computed at render time (D-19).
+ * Priority: Fully Paid > Overdue > Partially Paid > Pending (D-18)
+ *
+ * NOTE: This logic is also inlined inside app/expense-modal.js (Plan 85-08
+ * Collectibles tab). If you change the priority order or formula here, mirror
+ * the change there too — captured for v4.1 hygiene phase as a duplication.
+ */
+function deriveCollectibleStatus(coll) {
+    const totalPaid = (coll.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const isOverdue = getCollectibleUrgency(coll).isOverdue;
+    if (totalPaid >= coll.amount_requested && coll.amount_requested > 0) return 'Fully Paid';
+    if (isOverdue) return 'Overdue';
+    if (totalPaid > 0) return 'Partially Paid';
+    return 'Pending';
+}
+
+/**
+ * SINGLE SOURCE OF TRUTH for collectible urgency + the overdue definition (Phase 99.2, D-08b).
+ * The scorecard Overdue chip, the 6 row urgency tiers, the relative-due string, and the mobile
+ * card border ALL consume this — the overdue threshold is defined here and nowhere else.
+ * Returns { tier, daysOverdue, daysUntilDue, isOverdue } where
+ *   tier ∈ 'critical'|'overdue'|'near-due'|'partial'|'healthy'|'paid' → CSS class `coll-urgency-${tier}`.
+ * A collectible with no due_date is never overdue/critical/near-due (returns healthy or partial).
+ */
+function getCollectibleUrgency(coll) {
+    const totalPaid = (coll.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const amt = parseFloat(coll.amount_requested) || 0;
+    const fullyPaid = totalPaid >= amt && amt > 0;
+    // ONE overdue definition (D-08b). Day-granularity diff from today (local midnight).
+    let daysOverdue = 0, daysUntilDue = null, isOverdue = false;
+    if (coll.due_date) {
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const due = new Date(coll.due_date + 'T00:00:00');
+        const diffDays = Math.round((due - today) / 86400000);
+        if (diffDays < 0) { isOverdue = !fullyPaid; daysOverdue = -diffDays; }
+        else { daysUntilDue = diffDays; }
+    }
+    let tier;
+    if (fullyPaid) tier = 'paid';
+    else if (isOverdue && daysOverdue >= 30) tier = 'critical';
+    else if (isOverdue) tier = 'overdue';                 // 1–29
+    else if (daysUntilDue !== null && daysUntilDue <= 7) tier = 'near-due';
+    else if (totalPaid > 0) tier = 'partial';
+    else tier = 'healthy';
+    return { tier, daysOverdue, daysUntilDue, isOverdue };
+}
+
+/**
+ * Newest non-voided payment record for a collectible (Phase 99.2, D-08a) — drives the
+ * Last Payment column. Filters out voided records BEFORE picking the max by `date`.
+ * Returns the record { amount, date, method, status } or null when none.
+ */
+function getCollectibleLastPayment(coll) {
+    const recs = (coll.payment_records || []).filter(r => r.status !== 'voided');
+    if (recs.length === 0) return null;
+    return recs.reduce((latest, r) =>
+        (!latest || (r.date || '') > (latest.date || '')) ? r : latest, null);
 }
 
 // Status badge color map — shared by renderRFPTable and renderPOSummaryTable
@@ -86,6 +209,7 @@ let currentApprovalTarget = null;
 let rfpsData = [];                // all RFP documents from onSnapshot
 let posAmountMap = new Map();     // po_id -> total_amount from PO document
 let posNameMap = new Map();       // po_id -> { project_name, service_name } from PO document
+let posDocIdMap = new Map();      // po_id (human-readable) -> Firestore doc id (authoritative; the stored RFP doc-id field is unreliable/empty on some docs — Phase 98 gap fix)
 // Table 1 (RFP Processing) filter state
 let rfpStatusFilter = '';
 let rfpDeptFilter = '';
@@ -98,6 +222,30 @@ let poSummarySearchQuery = '';
 let poSummaryCurrentPage = 1;
 // POSUMPAG-01 (Phase 75 reconciliation): spec amended from 10 to 15 to match user-preferred page size — see REQUIREMENTS.md
 const poSummaryItemsPerPage = 15;
+
+// Collectibles tab state (Phase 85)
+let collectiblesData = [];               // all collectible documents from onSnapshot
+let projectsForCollMap = new Map();      // project_code -> { name, contract_cost, collection_tranches }
+let servicesForCollMap = new Map();      // service_code -> { name, contract_cost, collection_tranches }
+// Phase 99 — pending billing requests (Finance review queue, D-14)
+let pendingBillingRequests = [];
+let billingBannerCollapsed = false;
+// Phase 99.2 — approved-not-filed recovery (D-03/D-04)
+let approvedBillingRequests = [];        // approved requests, reconciled against collectiblesData for orphans
+let approvedBannerCollapsed = false;     // independent collapse for sub-section 2
+// Filter state (D-03 — independence pattern from Phase 65.1)
+let collSearchQuery = '';                // Phase 99.3 — free-text over name/tranche/COLL id/code
+let collStatusFilter = '';
+let collDeptFilter = '';                 // 'projects' | 'services' | ''
+let collDuePreset = '';                  // Phase 99.3 — '', today, yesterday, this_month, last7, last30, fixed
+let collDueFromFilter = '';              // 'YYYY-MM-DD' or '' — EFFECTIVE Fixed-range From (preset-computed or typed)
+let collDueToFilter = '';                // EFFECTIVE Fixed-range To
+// Pagination state (D-04, mirrors Phase 65.7)
+let collCurrentPage = 1;
+const collItemsPerPage = 15;
+let collShowCompleted = false;   // Phase 99.2 D-05b — fully-paid rows hidden by default
+let collGroupBy = false;          // Phase 99.3 — flat (false) vs grouped accordion (true)
+let collGroupExpanded = {};       // Phase 99.3 — { [projOrSvcKey]: true } expanded groups (default collapsed)
 
 // Sort state for Project List
 let projectExpenseSortColumn = 'projectName';
@@ -224,6 +372,7 @@ function attachWindowFunctions() {
     window.promptPODocument = promptPODocument;
     window.generatePODocument = generatePODocument;
     window.viewPODetailsFromRFP = viewPODetailsFromRFP;
+    window.viewTRDetailsFromRFP = viewTRDetailsFromRFP;
 
     // Proof URL helper — uses shared modal from proof-modal.js
     window.financeShowProofModal = function(poId, currentUrl, currentRemarks) {
@@ -271,6 +420,45 @@ function attachWindowFunctions() {
     window.openRecordPaymentModal = openRecordPaymentModal;
     window.voidPaymentRecord = voidPaymentRecord;
     window.submitPaymentRecord = submitPaymentRecord;
+
+    // Collectibles tab window functions (Phase 85, Plan 05 — read-side)
+    window.filterCollectiblesTable = filterCollectiblesTable;
+    window.changeCollectiblesPage = changeCollectiblesPage;
+    window.toggleCollShowCompleted = toggleCollShowCompleted;   // Phase 99.2 — fully-paid hide toggle
+    // Phase 99.3 — Looker-style date-range popover handlers
+    window.toggleCollDatePicker = toggleCollDatePicker;
+    window.selectCollDuePreset = selectCollDuePreset;
+    window.onCollFixedRangeChange = onCollFixedRangeChange;
+    // Phase 99.3 — group-by-Project accordion
+    window.toggleCollGroupBy = toggleCollGroupBy;
+    window.toggleCollGroup = toggleCollGroup;
+
+    // Collectibles tab — write-side (Plan 06): direct assignments override any
+    // pre-existing Plan 05 defensive stubs. Unconditional per Plan 06 contract.
+    // Task 1: create + edit
+    window.openCreateCollectibleModal = openCreateCollectibleModal;
+    window.submitCollectible = submitCollectible;
+    window.openEditCollectibleModal = openEditCollectibleModal;
+    window.submitEditCollectible = submitEditCollectible;
+    window._refreshCreateCollProjectDropdown = _refreshCreateCollProjectDropdown;
+    window._refreshCreateCollTrancheDropdown = _refreshCreateCollTrancheDropdown;
+    // Task 2: payment recording + voiding + history
+    window.openRecordCollectiblePaymentModal = openRecordCollectiblePaymentModal;
+    window.submitCollectiblePayment = submitCollectiblePayment;
+    window.voidCollectiblePayment = voidCollectiblePayment;
+    window.toggleCollPaymentHistory = toggleCollPaymentHistory;
+    window.toggleCollPaymentOtherField = toggleCollPaymentOtherField;
+    // Task 3: cancel + context menu + CSV export
+    window.cancelCollectible = cancelCollectible;
+    window.showCollectibleContextMenu = showCollectibleContextMenu;
+    window.exportCollectiblesCSV = exportCollectiblesCSV;
+    // Phase 99 — billing request review queue (banner collapse toggle + approve/reject)
+    window.toggleBillingBanner = () => { billingBannerCollapsed = !billingBannerCollapsed; renderPendingBillingBanner(); };
+    window.approveBillingRequest = approveBillingRequest;
+    window.rejectBillingRequest = rejectBillingRequest;
+    // Phase 99.2 — approved-not-filed recovery sub-section
+    window.toggleApprovedBanner = () => { approvedBannerCollapsed = !approvedBannerCollapsed; renderPendingBillingBanner(); };
+    window.fileCollectibleFromBanner = fileCollectibleFromBanner;
 }
 
 // ========================================
@@ -330,7 +518,8 @@ function openRecordPaymentModal(rfpDocId) {
 
     // Determine if RFP is fully paid to conditionally show/hide the new-payment form
     const totalActivePaid = activeRecords.reduce((s, r) => s + (r.amount || 0), 0);
-    const isFullyPaid = totalActivePaid >= (rfp.amount_requested || 0) && (rfp.amount_requested || 0) > 0;
+    const rfpTotal = getRFPTotal(rfp);
+    const isFullyPaid = totalActivePaid >= rfpTotal && rfpTotal > 0;
 
     const newPaymentFormHtml = isFullyPaid
         ? `<div style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;color:#065f46;font-size:0.875rem;">
@@ -339,7 +528,7 @@ function openRecordPaymentModal(rfpDocId) {
         : `<div style="display:flex;flex-direction:column;gap:1rem;">
                 <div>
                     <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount</label>
-                    <input type="text" id="paymentAmount" class="form-control" value="${formatCurrency(rfp.amount_requested || 0)}" readonly
+                    <input type="text" id="paymentAmount" class="form-control" value="${formatCurrency(getRFPTotal(rfp))}" readonly
                            style="width:100%;background:#f1f5f9;cursor:not-allowed;">
                 </div>
                 <div>
@@ -371,10 +560,7 @@ function openRecordPaymentModal(rfpDocId) {
                         <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Supplier</div>
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(rfp.supplier_name)}</div>
                     </div>
-                    <div>
-                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">RFP Amount</div>
-                        <div style="font-weight:600;color:#1e293b;">${formatCurrency(rfp.amount_requested || 0)}</div>
-                    </div>
+                    ${renderFeeBreakdownCard(rfp)}
                     <div style="grid-column:span 2;">
                         <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Mode of Payment</div>
                         <div style="font-weight:600;color:#1e293b;">${escapeHTML(rfp.mode_of_payment || 'Not specified')}</div>
@@ -420,7 +606,7 @@ async function submitPaymentRecord(rfpDocId) {
 
     const paymentRecord = {
         payment_id: `PAY-${Date.now()}`,
-        amount: rfp.amount_requested,
+        amount: getRFPTotal(rfp),
         date: paymentDate,
         method: rfp.mode_of_payment || '',
         reference: reference,
@@ -432,6 +618,32 @@ async function submitPaymentRecord(rfpDocId) {
         await updateDoc(doc(db, 'rfps', rfpDocId), {
             payment_records: arrayUnion(paymentRecord)
         });
+
+        // Phase 84.1 NOTIF-16: notify RFP creator that the RFP is now Fully Paid (fire-and-forget).
+        // Trigger condition: this payment record causes the RFP's total_paid to reach amount_requested.
+        try {
+            const priorPaid = (rfp.payment_records || [])
+                .filter(r => r.status !== 'voided')
+                .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+            const newTotal = priorPaid + (parseFloat(paymentRecord.amount) || 0);
+            const rfpTotal = getRFPTotal(rfp);
+            const becomesFullyPaid = newTotal >= rfpTotal && rfpTotal > 0;
+            if (becomesFullyPaid && rfp.rfp_creator_user_id) {
+                await createNotification({
+                    user_id: rfp.rfp_creator_user_id,
+                    type: NOTIFICATION_TYPES.RFP_PAID,
+                    message: `RFP ${rfp.rfp_id} for PO ${rfp.po_id || rfp.tr_id || ''} has been marked Paid`,
+                    link: '#/finance/payables',
+                    source_collection: 'rfps',
+                    source_id: rfp.rfp_id || '',
+                    object_name: rfp.supplier_name || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Finance] NOTIF-16 RFP Paid notification failed:', notifErr);
+        }
+
         document.getElementById('recordPaymentModal')?.remove();
         showToast(`Payment recorded for ${rfp.rfp_id}`, 'success');
     } catch (error) {
@@ -603,7 +815,7 @@ function buildRFPCard(rfp) {
     const totalPaid = (rfp.payment_records || [])
         .filter(r => r.status !== 'voided')
         .reduce((s, r) => s + (r.amount || 0), 0);
-    const balance = (rfp.amount_requested || 0) - totalPaid;
+    const balance = getRFPTotal(rfp) - totalPaid;
     const isOverdue = status === 'Overdue';
     const deptLabel = rfp.service_code
         ? escapeHTML(rfp.service_code)
@@ -619,9 +831,9 @@ function buildRFPCard(rfp) {
         : '';
 
     const poRefDisplay = rfp.po_id
-        ? '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + (rfp.po_doc_id || '') + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">' + escapeHTML(rfp.po_id) + '</a>'
+        ? '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + rfp.po_id + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">' + escapeHTML(rfp.po_id) + '</a>'
         : rfp.tr_id
-        ? '<span style="color:#1e293b;font-weight:600;">' + escapeHTML(rfp.tr_id) + '</span>'
+        ? '<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP(\'' + rfp.tr_id + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">' + escapeHTML(rfp.tr_id) + '</a>'
         : '<span style="color:#999;">-</span>';
 
     return `
@@ -635,7 +847,7 @@ function buildRFPCard(rfp) {
                 <div class="fc-card-row"><span class="fc-label">PO Ref</span><span class="fc-value">${poRefDisplay}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Project / Service</span><span class="fc-value">${deptLabel}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Tranche</span><span class="fc-value">${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</span></div>
-                <div class="fc-card-row"><span class="fc-label">Amount</span><span class="fc-value fc-amount">${formatCurrency(rfp.amount_requested || 0)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Amount</span><span class="fc-value fc-amount">${formatCurrency(getRFPTotal(rfp))}${renderFeeCue(rfp)}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Paid</span><span class="fc-value">${formatCurrency(totalPaid)}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Balance</span><span class="fc-value">${formatCurrency(balance)}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Due Date</span><span class="fc-value">${rfp.due_date || 'N/A'}</span></div>
@@ -710,7 +922,7 @@ function renderRFPTable() {
         const totalPaid = (rfp.payment_records || [])
             .filter(r => r.status !== 'voided')
             .reduce((s, r) => s + (r.amount || 0), 0);
-        const balance = (rfp.amount_requested || 0) - totalPaid;
+        const balance = getRFPTotal(rfp) - totalPaid;
         const isOverdue = status === 'Overdue';
         const deptCode = rfp.service_code || rfp.project_code || '';
         const poNames = posNameMap.get(rfp.po_id) || {};
@@ -731,9 +943,9 @@ function renderRFPTable() {
             <td style="font-weight:600;">${escapeHTML(rfp.rfp_id || '')}</td>
             <td>${escapeHTML(rfp.supplier_name || '')}</td>
             <td>${rfp.po_id
-                ? `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${rfp.po_doc_id || ''}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.po_id)}</a>`
+                ? `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${rfp.po_id}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.po_id)}</a>`
                 : rfp.tr_id
-                ? `<span style="color:#1e293b;font-weight:600;">${escapeHTML(rfp.tr_id)}</span>`
+                ? `<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP('${rfp.tr_id}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;">${escapeHTML(rfp.tr_id)}</a>`
                 : '<span style="color:#999;">-</span>'
             }</td>
             <td>${deptLabel}</td>
@@ -741,7 +953,7 @@ function renderRFPTable() {
                 ? `<a href="${escapeHTML(rfp.invoice_number)}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;text-decoration:none;">View</a>`
                 : escapeHTML(rfp.invoice_number || '-')}</td>
             <td>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</td>
-            <td style="text-align:right;">${formatCurrency(rfp.amount_requested || 0)}</td>
+            <td style="text-align:right;">${formatCurrency(getRFPTotal(rfp))}${renderFeeCue(rfp)}</td>
             <td style="text-align:right;">${formatCurrency(totalPaid)}</td>
             <td style="text-align:right;">${formatCurrency(balance)}</td>
             <td>${rfp.due_date || 'N/A'}</td>
@@ -792,7 +1004,7 @@ function buildPOMap(rfps) {
 /**
  * Compute aggregate totals and overall status for a PO from its RFP list.
  * D-09: Current Active Tranche = first non-Fully-Paid tranche by tranche_percentage asc.
- * D-10: Total Amount = sum of amount_requested across all RFPs.
+ * D-10: Total Amount = fee-inclusive total (base + supplementary fees) across all RFPs.
  * D-11: Total Paid = sum of non-voided payment records across all RFPs.
  * D-12: Remaining = Total Amount - Total Paid.
  * D-13: Overall Status: Fully Paid > Overdue > Partially Paid > Pending.
@@ -807,9 +1019,11 @@ function derivePOSummary(rfpList, poTotalAmount) {
         (a.tranche_percentage || 0) - (b.tranche_percentage || 0)
     );
 
+    // Phase 91.3: fees across the regular (non-Delivery-Fee) RFPs of this PO
+    const feesTotal = regularRFPs.reduce((s, r) => s + getRFPFees(r).feesTotal, 0);
     const totalAmount = (poTotalAmount != null && poTotalAmount > 0)
-        ? poTotalAmount
-        : regularRFPs.reduce((s, r) => s + (r.amount_requested || 0), 0);
+        ? poTotalAmount + feesTotal                              // ⚠ add fees ON TOP of the authoritative PO total
+        : regularRFPs.reduce((s, r) => s + getRFPTotal(r), 0);   // fee-inclusive RFP sum
 
     const totalPaid = regularRFPs.reduce((s, r) => {
         return s + (r.payment_records || [])
@@ -868,7 +1082,7 @@ function buildPOTrancheSubCard(rfp) {
     const rfpTotalPaid = (rfp.payment_records || [])
         .filter(r => r.status !== 'voided')
         .reduce((s, r) => s + (r.amount || 0), 0);
-    const rfpBalance = (rfp.amount_requested || 0) - rfpTotalPaid;
+    const rfpBalance = getRFPTotal(rfp) - rfpTotalPaid;
     const rfpBadgeStyle = statusBadgeColors[rfpStatus] || '';
 
     const canEdit = window.canEditTab?.('finance');
@@ -887,7 +1101,7 @@ function buildPOTrancheSubCard(rfp) {
             </div>
             <div style="display:flex;flex-direction:column;gap:0.25rem;font-size:0.75rem;">
                 <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Tranche</span><span>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</span></div>
-                <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Amount</span><span>${formatCurrency(rfp.amount_requested || 0)}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Amount</span><span>${formatCurrency(getRFPTotal(rfp))}${renderFeeCue(rfp)}</span></div>
                 <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Paid</span><span>${formatCurrency(rfpTotalPaid)}</span></div>
                 <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Balance</span><span>${formatCurrency(rfpBalance)}</span></div>
                 <div style="display:flex;justify-content:space-between;"><span style="color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;">Due Date</span><span>${rfp.due_date || 'N/A'}</span></div>
@@ -907,7 +1121,7 @@ function buildPOSummaryCard(po) {
     const safePoId = po.poId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
     const refDisplay = po.isTR
-        ? '<span style="font-weight:600;color:#1e293b;">' + escapeHTML(po.poId) + '</span>'
+        ? '<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP(\'' + po.poId + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">' + escapeHTML(po.poId) + '</a>'
         : '<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP(\'' + po.poId + '\')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">' + escapeHTML(po.poId) + '</a>';
 
     const subCards = po.sortedRFPs.map(rfp => buildPOTrancheSubCard(rfp)).join('');
@@ -922,7 +1136,7 @@ function buildPOSummaryCard(po) {
                 <div class="fc-card-row"><span class="fc-label">Supplier</span><span class="fc-value">${escapeHTML(po.supplier || '')}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Project / Service</span><span class="fc-value">${po.deptLabel}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Current Active Tranche</span><span class="fc-value">${po.currentTranche}</span></div>
-                <div class="fc-card-row"><span class="fc-label">Total Amount</span><span class="fc-value">${formatCurrency(po.totalAmount)}</span></div>
+                <div class="fc-card-row"><span class="fc-label">Total Amount</span><span class="fc-value">${formatCurrency(po.totalAmount)}${renderPOFeeSubnote(po)}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Total Paid</span><span class="fc-value">${formatCurrency(po.totalPaid)}</span></div>
                 <div class="fc-card-row"><span class="fc-label">Remaining</span><span class="fc-value fc-amount">${formatCurrency(po.remaining)}</span></div>
             </div>
@@ -1032,7 +1246,7 @@ function renderPOSummaryTable() {
             const rfpTotalPaid = (rfp.payment_records || [])
                 .filter(r => r.status !== 'voided')
                 .reduce((s, r) => s + (r.amount || 0), 0);
-            const rfpBalance = (rfp.amount_requested || 0) - rfpTotalPaid;
+            const rfpBalance = getRFPTotal(rfp) - rfpTotalPaid;
             const rfpBadgeStyle = statusBadgeColors[rfpStatus] || '';
             const rfpIsOverdue = rfpStatus === 'Overdue';
 
@@ -1046,7 +1260,7 @@ function renderPOSummaryTable() {
             return `<tr style="${rfpIsOverdue ? 'background-color:#fef2f2;' : ''}">
                 <td style="font-weight:600;">${escapeHTML(rfp.rfp_id || '')}</td>
                 <td>${escapeHTML(rfp.tranche_label || '')} (${rfp.tranche_percentage || 0}%)</td>
-                <td style="text-align:right;">${formatCurrency(rfp.amount_requested || 0)}</td>
+                <td style="text-align:right;">${formatCurrency(getRFPTotal(rfp))}${renderFeeCue(rfp)}</td>
                 <td style="text-align:right;">${formatCurrency(rfpTotalPaid)}</td>
                 <td style="text-align:right;">${formatCurrency(rfpBalance)}</td>
                 <td>${rfp.due_date || 'N/A'}</td>
@@ -1073,7 +1287,7 @@ function renderPOSummaryTable() {
         const safePoId = po.poId.replace(/[^a-zA-Z0-9_-]/g, '_');
 
         const refDisplay = po.isTR
-            ? `<span style="font-weight:600;color:#1e293b;">${escapeHTML(po.poId)}</span>`
+            ? `<a href="javascript:void(0)" onclick="window.viewTRDetailsFromRFP('${po.poId}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">${escapeHTML(po.poId)}</a>`
             : `<a href="javascript:void(0)" onclick="window.viewPODetailsFromRFP('${po.poId}')" style="color:#1a73e8;text-decoration:none;cursor:pointer;font-weight:600;">${escapeHTML(po.poId)}</a>`;
 
         return `<tr style="${isOverdue ? 'background-color:#fef2f2;' : ''}">
@@ -1084,7 +1298,7 @@ function renderPOSummaryTable() {
             <td>${escapeHTML(po.supplier)}</td>
             <td>${po.deptLabel}</td>
             <td>${po.currentTranche}</td>
-            <td style="text-align:right;">${formatCurrency(po.totalAmount)}</td>
+            <td style="text-align:right;">${formatCurrency(po.totalAmount)}${renderPOFeeSubnote(po)}</td>
             <td style="text-align:right;">${formatCurrency(po.totalPaid)}</td>
             <td style="text-align:right;">${formatCurrency(po.remaining)}</td>
             <td><span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:600;${badgeStyle}">${po.overallStatus}</span></td>
@@ -1122,6 +1336,7 @@ async function initPayablesTab() {
     const posUnsub = onSnapshot(collection(db, 'pos'), (snapshot) => {
         posAmountMap = new Map();
         posNameMap = new Map();
+        posDocIdMap = new Map();
         snapshot.forEach(docSnap => {
             const data = docSnap.data();
             if (data.po_id) {
@@ -1132,6 +1347,9 @@ async function initPayablesTab() {
                     project_name: data.project_name || '',
                     service_name: data.service_name || ''
                 });
+                // po_id -> doc id, so the Ref link can resolve the PO without
+                // relying on the stored RFP doc-id field (empty on some RFP docs). Phase 98 gap fix.
+                posDocIdMap.set(data.po_id, docSnap.id);
             }
         });
         // Re-render both tables with updated PO data
@@ -1139,6 +1357,1846 @@ async function initPayablesTab() {
         renderPOSummaryTable();
     });
     listeners.push(posUnsub);
+}
+
+// ========================================
+// COLLECTIBLES TAB (Phase 85)
+// Read-only render pipeline: filter -> sort -> paginate.
+// Status auto-derived via deriveCollectibleStatus (D-19, never persisted).
+// Plan 06 layers CRUD modals + payment recording on top of these primitives.
+// ========================================
+
+/**
+ * Read the search/status/dept filter inputs into module state, reset page, and
+ * re-render (D-04: filter change resets to page 1). The due-date range is NOT
+ * read here — it's set by the date-picker handlers (selectCollDuePreset /
+ * onCollFixedRangeChange), which write the effective collDueFrom/ToFilter range.
+ */
+function filterCollectiblesTable() {
+    collSearchQuery = (document.getElementById('collSearchInput')?.value || '').trim().toLowerCase();
+    collStatusFilter = document.getElementById('collStatusFilter')?.value || '';
+    collDeptFilter = document.getElementById('collDeptFilter')?.value || '';
+    collCurrentPage = 1;
+    renderCollectiblesTable();
+}
+
+// Phase 99.3 — Looker-style preset -> effective due_date range (YYYY-MM-DD).
+// last7/last30 are ROLLING windows ending today; this_month = current calendar month.
+function computeCollDueRange(preset) {
+    const fmt = d => { const z = new Date(d); z.setHours(0,0,0,0);
+        return `${z.getFullYear()}-${String(z.getMonth()+1).padStart(2,'0')}-${String(z.getDate()).padStart(2,'0')}`; };
+    const t = new Date(); t.setHours(0,0,0,0);
+    if (preset === 'today')      return { from: fmt(t), to: fmt(t) };
+    if (preset === 'yesterday')  { const y = new Date(t); y.setDate(y.getDate()-1); return { from: fmt(y), to: fmt(y) }; }
+    if (preset === 'this_month') return { from: fmt(new Date(t.getFullYear(), t.getMonth(), 1)), to: fmt(new Date(t.getFullYear(), t.getMonth()+1, 0)) };
+    if (preset === 'last7')      { const f = new Date(t); f.setDate(f.getDate()-6);  return { from: fmt(f), to: fmt(t) }; }
+    if (preset === 'last30')     { const f = new Date(t); f.setDate(f.getDate()-29); return { from: fmt(f), to: fmt(t) }; }
+    return { from: '', to: '' }; // '' (Any time) and 'fixed' compute from inputs, not here
+}
+
+// Phase 99.3 — Looker-style date-range popover handlers (ported from spike-027c).
+function collDuePickerLabel() {
+    const labels = { '':'Due: Any time', today:'Due: Today', yesterday:'Due: Yesterday',
+        this_month:'Due: This month', last7:'Due: Last 7 days', last30:'Due: Last 30 days' };
+    if (collDuePreset === 'fixed') {
+        const f = collDueFromFilter || '…', t = collDueToFilter || '…';
+        return `Due: ${f} – ${t}`;
+    }
+    return labels[collDuePreset] || 'Due: Any time';
+}
+function refreshCollDatePickerUI() {
+    const lbl = document.getElementById('collDatePickerLabel'); if (lbl) lbl.textContent = collDuePickerLabel();
+    const btn = document.getElementById('collDatePickerBtn'); if (btn) btn.classList.toggle('active', !!collDuePreset);
+    document.querySelectorAll('.coll-dp-preset').forEach(el => el.classList.toggle('on', el.dataset.mode === collDuePreset));
+}
+function toggleCollDatePicker() {
+    const panel = document.getElementById('collDpPanel'); if (!panel) return;
+    // Open-state test is deterministic because EVERY close path writes display='none'
+    // (never '') — see collDpOutsideClose + selectCollDuePreset. No spike display:'' here.
+    const willOpen = panel.style.display === 'none';
+    panel.style.display = willOpen ? 'block' : 'none';
+    if (willOpen) setTimeout(() => document.addEventListener('click', collDpOutsideClose, { once: true }), 0);
+}
+function collDpOutsideClose(e) {
+    const wrap = document.getElementById('collDatePickerWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        const panel = document.getElementById('collDpPanel'); if (panel) panel.style.display = 'none';
+    } else {
+        document.addEventListener('click', collDpOutsideClose, { once: true });
+    }
+}
+function selectCollDuePreset(mode) {
+    collDuePreset = mode;
+    const fixed = document.getElementById('collDpFixed');
+    if (fixed) fixed.style.display = mode === 'fixed' ? 'block' : 'none';
+    if (mode !== 'fixed') {
+        // For ALL non-fixed presets (including '' = Any time, where r.from/r.to are '')
+        // overwrite both the effective-range STATE and the visible input .values, so a
+        // user who typed Fixed dates then picked Any time leaves NO stale input values.
+        const r = computeCollDueRange(mode);
+        collDueFromFilter = r.from; collDueToFilter = r.to;
+        const panel = document.getElementById('collDpPanel'); if (panel) panel.style.display = 'none';
+        const ff = document.getElementById('collDueFromFilter'); if (ff) ff.value = r.from; // r.from may be '' — intended clear
+        const ft = document.getElementById('collDueToFilter');   if (ft) ft.value = r.to;   // r.to may be ''  — intended clear
+    }
+    refreshCollDatePickerUI();
+    collCurrentPage = 1;
+    renderCollectiblesTable();
+}
+function onCollFixedRangeChange() {
+    collDueFromFilter = document.getElementById('collDueFromFilter')?.value || '';
+    collDueToFilter   = document.getElementById('collDueToFilter')?.value || '';
+    collDuePreset = 'fixed';
+    refreshCollDatePickerUI();
+    collCurrentPage = 1;
+    renderCollectiblesTable();
+}
+
+// Phase 99.3 — Group-by-Project toggle + per-group expand (spike-027c).
+function toggleCollGroupBy() {
+    collGroupBy = !collGroupBy;
+    collGroupExpanded = {};                 // every group starts collapsed
+    collCurrentPage = 1;
+    const btn = document.getElementById('collGroupByBtn');
+    if (btn) {
+        btn.textContent = collGroupBy ? '⊟ Ungroup' : '⊞ Group by Project';
+        btn.classList.toggle('active', collGroupBy);
+    }
+    renderCollectiblesTable();
+}
+function toggleCollGroup(key) {
+    collGroupExpanded[key] = !collGroupExpanded[key];
+    renderCollectiblesTable();
+}
+
+// Phase 99.3 — urgency-tier sort order (spike-027c URG_ORDER). Keys are the exact
+// tier strings from getCollectibleUrgency (D-08b single source). Lower = more urgent.
+const COLL_URG_ORDER = {
+    'critical': 0, 'overdue': 1, 'near-due': 2, 'partial': 3, 'healthy': 4, 'paid': 5
+};
+
+/**
+ * Pure helper: apply all filters and the urgency-tier sort to
+ * collectiblesData, returning the displayed slice (pre-pagination).
+ * Extracted so Plan 06's CSV export can reuse it.
+ *
+ * Sort (Phase 99.3, replaces the 99.2 status-priority sort): urgency tier
+ * critical → overdue → near-due → partial → healthy → paid via the shared
+ * getCollectibleUrgency helper (D-08b single source), secondary by due_date
+ * ascending. Most-urgent receivables surface first.
+ */
+function getDisplayedCollectibles() {
+    let displayed = [...collectiblesData];
+
+    // Department filter
+    if (collDeptFilter) {
+        displayed = displayed.filter(c => c.department === collDeptFilter);
+    }
+
+    // Status filter (status is derived, not stored). The "Near Due" sentinel maps to the
+    // canonical getCollectibleUrgency tier 'near-due' (<=7 days AND not overdue, finance.js:148)
+    // — deliberately narrower than a loose d<=7 test, so it agrees with Plan 02 group counts.
+    if (collStatusFilter === 'Near Due') {
+        displayed = displayed.filter(c => getCollectibleUrgency(c).tier === 'near-due');
+    } else if (collStatusFilter) {
+        displayed = displayed.filter(c => deriveCollectibleStatus(c) === collStatusFilter);
+    }
+
+    // Due-date range filter — string YYYY-MM-DD lexicographic compare (effective range:
+    // computed from the active preset, or the typed Fixed-range inputs).
+    if (collDueFromFilter) {
+        displayed = displayed.filter(c => c.due_date && c.due_date >= collDueFromFilter);
+    }
+    if (collDueToFilter) {
+        displayed = displayed.filter(c => c.due_date && c.due_date <= collDueToFilter);
+    }
+
+    // Free-text search — project/service name, tranche label, COLL id, project/service code.
+    if (collSearchQuery) {
+        displayed = displayed.filter(c => {
+            const name = c.department === 'projects'
+                ? (c.project_name || c.project_code || '')
+                : (c.service_name || c.service_code || '');
+            const code = c.department === 'projects' ? (c.project_code || '') : (c.service_code || '');
+            const hay = [name, c.tranche_label || '', c.coll_id || '', code].join(' ').toLowerCase();
+            return hay.includes(collSearchQuery);
+        });
+    }
+
+    // Phase 99.3 — urgency-first sort (replaces 99.2 status-priority sort).
+    displayed.sort((a, b) => {
+        const ua = COLL_URG_ORDER[getCollectibleUrgency(a).tier] ?? 4;
+        const ub = COLL_URG_ORDER[getCollectibleUrgency(b).tier] ?? 4;
+        if (ua !== ub) return ua - ub;
+        return (a.due_date || '').localeCompare(b.due_date || ''); // earlier due first within tier
+    });
+
+    return displayed;
+}
+
+/**
+ * Phase 99.2 — 4-chip reactive scorecard (D-02). Aggregates over the SAME
+ * `displayed` (filtered + post-hide) array the table paginates, so the chips
+ * can never diverge from the rows. The Overdue chip is omitted at ₱0.
+ * Overdue outstanding uses the shared getCollectibleUrgency helper (D-08b).
+ */
+function renderCollectiblesScorecard(displayed) {
+    const host = document.getElementById('collectiblesScorecard');
+    if (!host) return;
+    let invoiced = 0, collected = 0, overdueOutstanding = 0;
+    displayed.forEach(coll => {
+        const amt = parseFloat(coll.amount_requested) || 0;
+        const paid = (coll.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+        invoiced += amt;
+        collected += paid;
+        if (getCollectibleUrgency(coll).isOverdue) overdueOutstanding += (amt - paid); // shared helper (D-08b)
+    });
+    const outstanding = invoiced - collected;
+    const pct = invoiced > 0 ? Math.round((collected / invoiced) * 100) : 0;
+    const n = displayed.length;
+    let html =
+        chip('coll-chip-invoiced', 'Total Invoiced', invoiced, `${n} collectible${n === 1 ? '' : 's'}`) +
+        chip('coll-chip-collected', 'Cash Collected', collected, `${pct}% of invoiced`) +
+        chip('coll-chip-outstanding', 'Outstanding', outstanding, '');
+    if (overdueOutstanding > 0) {
+        html += chip('coll-chip-overdue', 'Overdue', overdueOutstanding, 'past due');
+    }
+    host.innerHTML = html;
+    function chip(cls, label, value, sub) {
+        return `<div class="coll-chip ${cls}">
+            <div class="coll-chip-label">${escapeHTML(label)}</div>
+            <div class="coll-chip-value">${formatCurrency(value)}</div>
+            ${sub ? `<div class="coll-chip-sub">${escapeHTML(sub)}</div>` : ''}
+        </div>`;
+    }
+}
+
+/**
+ * Render the "Show N completed" toggle into its host (D-05b). Only renders when
+ * there are fully-paid rows to reveal/hide; resets to empty otherwise.
+ */
+function renderCollShowCompletedToggle(completedCount) {
+    const host = document.getElementById('collShowCompletedHost');
+    if (!host) return;
+    if (!completedCount || completedCount <= 0) { host.innerHTML = ''; return; }
+    const label = collShowCompleted ? 'Hide completed' : ('Show ' + completedCount + ' completed');
+    host.innerHTML = `<button class="coll-show-completed-toggle" onclick="window.toggleCollShowCompleted()">${escapeHTML(label)}</button>`;
+}
+
+/**
+ * Render the Collectibles table body — 5 composite columns (Phase 99.2, D-05):
+ * Project·Tranche / Collection Progress / Due·Urgency / Last Payment / Actions,
+ * with a per-tier 4px urgency left-border on each row. Fully-paid rows are
+ * hidden by default behind a "Show N completed" toggle; pagination + scorecard
+ * recompute over the VISIBLE (post-hide) set (D-08c). The hide is applied HERE,
+ * NOT inside getDisplayedCollectibles, so the CSV export keeps fully-paid rows (D-07).
+ * Also populates the ≤768px mobile card list (dual-mode, Phase 73.1).
+ */
+// ===== Phase 99.3 — Group-by-Project accordion (spike-027c grouped view) =====
+// All tier/status counts derive from the shared getCollectibleUrgency /
+// deriveCollectibleStatus helpers (D-08b) — no duplicated threshold math.
+
+function collGroupKey(c) {
+    return c.department === 'projects'
+        ? (c.project_code || c.project_name || '∅')
+        : (c.service_code || c.service_name || '∅');
+}
+function collGroupName(c) {
+    return c.department === 'projects'
+        ? (c.project_name || c.project_code || '')
+        : (c.service_name || c.service_code || '');
+}
+function groupCollectiblesByProject(rows) {
+    const map = new Map();
+    rows.forEach(c => {
+        const k = collGroupKey(c);
+        if (!map.has(k)) map.set(k, { key: k, name: collGroupName(c), code: (c.department === 'projects' ? c.project_code : c.service_code) || '', dept: c.department, items: [] });
+        map.get(k).items.push(c);
+    });
+    return Array.from(map.values());
+}
+function collGroupWorstTier(items) {
+    let worst = 'paid';
+    items.forEach(c => {
+        const t = getCollectibleUrgency(c).tier;
+        if ((COLL_URG_ORDER[t] ?? 4) < (COLL_URG_ORDER[worst] ?? 4)) worst = t;
+    });
+    return worst;
+}
+
+/**
+ * Build the grouped <tbody> innerHTML: one collapsible header row per project/service
+ * (worst-urgency left-border + aggregate progress + urgency summary + most-recent payment
+ * across the group), expanding to that group's tranche rows. 5-column layout identical to
+ * the flat table (urgency border via the coll-urgency-${tier} row class — no separate cell).
+ * Fix-2: near-due count uses getCollectibleUrgency tier === 'near-due' (≤7 & not overdue),
+ * agreeing with the Plan-01 Near-due filter — NOT the spike's looser overdue-inclusive test.
+ */
+function renderCollectiblesGroupedRows(groups) {
+    return groups.map(g => {
+        const items = g.items;
+        const totalAmt = items.reduce((s, c) => s + (parseFloat(c.amount_requested) || 0), 0);
+        const totalPd = items.reduce((s, c) => s + (c.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((ss, r) => ss + (parseFloat(r.amount) || 0), 0), 0);
+        const pct = totalAmt > 0 ? Math.min(100, Math.round(totalPd / totalAmt * 100)) : 0;
+        const worstTier = collGroupWorstTier(items);
+        const isExpanded = !!collGroupExpanded[g.key];
+        const fillClass = (worstTier === 'critical' || worstTier === 'overdue') ? 'is-overdue' : (pct >= 100 ? 'is-paid' : 'is-normal');
+
+        // Urgency summary — counts off the shared helpers (Fix-2 / D-08b)
+        const critical = items.filter(c => getCollectibleUrgency(c).tier === 'critical').length;
+        const overdue = items.filter(c => getCollectibleUrgency(c).tier === 'overdue').length;
+        const nearDue = items.filter(c => getCollectibleUrgency(c).tier === 'near-due').length;
+        const paid = items.filter(c => deriveCollectibleStatus(c) === 'Fully Paid').length;
+        const parts = [];
+        if (critical) parts.push(`<span style="color:#ef4444;font-weight:700;">${critical} critical</span>`);
+        else if (overdue) parts.push(`<span style="color:#f97316;font-weight:700;">${overdue} overdue</span>`);
+        if (nearDue) parts.push(`<span style="color:#f59e0b;">${nearDue} near due</span>`);
+        if (paid === items.length) parts.push(`<span style="color:#059669;font-weight:700;">All collected ✓</span>`);
+        else if (paid > 0) parts.push(`<span style="color:#94a3b8;">${paid} of ${items.length} complete</span>`);
+        const urgSummary = parts.length ? parts.join(' · ') : '<span style="color:#64748b;">All on track</span>';
+
+        // Most-recent payment across the group (newest non-voided record by date)
+        let groupLast = null;
+        items.forEach(c => {
+            const lp = getCollectibleLastPayment(c);
+            if (lp && (!groupLast || (lp.date || '') > (groupLast.date || ''))) groupLast = lp;
+        });
+        const lastCell = groupLast
+            ? `${formatCurrency(parseFloat(groupLast.amount) || 0)} · ${escapeHTML(groupLast.date || '')} · ${escapeHTML(groupLast.method || '')}`
+            : `<span class="coll-no-payment">No payments yet</span>`;
+
+        // onclick key: backslash-escape for the JS string literal so it round-trips to the
+        // raw key used by collGroupExpanded/collGroupKey (codes are safe alphanumerics).
+        const safeKey = String(g.key).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const chevron = isExpanded ? '▾' : '▸';
+
+        const headerRow = `
+            <tr class="coll-urgency-${worstTier} coll-group-header" onclick="window.toggleCollGroup('${safeKey}')">
+                <td>
+                    <div style="display:flex;align-items:flex-start;gap:0.4rem;">
+                        <span style="font-size:0.75rem;color:#94a3b8;font-weight:700;margin-top:0.1rem;">${chevron}</span>
+                        <div>
+                            <div style="font-weight:600;">${escapeHTML(g.name || '')}</div>
+                            <div style="font-size:0.75rem;color:#64748b;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;">
+                                <span style="font-family:monospace;color:#94a3b8;">${escapeHTML(g.code || '')}</span>${getDeptBadgeHTML({ department: g.dept })}
+                                <span class="coll-group-count-chip">${items.length} tranche${items.length !== 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="coll-progress-track"><div class="coll-progress-fill ${fillClass}" style="width:${pct}%;"></div></div>
+                    <div class="coll-progress-text">${formatCurrency(totalPd)} of ${formatCurrency(totalAmt)} · ${pct}%</div>
+                </td>
+                <td style="font-size:0.78rem;line-height:1.5;">${urgSummary}</td>
+                <td style="font-size:0.8125rem;">${lastCell}</td>
+                <td><button class="btn btn-sm" onclick="event.stopPropagation(); window.toggleCollGroup('${safeKey}')" style="font-size:0.75rem;padding:0.2rem 0.5rem;background:#f1f5f9;color:#475569;">${isExpanded ? '▴ Collapse' : '▾ Expand'}</button></td>
+            </tr>`;
+
+        if (!isExpanded) return headerRow;
+
+        const childRows = items.map(coll => {
+            const totalPaid = (coll.payment_records || []).filter(r => r.status !== 'voided')
+                .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+            const amt = parseFloat(coll.amount_requested) || 0;
+            const pctC = amt > 0 ? Math.min(100, Math.round(totalPaid / amt * 100)) : 0;
+            const urg = getCollectibleUrgency(coll);
+            const last = getCollectibleLastPayment(coll);
+            const status = deriveCollectibleStatus(coll);
+            const tranchePct = (parseFloat(coll.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+            const fillC = urg.isOverdue ? 'is-overdue' : (urg.tier === 'paid' ? 'is-paid' : 'is-normal');
+            let dueCell;
+            if (urg.daysOverdue > 0) {
+                const dueCls = urg.tier === 'critical' ? 'critical' : 'overdue';
+                const mark = urg.tier === 'critical' ? '‼' : '⚠';
+                dueCell = `<span class="coll-due-${dueCls}">${urg.daysOverdue} day${urg.daysOverdue === 1 ? '' : 's'} overdue ${mark}</span>`;
+            } else if (urg.daysUntilDue !== null && urg.daysUntilDue <= 7) {
+                dueCell = `<span class="coll-due-near">Due in ${urg.daysUntilDue} day${urg.daysUntilDue === 1 ? '' : 's'} ⚠</span>`;
+            } else if (urg.daysUntilDue !== null) {
+                dueCell = `<span class="coll-due-normal">Due in ${urg.daysUntilDue} days</span>`;
+            } else {
+                dueCell = `<span class="coll-due-normal">No due date</span>`;
+            }
+            const lastCellC = last
+                ? `${formatCurrency(parseFloat(last.amount) || 0)} · ${escapeHTML(last.date || '')} · ${escapeHTML(last.method || '')}`
+                : `<span class="coll-no-payment">No payments yet</span>`;
+            const actionsCell = status === 'Fully Paid'
+                ? `<button class="btn btn-sm" onclick="window.toggleCollPaymentHistory('${coll.id}')" style="font-size:0.75rem;padding:0.2rem 0.5rem;background:#f1f5f9;color:#475569;">View History</button>`
+                : `<button class="btn btn-sm btn-outline" onclick="window.openRecordCollectiblePaymentModal('${coll.id}')" style="font-size:0.75rem;padding:0.2rem 0.6rem;">Record Payment</button>`;
+            return `
+                <tr class="coll-urgency-${urg.tier} coll-group-child">
+                    <td style="padding-left:2.2rem;">
+                        <div style="font-weight:600;font-size:0.8125rem;">${escapeHTML(coll.tranche_label || '')} <span style="font-weight:400;color:#94a3b8;">(${tranchePct}%)</span></div>
+                        <div style="font-family:monospace;font-size:0.7rem;color:#94a3b8;">${escapeHTML(coll.coll_id || '')}</div>
+                    </td>
+                    <td>
+                        <div class="coll-progress-track"><div class="coll-progress-fill ${fillC}" style="width:${pctC}%;"></div></div>
+                        <div class="coll-progress-text">${formatCurrency(totalPaid)} of ${formatCurrency(amt)} · ${pctC}%</div>
+                    </td>
+                    <td>${dueCell}</td>
+                    <td style="font-size:0.8125rem;">${lastCellC}</td>
+                    <td>${actionsCell}</td>
+                </tr>`;
+        }).join('');
+
+        return headerRow + childRows;
+    }).join('');
+}
+
+function renderCollectiblesTable() {
+    const tbody = document.getElementById('collectiblesTableBody');
+    if (!tbody) return;
+
+    const allDisplayed = getDisplayedCollectibles();
+
+    if (collGroupBy) {
+        // Grouped view — ALL groups, no pagination, no fully-paid hide (tranches show on expand).
+        // INTENTIONAL DIVERGENCE (Fix-1): the flat path scorecards the POST-hide visible set,
+        // so it excludes fully-paid. Here we scorecard `allDisplayed` (PRE-hide, fully-paid INCLUDED)
+        // = portfolio totals. Toggling Group-by therefore shifts Total Invoiced/Collected/Outstanding
+        // by design — grouped = portfolio view including paid tranches shown on expand. Not a bug.
+        renderCollectiblesScorecard(allDisplayed);            // portfolio totals (fully-paid included)
+        const groups = groupCollectiblesByProject(allDisplayed)
+            .sort((a, b) => (COLL_URG_ORDER[collGroupWorstTier(a.items)] ?? 4) - (COLL_URG_ORDER[collGroupWorstTier(b.items)] ?? 4));
+        tbody.innerHTML = groups.length
+            ? renderCollectiblesGroupedRows(groups)
+            : `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#64748b;">No collectibles match your filters.</td></tr>`;
+        const cardHost = document.getElementById('collectiblesCardList');
+        if (cardHost) cardHost.innerHTML = allDisplayed.map(buildCollectibleCard).join('');   // mobile stays flat
+        renderCollShowCompletedToggle(0);                     // hide the toggle in grouped view
+        renderCollectiblesPagination(0, 1);                   // collapse pagination (totalPages<=1 hides it)
+        return;
+    }
+
+    const completedCount = allDisplayed.filter(c => deriveCollectibleStatus(c) === 'Fully Paid').length;
+    const displayed = collShowCompleted
+        ? allDisplayed
+        : allDisplayed.filter(c => deriveCollectibleStatus(c) !== 'Fully Paid');
+    const totalItems = displayed.length;                       // pagination over the VISIBLE set (D-08c)
+    const totalPages = Math.max(1, Math.ceil(totalItems / collItemsPerPage));
+    if (collCurrentPage > totalPages) collCurrentPage = totalPages;
+
+    // Reactive scorecard reflects the SAME visible set the table paginates (D-02)
+    renderCollectiblesScorecard(displayed);
+
+    // Empty state — filter-aware copy
+    if (totalItems === 0) {
+        const hasFilters = collSearchQuery || collStatusFilter || collDeptFilter || collDueFromFilter || collDueToFilter;
+        const message = hasFilters
+            ? 'No collectibles match your filters.'
+            : (collectiblesData.length === 0
+                ? 'No collectibles yet. Click "+ Create Collectible" to file the first one.'
+                : 'No collectibles to show.');
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:2rem;color:#64748b;">${message}</td></tr>`;
+        const cardHostEmpty = document.getElementById('collectiblesCardList');
+        if (cardHostEmpty) cardHostEmpty.innerHTML = `<div class="fc-empty">${message}</div>`;
+        renderCollShowCompletedToggle(completedCount);
+        renderCollectiblesPagination(totalItems, totalPages);
+        return;
+    }
+
+    // Pagination slice
+    const startIndex = (collCurrentPage - 1) * collItemsPerPage;
+    const endIndex = Math.min(startIndex + collItemsPerPage, totalItems);
+    const pageItems = displayed.slice(startIndex, endIndex);
+
+    tbody.innerHTML = pageItems.map(coll => {
+        const totalPaid = (coll.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+        const amt = parseFloat(coll.amount_requested) || 0;
+        const pct = amt > 0 ? Math.min(100, Math.round(totalPaid / amt * 100)) : 0;
+        const urg = getCollectibleUrgency(coll);          // shared helper (Plan 01)
+        const last = getCollectibleLastPayment(coll);      // shared helper (Plan 01)
+        const status = deriveCollectibleStatus(coll);
+        const projOrSvcName = coll.department === 'projects'
+            ? (coll.project_name || coll.project_code || '')
+            : (coll.service_name || coll.service_code || '');
+        const tranchePct = (parseFloat(coll.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+        const fillClass = urg.isOverdue ? 'is-overdue' : (urg.tier === 'paid' ? 'is-paid' : 'is-normal');
+        // Col 3 — relative due / urgency string
+        let dueCell;
+        if (urg.daysOverdue > 0) {
+            const dueCls = urg.tier === 'critical' ? 'critical' : 'overdue';
+            const mark = urg.tier === 'critical' ? '‼' : '⚠';
+            dueCell = `<span class="coll-due-${dueCls}">${urg.daysOverdue} day${urg.daysOverdue === 1 ? '' : 's'} overdue ${mark}</span>`;
+        } else if (urg.daysUntilDue !== null && urg.daysUntilDue <= 7) {
+            dueCell = `<span class="coll-due-near">Due in ${urg.daysUntilDue} day${urg.daysUntilDue === 1 ? '' : 's'} ⚠</span>`;
+        } else if (urg.daysUntilDue !== null) {
+            dueCell = `<span class="coll-due-normal">Due in ${urg.daysUntilDue} days</span>`;
+        } else {
+            dueCell = `<span class="coll-due-normal">No due date</span>`;
+        }
+        // Col 4 — last payment (non-voided, newest)
+        const lastCell = last
+            ? `${formatCurrency(parseFloat(last.amount) || 0)} · ${escapeHTML(last.date || '')} · ${escapeHTML(last.method || '')}`
+            : `<span class="coll-no-payment">No payments yet</span>`;
+        // Col 5 — actions (fully-paid rows: View History only)
+        const actionsCell = status === 'Fully Paid'
+            ? `<button class="btn btn-sm" onclick="window.toggleCollPaymentHistory('${coll.id}')"
+                       style="font-size:0.75rem;padding:0.2rem 0.5rem;background:#f1f5f9;color:#475569;">View History</button>`
+            : `<button class="btn btn-sm btn-outline" onclick="window.openRecordCollectiblePaymentModal('${coll.id}')"
+                       style="font-size:0.75rem;padding:0.2rem 0.6rem;">Record Payment</button>
+               <button class="btn btn-sm" onclick="window.toggleCollPaymentHistory('${coll.id}')"
+                       style="font-size:0.75rem;padding:0.2rem 0.5rem;background:#f1f5f9;color:#475569;">History</button>`;
+        return `
+            <tr class="coll-urgency-${urg.tier}">
+                <td oncontextmenu="event.preventDefault(); window.showCollectibleContextMenu(event, '${coll.id}'); return false;">
+                    <div style="font-weight:600;">${escapeHTML(projOrSvcName)}</div>
+                    <div style="font-size:0.75rem;color:#64748b;display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;">
+                        <span>${escapeHTML(coll.tranche_label || '')} (${tranchePct}%)</span>${getDeptBadgeHTML({ department: coll.department })}
+                    </div>
+                    <div style="font-family:monospace;font-size:0.75rem;color:#94a3b8;">${escapeHTML(coll.coll_id || '')}</div>
+                </td>
+                <td>
+                    <div class="coll-progress-track"><div class="coll-progress-fill ${fillClass}" style="width:${pct}%;"></div></div>
+                    <div class="coll-progress-text">${formatCurrency(totalPaid)} of ${formatCurrency(amt)} · ${pct}%</div>
+                </td>
+                <td>${dueCell}</td>
+                <td style="font-size:0.8125rem;">${lastCell}</td>
+                <td>${actionsCell}</td>
+            </tr>
+            <tr id="coll-history-${escapeHTML(coll.id)}" style="display:none;background:#f8fafc;">
+                <td colspan="5" style="padding:0.5rem 1rem;font-size:0.8125rem;">
+                    <em>Payment history loads here when expanded (toggleCollPaymentHistory).</em>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Mobile card list — same pageItems as the table (dual-mode, Phase 73.1)
+    const cardHost = document.getElementById('collectiblesCardList');
+    if (cardHost) cardHost.innerHTML = pageItems.map(buildCollectibleCard).join('');
+
+    renderCollShowCompletedToggle(completedCount);
+    renderCollectiblesPagination(totalItems, totalPages);
+}
+
+/**
+ * Render pagination control for Collectibles table.
+ * Mirrors Phase 65.7 pattern at finance.js renderPOSummaryPagination.
+ */
+function renderCollectiblesPagination(totalItems, totalPages) {
+    const div = document.getElementById('collectiblesPagination');
+    if (!div) return;
+    if (totalPages <= 1) { div.style.display = 'none'; return; }
+    div.style.display = '';
+
+    const startIndex = (collCurrentPage - 1) * collItemsPerPage;
+    const endIndex = Math.min(startIndex + collItemsPerPage, totalItems);
+
+    let html = `
+        <div class="pagination-info">
+            Showing <strong>${startIndex + 1}-${endIndex}</strong> of <strong>${totalItems}</strong> Collectibles
+        </div>
+        <div class="pagination-controls">
+            <button class="pagination-btn" onclick="window.changeCollectiblesPage('prev')" ${collCurrentPage === 1 ? 'disabled' : ''}>&larr; Previous</button>
+    `;
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= collCurrentPage - 1 && i <= collCurrentPage + 1)) {
+            html += `<button class="pagination-btn ${i === collCurrentPage ? 'active' : ''}" onclick="window.changeCollectiblesPage(${i})">${i}</button>`;
+        } else if (i === collCurrentPage - 2 || i === collCurrentPage + 2) {
+            html += '<span class="pagination-ellipsis">...</span>';
+        }
+    }
+    html += `<button class="pagination-btn" onclick="window.changeCollectiblesPage('next')" ${collCurrentPage === totalPages ? 'disabled' : ''}>Next &rarr;</button></div>`;
+    div.innerHTML = html;
+}
+
+/**
+ * Pagination handler — accepts 'prev' | 'next' | numeric page.
+ * Reads the current displayed (filtered+sorted) length to bound page index.
+ */
+function changeCollectiblesPage(page) {
+    const all = getDisplayedCollectibles();
+    const vis = collShowCompleted ? all : all.filter(c => deriveCollectibleStatus(c) !== 'Fully Paid');
+    const total = vis.length;                               // page math over the VISIBLE set (D-08c)
+    const totalPages = Math.max(1, Math.ceil(total / collItemsPerPage));
+    if (page === 'prev') collCurrentPage = Math.max(1, collCurrentPage - 1);
+    else if (page === 'next') collCurrentPage = Math.min(totalPages, collCurrentPage + 1);
+    else if (typeof page === 'number') collCurrentPage = Math.max(1, Math.min(totalPages, page));
+    renderCollectiblesTable();
+}
+
+/**
+ * Toggle the fully-paid hide state (D-05b). Resets to page 1 so the page index
+ * never lands out of range after the visible-set size changes.
+ */
+function toggleCollShowCompleted() {
+    collShowCompleted = !collShowCompleted;
+    collCurrentPage = 1;
+    renderCollectiblesTable();
+}
+
+/**
+ * Phase 99.2 — mobile (≤768px) collectible card. Mirrors the Phase 73.1 .fc-card
+ * anatomy (buildRFPCard) and surfaces the same 5-column content + the urgency-tier
+ * left-border class. Reuses the existing payment/history window fns. Internal —
+ * NOT registered on window. Every dynamic value passes through escapeHTML/formatCurrency.
+ */
+function buildCollectibleCard(coll) {
+    const totalPaid = (coll.payment_records || []).filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const amt = parseFloat(coll.amount_requested) || 0;
+    const pct = amt > 0 ? Math.min(100, Math.round(totalPaid / amt * 100)) : 0;
+    const urg = getCollectibleUrgency(coll);
+    const last = getCollectibleLastPayment(coll);
+    const status = deriveCollectibleStatus(coll);
+    const name = coll.department === 'projects' ? (coll.project_name || coll.project_code || '') : (coll.service_name || coll.service_code || '');
+    const dueStr = urg.daysOverdue > 0
+        ? `${urg.daysOverdue} day${urg.daysOverdue === 1 ? '' : 's'} overdue`
+        : (urg.daysUntilDue !== null ? `Due in ${urg.daysUntilDue} day${urg.daysUntilDue === 1 ? '' : 's'}` : 'No due date');
+    const lastStr = last
+        ? `${formatCurrency(parseFloat(last.amount) || 0)} · ${escapeHTML(last.date || '')} · ${escapeHTML(last.method || '')}`
+        : '<span class="coll-no-payment">No payments yet</span>';
+    const fillClass = urg.isOverdue ? 'is-overdue' : (urg.tier === 'paid' ? 'is-paid' : 'is-normal');
+    const actionBtn = status === 'Fully Paid'
+        ? `<button class="btn btn-sm btn-outline" onclick="window.toggleCollPaymentHistory('${coll.id}')">View History</button>`
+        : `<button class="btn btn-sm btn-primary" onclick="window.openRecordCollectiblePaymentModal('${coll.id}')">Record Payment</button>`;
+    return `
+      <div class="fc-card coll-urgency-${urg.tier}">
+        <div class="fc-card-header">
+          <span class="fc-card-id">${escapeHTML(coll.coll_id || '')}</span>
+          ${getDeptBadgeHTML({ department: coll.department })}
+        </div>
+        <div class="fc-card-body">
+          <div class="fc-card-row"><span class="fc-label">Project / Service</span><span class="fc-value">${escapeHTML(name)}</span></div>
+          <div class="fc-card-row"><span class="fc-label">Tranche</span><span class="fc-value">${escapeHTML(coll.tranche_label || '')}</span></div>
+          <div class="coll-card-progress">
+            <div class="coll-progress-track"><div class="coll-progress-fill ${fillClass}" style="width:${pct}%;"></div></div>
+            <div class="coll-progress-text">${formatCurrency(totalPaid)} of ${formatCurrency(amt)} · ${pct}%</div>
+          </div>
+          <div class="fc-card-row"><span class="fc-label">Due</span><span class="fc-value">${escapeHTML(dueStr)}</span></div>
+          <div class="fc-card-row"><span class="fc-label">Last Payment</span><span class="fc-value">${lastStr}</span></div>
+        </div>
+        <div class="fc-card-actions">${actionBtn}</div>
+      </div>`;
+}
+
+/**
+ * Initialize the Collectibles sub-tab. Subscribes to:
+ *   - collectibles (drives table render + project-filter dropdown population)
+ *   - projects     (used by Plan 06 create-modal tranche dropdown source)
+ *   - services     (same role for service-side)
+ * All three onSnapshot unsubscribes are pushed to the shared listeners[]
+ * array so destroy() tears them down. CLAUDE.md tab-switch contract: this
+ * runs ONCE per Finance view mount; switching to a peer sub-tab does not
+ * call destroy() so listeners persist (no duplicate-attach risk on repeat
+ * tab-switch in-view).
+ */
+async function initCollectiblesTab() {
+    const collUnsub = onSnapshot(collection(db, 'collectibles'), (snapshot) => {
+        collectiblesData = [];
+        snapshot.forEach(docSnap => {
+            collectiblesData.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        renderCollectiblesTable();
+        renderPendingBillingBanner();   // Phase 99.2 — a freshly-filed COLL drops its approved orphan from sub-section 2 (D-04)
+    }, (err) => {
+        console.error('[Finance/Collectibles] collectibles snapshot error:', err);
+        showToast('Failed to load collectibles. Refresh to retry.', 'error');
+    });
+    listeners.push(collUnsub);
+
+    // Projects map — used by Plan 06 create-modal (tranche dropdown source)
+    const projUnsub = onSnapshot(collection(db, 'projects'), (snapshot) => {
+        projectsForCollMap = new Map();
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.project_code) {
+                projectsForCollMap.set(data.project_code, {
+                    id: docSnap.id,
+                    name: data.project_name || '',
+                    contract_cost: parseFloat(data.contract_cost) || 0,
+                    collection_tranches: Array.isArray(data.collection_tranches) ? data.collection_tranches : []
+                });
+            }
+        });
+    }, (err) => {
+        console.error('[Finance/Collectibles] projects snapshot error:', err);
+    });
+    listeners.push(projUnsub);
+
+    // Services map — same role for service-side
+    const svcUnsub = onSnapshot(collection(db, 'services'), (snapshot) => {
+        servicesForCollMap = new Map();
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            if (data.service_code) {
+                servicesForCollMap.set(data.service_code, {
+                    id: docSnap.id,
+                    name: data.service_name || '',
+                    contract_cost: parseFloat(data.contract_cost) || 0,
+                    collection_tranches: Array.isArray(data.collection_tranches) ? data.collection_tranches : []
+                });
+            }
+        });
+    }, (err) => {
+        console.error('[Finance/Collectibles] services snapshot error:', err);
+    });
+    listeners.push(svcUnsub);
+
+    // Phase 99 — pending billing requests banner (D-14, scoped to status=='pending' lowercase-exact).
+    // Attached once per Finance mount (CLAUDE.md tab-switch contract); pushed to listeners[] for teardown.
+    const brUnsub = onSnapshot(
+        collection(db, 'billing_requests'),
+        (snapshot) => {
+            pendingBillingRequests = [];
+            approvedBillingRequests = [];
+            snapshot.forEach(d => {
+                const r = { id: d.id, ...d.data() };
+                if (r.status === 'pending') pendingBillingRequests.push(r);          // case-sensitive (CLAUDE.md)
+                else if (r.status === 'approved') approvedBillingRequests.push(r);
+                // rejected/other: ignored
+            });
+            renderPendingBillingBanner();
+        },
+        (err) => { console.error('[Finance/BillingReq] snapshot error:', err); }
+    );
+    listeners.push(brUnsub);
+}
+
+/**
+ * Phase 99.2 (D-04) — reconcile approved billing requests against collectiblesData.
+ * An approved request is an ORPHAN (must surface in banner sub-section 2, the ONLY
+ * recovery path for the Phase 99 abandoned-create state) when NO collectibles doc
+ * matches its dept-aware code + tranche_index. Must be correct — an orphan can never
+ * be silently absent. Approve stays a simple status flip (NOT atomic create, deferred).
+ */
+function getOrphanApprovedBillingRequests() {
+    return (approvedBillingRequests || []).filter(req => {
+        const reqCode = req.department === 'services' ? (req.service_code || '') : (req.project_code || '');
+        const hasColl = (collectiblesData || []).some(c => {
+            const code = c.department === 'services' ? (c.service_code || '') : (c.project_code || '');
+            return code === reqCode && c.tranche_index === req.tranche_index;
+        });
+        return !hasColl;   // orphan when no matching collectible
+    });
+}
+
+// Phase 99.2 D-03/SC2 — ONE collapsible banner with TWO independently-collapsible sub-sections:
+//   1. "Awaiting Your Review" (amber)  — pending billing requests (Approve/Reject)
+//   2. "Approved — File as Collectible" (blue) — approved orphans (the D-04 recovery path)
+// The whole banner auto-disappears only when BOTH sub-sections are empty. All user strings escaped (D-19).
+function renderPendingBillingBanner() {
+    const host = document.getElementById('pendingBillingBanner');
+    if (!host) return;
+    const pending = Array.isArray(pendingBillingRequests) ? pendingBillingRequests : [];
+    const orphans = getOrphanApprovedBillingRequests();   // reconciled set (Task 1)
+    if (pending.length === 0 && orphans.length === 0) { host.innerHTML = ''; return; } // auto-disappear when both empty
+
+    const deptPill = (req) => `<span style="font-size:0.62rem;font-weight:700;color:#64748b;background:#f1f5f9;border-radius:999px;padding:0.05rem 0.45rem;margin-left:0.4rem;">${req.department === 'services' ? 'Service' : 'Project'}</span>`;
+
+    // ── Sub-section 1: Awaiting Your Review (amber, pending) ──────────────────
+    let section1 = '';
+    if (pending.length > 0) {
+        const chevron = billingBannerCollapsed ? '▸' : '▾';
+        const rows = billingBannerCollapsed ? '' : pending.map(req => {
+            const pct = (parseFloat(req.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+            const docs = Array.isArray(req.documents) ? req.documents : [];
+            const docLinks = docs.map(d => `<a href="${escapeHTML(d.url || '')}" target="_blank" rel="noopener noreferrer" style="color:#1a73e8;font-size:0.72rem;margin-right:0.6rem;text-decoration:underline;">${escapeHTML(d.label || 'Document')}</a>`).join('');
+            const submitter = `${escapeHTML(req.requested_by_name || 'Unknown')} · ${req.requested_at ? formatTimestamp(req.requested_at) : ''}`;
+            return `<div style="border-top:1px solid #fde68a;padding:0.6rem 0;display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;">
+                <div style="flex:1;min-width:240px;">
+                    <div style="font-weight:700;color:#1e293b;font-size:0.8rem;">${escapeHTML(req.project_name || req.service_name || '')}${deptPill(req)}</div>
+                    <div style="color:#475569;font-size:0.74rem;margin-top:0.1rem;">${escapeHTML(req.tranche_label || '')} (${pct}%) · ${formatCurrency(req.amount_requested || 0)}</div>
+                    <div style="color:#64748b;font-size:0.68rem;margin-top:0.15rem;">${submitter}</div>
+                    ${docLinks ? `<div style="margin-top:0.25rem;">${docLinks}</div>` : ''}
+                    ${req.notes ? `<div style="color:#64748b;font-size:0.68rem;margin-top:0.15rem;font-style:italic;">${escapeHTML(req.notes)}</div>` : ''}
+                </div>
+                <div style="display:flex;gap:0.4rem;align-items:center;">
+                    <button class="btn btn-sm" onclick="window.approveBillingRequest('${escapeHTML(req.id)}')" style="background:#059669;color:#fff;font-size:0.72rem;padding:0.3rem 0.7rem;">Approve</button>
+                    <button class="btn btn-sm" onclick="window.rejectBillingRequest('${escapeHTML(req.id)}')" style="background:#fff;color:#ef4444;border:1px solid #fecaca;font-size:0.72rem;padding:0.3rem 0.7rem;">Reject</button>
+                </div>
+            </div>`;
+        }).join('');
+        section1 = `
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.6rem 0.85rem;">
+                <div onclick="window.toggleBillingBanner()" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none;">
+                    <span style="color:#b45309;font-weight:700;">${chevron}</span>
+                    <span style="font-weight:700;color:#92400e;font-size:0.85rem;">Awaiting Your Review</span>
+                    <span style="background:#f59e0b;color:#fff;border-radius:999px;font-size:0.68rem;font-weight:700;padding:0.05rem 0.5rem;">${pending.length}</span>
+                </div>
+                ${rows ? `<div style="margin-top:0.4rem;">${rows}</div>` : ''}
+            </div>`;
+    }
+
+    // ── Sub-section 2: Approved — File as Collectible (blue, orphans) ─────────
+    let section2 = '';
+    if (orphans.length > 0) {
+        const chevron2 = approvedBannerCollapsed ? '▸' : '▾';
+        const rows2 = approvedBannerCollapsed ? '' : orphans.map(req => {
+            const pct = (parseFloat(req.tranche_percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+            const approver = req.reviewed_by
+                ? `Approved by ${escapeHTML(req.reviewed_by)}${req.reviewed_at ? ' · ' + formatTimestamp(req.reviewed_at) : ''}`
+                : '';
+            return `<div style="border-top:1px solid #bfdbfe;padding:0.6rem 0;display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;flex-wrap:wrap;">
+                <div style="flex:1;min-width:240px;">
+                    <div style="font-weight:700;color:#1e293b;font-size:0.8rem;">${escapeHTML(req.project_name || req.service_name || '')}${deptPill(req)}</div>
+                    <div style="color:#475569;font-size:0.74rem;margin-top:0.1rem;">${escapeHTML(req.tranche_label || '')} (${pct}%) · ${formatCurrency(req.amount_requested || 0)}</div>
+                    ${approver ? `<div style="color:#64748b;font-size:0.68rem;margin-top:0.15rem;">${approver}</div>` : ''}
+                </div>
+                <div style="display:flex;gap:0.4rem;align-items:center;">
+                    <button class="btn btn-sm" onclick="window.fileCollectibleFromBanner('${escapeHTML(req.id)}')" style="background:#1a73e8;color:#fff;font-size:0.72rem;padding:0.3rem 0.7rem;white-space:nowrap;">File as Collectible</button>
+                </div>
+            </div>`;
+        }).join('');
+        section2 = `
+            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:0.6rem 0.85rem;${section1 ? 'margin-top:0.5rem;' : ''}">
+                <div onclick="window.toggleApprovedBanner()" style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none;">
+                    <span style="color:#1a73e8;font-weight:700;">${chevron2}</span>
+                    <span style="font-weight:700;color:#1e40af;font-size:0.85rem;">Approved — File as Collectible</span>
+                    <span style="background:#1a73e8;color:#fff;border-radius:999px;font-size:0.68rem;font-weight:700;padding:0.05rem 0.5rem;">${orphans.length}</span>
+                </div>
+                ${rows2 ? `<div style="margin-top:0.4rem;">${rows2}</div>` : ''}
+            </div>`;
+    }
+
+    // One unified banner (spike 027b WINNER), two parts.
+    host.innerHTML = `<div style="margin-bottom:1rem;">${section1}${section2}</div>`;
+}
+
+/**
+ * Phase 99.2 D-04 — "File as Collectible" from banner sub-section 2. Builds the
+ * preselectKey EXACTLY like approveBillingRequest and opens the existing prefilled
+ * Create-Collectible modal (no new modal path). After Finance submits, the new
+ * collectibles doc triggers onSnapshot → renderPendingBillingBanner re-runs →
+ * reconciliation drops this orphan automatically (no manual state cleanup).
+ */
+function fileCollectibleFromBanner(reqId) {
+    const req = (approvedBillingRequests || []).find(r => r.id === reqId);
+    if (!req) { showToast('Approved request not found. Refresh and try again.', 'error'); return; }
+    const isService = req.department === 'services';
+    const preselectKey = isService
+        ? 'services:' + (req.service_code || '') + ':' + req.tranche_index
+        : 'projects:' + (req.project_code || '') + ':' + req.tranche_index;
+    window.openCreateCollectibleModal(preselectKey);
+}
+
+// Phase 99 D-10/D-11/D-12 — Approve a billing request: open the prefilled Create-Collectible
+// modal (tranche pre-selected, already-billed edge hinted) then mark the request approved.
+// Approve does NOT auto-create the collectible — Finance still sets the due date + submits.
+async function approveBillingRequest(reqId) {
+    const req = pendingBillingRequests.find(r => r.id === reqId);
+    if (!req) { showToast('Billing request not found. Refresh and try again.', 'error'); return; }
+
+    // Open the prefilled modal (already gates on hasCollectibleWriteAuthority() — Finance-only).
+    // Phase 99.1 D-25 — dept-aware preselectKey (missing department → projects, D-22 back-compat).
+    const isService = req.department === 'services';
+    const preselectKey = isService
+        ? 'services:' + (req.service_code || '') + ':' + req.tranche_index
+        : 'projects:' + (req.project_code || '') + ':' + req.tranche_index;
+    window.openCreateCollectibleModal(preselectKey);
+
+    // Mark approved (status lowercase 'approved', D-05; reviewer fields). Pre-fill ≠ collectible creation (D-12).
+    try {
+        await updateDoc(doc(db, 'billing_requests', reqId), {
+            status: 'approved',
+            reviewed_by: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown',
+            reviewed_at: serverTimestamp()
+        });
+    } catch (e) {
+        console.error('[Finance/BillingReq] approve updateDoc failed:', e);
+        showToast('Failed to mark request approved. The Create-Collectible form is still open.', 'error');
+        return;
+    }
+    // Notify the submitter (shared helper, Task 3). The pending listener drops the row once status flips off 'pending'.
+    _notifyBillingDecision(req, 'approved', '');
+}
+
+// Phase 99 D-13 — Reject a billing request (reason REQUIRED). Marks rejected + stores reason.
+async function rejectBillingRequest(reqId) {
+    const req = pendingBillingRequests.find(r => r.id === reqId);
+    if (!req) { showToast('Billing request not found. Refresh and try again.', 'error'); return; }
+
+    const reason = (window.prompt('Reason for rejecting this billing request (required):') || '').trim();
+    if (!reason) { showToast('A rejection reason is required.', 'error'); return; }
+
+    try {
+        await updateDoc(doc(db, 'billing_requests', reqId), {
+            status: 'rejected',
+            rejection_reason: reason,
+            reviewed_by: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown',
+            reviewed_at: serverTimestamp()
+        });
+        showToast('Billing request rejected.', 'success');
+    } catch (e) {
+        console.error('[Finance/BillingReq] reject updateDoc failed:', e);
+        showToast('Failed to reject the request. Try again.', 'error');
+        return;
+    }
+    _notifyBillingDecision(req, 'rejected', reason);
+}
+
+// Phase 99 D-17 — shared submitter decision notification (fire-and-forget, OWN try/catch — a
+// notification failure must NEVER undo the already-committed updateDoc). createNotificationForUsers
+// defaults excludeActor:false, which is correct here (Finance is the actor; the submitter must be notified).
+async function _notifyBillingDecision(req, decision, reason) {
+    if (!req?.requested_by_uid) return; // avoid an empty user_ids call; helper also guards null actor
+    // Phase 99.1 D-26 — dept-aware link/message/source so service decisions don't dead-end on #/projects
+    // (missing department → projects, D-22 back-compat).
+    const isService = req.department === 'services';
+    const name = isService ? (req.service_name || '') : (req.project_name || '');
+    const link = isService ? ('#/services/detail/' + (req.service_code || '')) : ('#/projects/detail/' + (req.project_code || ''));
+    const sourceId = isService ? (req.service_code || '') : (req.project_code || '');
+    try {
+        await createNotificationForUsers({
+            user_ids: [req.requested_by_uid],
+            type: NOTIFICATION_TYPES.BILLING_REQUEST_DECIDED,
+            message: `Your billing request for ${name} (${req.tranche_label}) was ${decision}.` + (reason ? ` Reason: ${reason}` : ''),
+            link,
+            source_collection: 'billing_requests',
+            source_id: sourceId,
+            object_name: name,
+            actor_name: window.getCurrentUser?.()?.full_name || 'System'
+        });
+    } catch (notifErr) {
+        console.error('[Finance/BillingReq] BILLING_REQUEST_DECIDED notification failed:', notifErr);
+    }
+}
+
+// ========================================
+// COLLECTIBLES TAB — WRITE-SIDE (Plan 06)
+// CRUD modals + payment recording + voiding + cancel + CSV export.
+// All write paths wrapped in try/catch with showToast on failure (Phase 65 D-50).
+// All new window.* functions deleted in destroy() (CLAUDE.md SPA pattern).
+// ========================================
+
+/**
+ * Authority guard: only Operations Admin / Finance / Super Admin may write collectibles.
+ * D-24 + Phase 85 Security Rules (Plan 01) enforce server-side; this is a UX shortcut.
+ */
+function hasCollectibleWriteAuthority() {
+    const role = window.getCurrentUser?.()?.role;
+    return ['finance', 'operations_admin', 'super_admin'].includes(role);
+}
+
+/**
+ * Open the Create-Collectible modal.
+ * @param {string|null} preselectKey - Optional 'projects:CODE' or 'services:CODE' string
+ *        used by future project-detail-page launches. Ignored when null.
+ *
+ * Modal flow:
+ *   Step 1: pick department + project/service
+ *   Step 2: render tranche dropdown OR D-11 / D-20 block message
+ *   Step 3: description (optional) + due date (required)
+ *   Submit -> window.submitCollectible
+ */
+async function openCreateCollectibleModal(preselectKey = null) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to create collectibles.', 'error');
+        return;
+    }
+
+    // Parse preselect key if provided. Shapes (3rd tranche segment optional, Phase 99 D-10):
+    //   'projects:CLMC-ACME-001' | 'services:SVC-CLMC-001' | 'projects:CLMC-ACME-001:2'
+    let selectedDept = '';
+    let selectedCode = '';
+    let selectedTrancheIdx = null;
+    if (preselectKey && typeof preselectKey === 'string') {
+        const [d, c, t] = preselectKey.split(':');
+        selectedDept = d || '';
+        selectedCode = c || '';
+        selectedTrancheIdx = (t != null && t !== '') ? parseInt(t, 10) : null;
+    }
+
+    const existing = document.getElementById('createCollectibleModal');
+    if (existing) existing.remove();
+
+    const modalHtml = `
+    <div id="createCollectibleModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:520px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Create Collectible</h2>
+                <button class="modal-close" onclick="document.getElementById('createCollectibleModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Department <span style="color:#ea4335;">*</span></label>
+                    <select id="createCollDept" class="form-control" style="width:100%;" onchange="window._refreshCreateCollProjectDropdown()">
+                        <option value="">-- Select Department --</option>
+                        <option value="projects" ${selectedDept === 'projects' ? 'selected' : ''}>Projects</option>
+                        <option value="services" ${selectedDept === 'services' ? 'selected' : ''}>Services</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Project / Service <span style="color:#ea4335;">*</span></label>
+                    <select id="createCollProject" class="form-control" style="width:100%;" onchange="window._refreshCreateCollTrancheDropdown()">
+                        <option value="">-- Select Project/Service --</option>
+                    </select>
+                </div>
+                <div id="createCollTrancheArea" style="margin-bottom:1rem;"></div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Description (Optional)</label>
+                    <textarea id="createCollDescription" class="form-control" rows="2" style="width:100%;" placeholder="Optional context, e.g. 'Mobilization milestone billed 2026-05-15'"></textarea>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
+                    <input type="date" id="createCollDueDate" class="form-control" style="width:100%;" required>
+                </div>
+                <div id="createCollErrorAlert" style="display:none;margin-top:0.75rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('createCollectibleModal').remove()">Cancel</button>
+                <button class="btn btn-primary" id="createCollSubmitBtn" onclick="window.submitCollectible()" disabled style="opacity:0.5;cursor:not-allowed;">Create Collectible</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // If preselect provided, force dropdowns to value and trigger refresh
+    if (selectedDept) {
+        const deptSel = document.getElementById('createCollDept');
+        if (deptSel) deptSel.value = selectedDept;
+        _refreshCreateCollProjectDropdown();
+        if (selectedCode) {
+            const projSel = document.getElementById('createCollProject');
+            if (projSel) projSel.value = selectedCode;
+            _refreshCreateCollTrancheDropdown();
+            // Phase 99 D-10/D-11 — pre-select the requested tranche after the dropdown rebuild.
+            if (selectedTrancheIdx != null && !isNaN(selectedTrancheIdx)) {
+                const trSel = document.getElementById('createCollTranche');
+                if (trSel) {
+                    const opt = trSel.querySelector(`option[value="${selectedTrancheIdx}"]`);
+                    if (opt && opt.disabled) {
+                        // D-11: requested tranche already has a collectible — cannot select a disabled option.
+                        // Surface a hint near the dropdown; do NOT leave an unexplained empty selection.
+                        const area = document.getElementById('createCollTrancheArea');
+                        if (area) area.insertAdjacentHTML('beforeend',
+                            `<small style="display:block;margin-top:0.35rem;color:#ef4444;font-size:0.72rem;">This tranche already has a collectible — it can't be re-billed. Pick another tranche or close.</small>`);
+                    } else if (opt) {
+                        trSel.value = String(selectedTrancheIdx);  // pre-select tranche (D-10)
+                        trSel.dispatchEvent(new Event('change'));    // sync any change-driven state
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Rebuild the Project/Service dropdown when Department changes.
+ * Source map alternates between projectsForCollMap and servicesForCollMap.
+ */
+function _refreshCreateCollProjectDropdown() {
+    const deptEl = document.getElementById('createCollDept');
+    const projectSel = document.getElementById('createCollProject');
+    if (!deptEl || !projectSel) return;
+    const dept = deptEl.value;
+    const source = (dept === 'projects' ? projectsForCollMap : (dept === 'services' ? servicesForCollMap : null));
+    const opts = ['<option value="">-- Select Project/Service --</option>'];
+    if (source) {
+        const entries = Array.from(source.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+        for (const [code, meta] of entries) {
+            opts.push(`<option value="${escapeHTML(code)}">${escapeHTML(code)} — ${escapeHTML(meta.name || '')}</option>`);
+        }
+    }
+    projectSel.innerHTML = opts.join('');
+    projectSel.value = '';
+    // Reset the tranche area whenever the project source changes
+    _refreshCreateCollTrancheDropdown();
+}
+
+/**
+ * Rebuild the Tranche dropdown for the selected project/service.
+ * Applies D-11 (no-tranches block), D-20 (clientless project block),
+ * and D-12 strict 1:1 dedup using tranche_index (Risk #4 in PATTERNS.md).
+ */
+function _refreshCreateCollTrancheDropdown() {
+    const deptEl = document.getElementById('createCollDept');
+    const projEl = document.getElementById('createCollProject');
+    const area = document.getElementById('createCollTrancheArea');
+    const submitBtn = document.getElementById('createCollSubmitBtn');
+    if (!deptEl || !projEl || !area || !submitBtn) return;
+    const dept = deptEl.value;
+    const code = projEl.value;
+    const setBlocked = () => {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+    };
+    const setEnabled = () => {
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+    };
+
+    // No selection yet
+    if (!dept || !code) {
+        area.innerHTML = '';
+        setBlocked();
+        return;
+    }
+
+    const source = dept === 'projects' ? projectsForCollMap : servicesForCollMap;
+    const meta = source.get(code);
+    if (!meta) {
+        area.innerHTML = '';
+        setBlocked();
+        return;
+    }
+
+    // D-20 clientless project block — code present is impossible here (we keyed by code),
+    // but defensive: if meta.code is missing/empty, render the block anyway.
+    // The code-vs-empty case happens before this point (project not in map). Keep
+    // the block message for the documented edge: a project IN the map but with no
+    // project_code (shouldn't occur because the snapshot filters for project_code).
+    if (!code || code === '') {
+        area.innerHTML = `<div style="padding:12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">This project doesn't have a project code yet. Assign a client to issue the code, then return to create collectibles.</div>`;
+        setBlocked();
+        return;
+    }
+
+    // D-11 no-tranches block
+    if (!Array.isArray(meta.collection_tranches) || meta.collection_tranches.length === 0) {
+        const detailRoute = dept === 'projects' ? `#/projects/detail/${escapeHTML(code)}` : `#/services/detail/${escapeHTML(code)}`;
+        const subjectWord = dept === 'projects' ? 'project' : 'service';
+        area.innerHTML = `<div style="padding:12px;background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:6px;font-size:0.875rem;">Set up collection tranches on this ${subjectWord} before creating a collectible. <a href="${detailRoute}" style="color:#1a73e8;text-decoration:underline;">Click here to edit.</a></div>`;
+        setBlocked();
+        return;
+    }
+
+    // D-12 strict 1:1 dedup using tranche_index (position-based — survives label rename per Risk #4)
+    const usedIndexes = new Set(
+        collectiblesData
+            .filter(c => c.department === dept && (dept === 'projects' ? c.project_code : c.service_code) === code)
+            .map(c => c.tranche_index)
+            .filter(i => i != null)
+    );
+    const tranches = meta.collection_tranches;
+    const trancheOptions = tranches.map((t, i) => {
+        const used = usedIndexes.has(i);
+        const pctStr = (parseFloat(t.percentage) || 0).toFixed(2).replace(/\.?0+$/, '');
+        return `<option value="${i}" ${used ? 'disabled' : ''}>${escapeHTML(t.label || '')} (${pctStr}%)${used ? ' — collectible exists' : ''}</option>`;
+    }).join('');
+    const firstAvailable = tranches.findIndex((t, i) => !usedIndexes.has(i));
+    const allUsed = firstAvailable < 0;
+    area.innerHTML = `
+        <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Tranche <span style="color:#ea4335;">*</span></label>
+        <select id="createCollTranche" class="form-control" style="width:100%;" ${allUsed ? 'disabled' : ''}>
+            <option value="">-- Select Tranche --</option>
+            ${trancheOptions}
+        </select>
+        ${allUsed ? '<small style="color:#ef4444;font-size:0.75rem;">All tranches already have collectibles.</small>' : ''}
+    `;
+    if (allUsed) setBlocked(); else setEnabled();
+}
+
+/**
+ * Validate the Create-Collectible form and write a new collectible doc.
+ *
+ * Doc shape: PATTERNS.md Pattern 21 — denormalized tranche_label,
+ * tranche_percentage, amount_requested are FROZEN at creation per D-13.
+ * After successful addDoc, fires COLLECTIBLE_CREATED notification fan-out
+ * to Finance role wrapped in try/catch (D-21 / Phase 84.1 D-03).
+ */
+async function submitCollectible() {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to create collectibles.', 'error');
+        return;
+    }
+
+    const errorEl = document.getElementById('createCollErrorAlert');
+    const showError = (msg) => {
+        if (errorEl) {
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+        }
+    };
+
+    const dept = document.getElementById('createCollDept')?.value;
+    const code = document.getElementById('createCollProject')?.value;
+    const trancheIndexStr = document.getElementById('createCollTranche')?.value;
+    const dueDate = document.getElementById('createCollDueDate')?.value;
+    const description = document.getElementById('createCollDescription')?.value?.trim() || '';
+
+    if (!dept || !code) { showError('Select a department and project/service.'); return; }
+    if (trancheIndexStr === '' || trancheIndexStr == null) { showError('Select a tranche.'); return; }
+    if (!dueDate) { showError('Due Date is required.'); return; }
+
+    const trancheIndex = parseInt(trancheIndexStr, 10);
+    if (isNaN(trancheIndex)) { showError('Invalid tranche index.'); return; }
+
+    const meta = (dept === 'projects' ? projectsForCollMap : servicesForCollMap).get(code);
+    if (!meta) { showError('Project/service not found. Refresh and try again.'); return; }
+
+    const tranche = Array.isArray(meta.collection_tranches) ? meta.collection_tranches[trancheIndex] : null;
+    if (!tranche) { showError('Tranche not found. Refresh and try again.'); return; }
+
+    const contractCost = parseFloat(meta.contract_cost) || 0;
+    if (contractCost <= 0) {
+        showError(`This ${dept === 'projects' ? 'project' : 'service'} has no contract cost set. Edit it to set contract cost first.`);
+        return;
+    }
+
+    const tranchePct = parseFloat(tranche.percentage) || 0;
+    const amountRequested = (tranchePct / 100) * contractCost;
+
+    // Disable submit to prevent double-click
+    const submitBtn = document.getElementById('createCollSubmitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = '0.5';
+        submitBtn.style.cursor = 'not-allowed';
+    }
+
+    try {
+        const collId = await generateCollectibleId(code, dept);
+
+        const collDoc = {
+            coll_id: collId,
+            department: dept,
+            project_id: dept === 'projects' ? (meta.id || '') : '',
+            project_code: dept === 'projects' ? code : '',
+            project_name: dept === 'projects' ? (meta.name || '') : '',
+            service_id: dept === 'services' ? (meta.id || '') : '',
+            service_code: dept === 'services' ? code : '',
+            service_name: dept === 'services' ? (meta.name || '') : '',
+            tranche_index: trancheIndex,
+            tranche_label: tranche.label,             // FROZEN at creation per D-13
+            tranche_percentage: tranchePct,           // FROZEN at creation per D-13
+            amount_requested: amountRequested,        // FROZEN at creation per D-13
+            contract_cost_at_creation: contractCost,  // audit snapshot
+            description,
+            due_date: dueDate,
+            payment_records: [],
+            created_by_user_id: window.getCurrentUser?.()?.uid ?? null,
+            created_by_name: window.getCurrentUser?.()?.full_name || window.getCurrentUser?.()?.email || 'Unknown User',
+            date_created: serverTimestamp()
+        };
+
+        await addDoc(collection(db, 'collectibles'), collDoc);
+
+        // D-21 / Phase 84.1 D-03 fire-and-forget: notification fan-out to Finance role.
+        // Failure must NOT block the primary action (the collectible is already created).
+        try {
+            const targetName = collDoc.department === 'projects' ? collDoc.project_name : collDoc.service_name;
+            const labelType = collDoc.department === 'projects' ? 'Project' : 'Service';
+            await createNotificationForRoles({
+                roles: ['finance'],
+                type: NOTIFICATION_TYPES.COLLECTIBLE_CREATED,
+                message: `New collectible filed: ${collId} (${tranche.label}, PHP ${formatCurrency(amountRequested)}) on ${labelType} ${targetName}`,
+                link: '#/finance/collectibles',
+                source_collection: 'collectibles',
+                source_id: collId,
+                object_name: targetName || '',
+                actor_name: window.getCurrentUser?.()?.full_name || 'System'
+            });
+        } catch (notifErr) {
+            console.error('[Collectibles] COLLECTIBLE_CREATED notification failed:', notifErr);
+        }
+
+        document.getElementById('createCollectibleModal')?.remove();
+        showToast(`Collectible ${collId} created.`, 'success');
+        // onSnapshot will refresh the table automatically; no explicit re-render needed
+    } catch (err) {
+        console.error('[Collectibles] submitCollectible error:', err);
+        showError('Failed to create collectible. Check your connection and try again.');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+        }
+    }
+}
+
+/**
+ * Open the Edit-Collectible modal. Per D-13, only Description and Due Date
+ * are editable. tranche_label / tranche_percentage / amount_requested are
+ * displayed as read-only rows (frozen at creation).
+ */
+async function openEditCollectibleModal(collDocId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to edit collectibles.', 'error');
+        return;
+    }
+    let coll;
+    try {
+        const snap = await getDoc(doc(db, 'collectibles', collDocId));
+        if (!snap.exists()) { showToast('Collectible not found.', 'error'); return; }
+        coll = { id: snap.id, ...snap.data() };
+    } catch (err) {
+        console.error('[Collectibles] openEditCollectibleModal getDoc error:', err);
+        showToast('Failed to load collectible. Try again.', 'error');
+        return;
+    }
+
+    const existing = document.getElementById('editCollModal');
+    if (existing) existing.remove();
+
+    const projOrSvcName = coll.department === 'projects'
+        ? (coll.project_name || coll.project_code || '')
+        : (coll.service_name || coll.service_code || '');
+
+    const html = `
+    <div id="editCollModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Edit Collectible &mdash; ${escapeHTML(coll.coll_id || '')}</h2>
+                <button class="modal-close" onclick="document.getElementById('editCollModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.25rem;padding:0.75rem;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;">
+                    <div>
+                        <div style="font-size:0.6875rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;">Project/Service</div>
+                        <div style="font-size:0.8125rem;color:#1e293b;font-weight:600;">${escapeHTML(projOrSvcName)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.6875rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;">Tranche</div>
+                        <div style="font-size:0.8125rem;color:#1e293b;font-weight:600;">${escapeHTML(coll.tranche_label || '')}</div>
+                    </div>
+                    <div style="grid-column:span 2;">
+                        <div style="font-size:0.6875rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:#94a3b8;">Amount Requested (frozen)</div>
+                        <div style="font-size:0.8125rem;color:#1e293b;font-weight:600;">${formatCurrency(coll.amount_requested || 0)}</div>
+                    </div>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Due Date <span style="color:#ea4335;">*</span></label>
+                    <input type="date" id="editCollDueDate" class="form-control" style="width:100%;" value="${escapeHTML(coll.due_date || '')}" required>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Description</label>
+                    <textarea id="editCollDescription" class="form-control" rows="3" style="width:100%;">${escapeHTML(coll.description || '')}</textarea>
+                </div>
+                <div id="editCollErrorAlert" style="display:none;margin-top:0.75rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                <button class="btn btn-outline" onclick="document.getElementById('editCollModal').remove()">Cancel</button>
+                <button class="btn btn-primary" onclick="window.submitEditCollectible('${escapeHTML(coll.id)}')">Save Changes</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+/**
+ * Submit edits to a collectible. D-13 frozen invariant: payload contains ONLY
+ * description, due_date, and updated_at — NO tranche_label / tranche_percentage /
+ * amount_requested / project_code / service_code.
+ */
+async function submitEditCollectible(collDocId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to edit collectibles.', 'error');
+        return;
+    }
+    const errorEl = document.getElementById('editCollErrorAlert');
+    const showError = (msg) => {
+        if (errorEl) {
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+        }
+    };
+    try {
+        const description = document.getElementById('editCollDescription')?.value?.trim() || '';
+        const due_date = document.getElementById('editCollDueDate')?.value || '';
+        if (!due_date) { showError('Due Date is required.'); return; }
+
+        await updateDoc(doc(db, 'collectibles', collDocId), {
+            description,
+            due_date,
+            updated_at: new Date().toISOString()
+        });
+        document.getElementById('editCollModal')?.remove();
+        showToast('Collectible updated.', 'success');
+    } catch (err) {
+        console.error('[Collectibles] submitEditCollectible error:', err);
+        showError('Failed to update collectible. Try again.');
+    }
+}
+
+// ----- Plan 06 Task 2: Payment recording + voiding + history UI -----
+
+/**
+ * Open the Record-Payment modal for a collectible.
+ * Mirrors openRecordPaymentModal (RFP) with three deviations:
+ *   - D-15: amount input is EDITABLE and defaults to remaining balance (partial pay)
+ *   - D-14: method dropdown with 5 options + Other freetext reveal
+ *   - D-23: NO Fully-Paid notification this phase (omitted from submit)
+ * History list shows ACTIVE records only; voided records appear in toggleCollPaymentHistory.
+ */
+function openRecordCollectiblePaymentModal(collDocId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to record payments.', 'error');
+        return;
+    }
+
+    const coll = collectiblesData.find(c => c.id === collDocId);
+    if (!coll) { showToast('Collectible not found', 'error'); return; }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    // Header info
+    const projOrSvcName = coll.department === 'projects'
+        ? (coll.project_name || coll.project_code || '')
+        : (coll.service_name || coll.service_code || '');
+    const trancheLabel = coll.tranche_label || '';
+    const amountRequested = parseFloat(coll.amount_requested) || 0;
+
+    // Existing payments — split into active + voided for the modal display
+    const records = coll.payment_records || [];
+    const activeRecords = records.filter(r => r.status !== 'voided');
+    const totalActivePaid = activeRecords.reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const remainingBalance = amountRequested - totalActivePaid;
+
+    let existingPaymentsHtml = '';
+    if (activeRecords.length > 0) {
+        const rowsHtml = activeRecords.map(r => `
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                    <span style="font-size:0.8125rem;font-weight:600;color:#1e293b;">${formatCurrency(r.amount)}</span>
+                    <span style="font-size:0.75rem;color:#64748b;">${escapeHTML(r.date || '')} via ${escapeHTML(r.method || '')}${r.reference ? ' &mdash; ' + escapeHTML(r.reference) : ''}</span>
+                </div>
+                <button class="btn btn-sm" style="background:#fef2f2;color:#991b1b;border:1px solid #fecaca;padding:4px 10px;font-size:0.75rem;border-radius:4px;cursor:pointer;"
+                    onclick="document.getElementById('recordCollectiblePaymentModal').remove(); window.voidCollectiblePayment('${escapeHTML(collDocId)}', '${escapeHTML(r.payment_id)}');">Void</button>
+            </div>`).join('');
+        existingPaymentsHtml = `
+            <div style="margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid #e5e7eb;">
+                <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Existing Payments (${activeRecords.length})</div>
+                <div style="display:flex;flex-direction:column;gap:6px;">${rowsHtml}</div>
+            </div>`;
+    }
+
+    // Conditional new-payment form — hidden when fully paid
+    const isFullyPaid = remainingBalance <= 0.005 && amountRequested > 0;
+
+    const newPaymentFormHtml = isFullyPaid
+        ? `<div style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;color:#065f46;font-size:0.875rem;">
+               This collectible is fully paid. You can void existing payments above to record a correction.
+           </div>`
+        : `<div style="display:flex;flex-direction:column;gap:1rem;">
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Amount (PHP) <span style="color:#ea4335;">*</span></label>
+                    <input type="number" id="paymentAmount" class="form-control"
+                           min="0.01" step="0.01" max="${remainingBalance.toFixed(2)}"
+                           value="${remainingBalance.toFixed(2)}" placeholder="Amount in PHP"
+                           style="width:100%;" required>
+                    <small style="color:#64748b;font-size:0.75rem;">Remaining balance: ${formatCurrency(remainingBalance)}. Partial payments allowed.</small>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Payment Date <span style="color:#ea4335;">*</span></label>
+                    <input type="date" id="paymentDate" class="form-control" value="${today}" style="width:100%;" required>
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Payment Method <span style="color:#ea4335;">*</span></label>
+                    <select id="paymentMode" class="form-control" onchange="window.toggleCollPaymentOtherField()" style="width:100%;" required>
+                        <option value="">Select method...</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Check">Check</option>
+                        <option value="Cash">Cash</option>
+                        <option value="GCash/E-Wallet">GCash/E-Wallet</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <input type="text" id="paymentModeOther" class="form-control" placeholder="Specify other method"
+                           style="display:none;margin-top:0.5rem;width:100%;" />
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:0.5rem;font-weight:600;color:#475569;font-size:0.875rem;">Reference Number</label>
+                    <input type="text" id="paymentReference" class="form-control" placeholder="Check number, transfer ref, etc." style="width:100%;">
+                </div>
+            </div>
+            <div id="paymentErrorAlert" style="display:none;margin-top:1rem;padding:8px 12px;background:#fef2f2;color:#991b1b;border-radius:6px;font-size:0.875rem;"></div>`;
+
+    const footerHtml = isFullyPaid
+        ? `<button class="btn btn-outline" onclick="document.getElementById('recordCollectiblePaymentModal').remove()">Close</button>`
+        : `<button class="btn btn-outline" onclick="document.getElementById('recordCollectiblePaymentModal').remove()">Discard</button>
+           <button class="btn btn-primary" style="background:#059669;border-color:#059669;" onclick="window.submitCollectiblePayment('${escapeHTML(collDocId)}')">Record Payment</button>`;
+
+    const modalHtml = `
+    <div id="recordCollectiblePaymentModal" class="modal" style="display:flex;">
+        <div class="modal-content" style="max-width:480px;margin:auto;">
+            <div class="modal-header">
+                <h2 style="font-size:1.125rem;font-weight:600;">Record Payment &mdash; ${escapeHTML(coll.coll_id || '')}</h2>
+                <button class="modal-close" onclick="document.getElementById('recordCollectiblePaymentModal').remove()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.5rem;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+                    <div style="grid-column:span 2;">
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">${coll.department === 'projects' ? 'Project' : 'Service'}</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(projOrSvcName)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Tranche</div>
+                        <div style="font-weight:600;color:#1e293b;">${escapeHTML(trancheLabel)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Amount Requested</div>
+                        <div style="font-weight:600;color:#1e293b;">${formatCurrency(amountRequested)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Total Paid So Far</div>
+                        <div style="font-weight:600;color:#059669;">${formatCurrency(totalActivePaid)}</div>
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Remaining Balance</div>
+                        <div style="font-weight:600;color:${remainingBalance > 0 ? '#ef4444' : '#059669'};">${formatCurrency(remainingBalance)}</div>
+                    </div>
+                </div>
+                ${existingPaymentsHtml}
+                ${newPaymentFormHtml}
+            </div>
+            <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                ${footerHtml}
+            </div>
+        </div>
+    </div>`;
+
+    const existing = document.getElementById('recordCollectiblePaymentModal');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+/**
+ * Toggle the Other-method freetext input visibility based on paymentMode select.
+ * D-14 — only the Other option reveals the freetext input.
+ */
+function toggleCollPaymentOtherField() {
+    const select = document.getElementById('paymentMode');
+    const otherInput = document.getElementById('paymentModeOther');
+    if (!select || !otherInput) return;
+    if (select.value === 'Other') {
+        otherInput.style.display = '';
+        otherInput.required = true;
+    } else {
+        otherInput.style.display = 'none';
+        otherInput.required = false;
+        otherInput.value = '';
+    }
+}
+
+/**
+ * Validate and append a payment record to a collectible doc via arrayUnion.
+ * D-15: partial payments allowed; reject amount > remaining balance (with 0.01 float tolerance).
+ * D-23: NO Fully-Paid notification this phase (deferred polish — see CONTEXT.md).
+ */
+async function submitCollectiblePayment(collDocId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to record payments.', 'error');
+        return;
+    }
+    const errorEl = document.getElementById('paymentErrorAlert');
+    const showError = (msg) => {
+        if (errorEl) {
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+        }
+    };
+
+    const coll = collectiblesData.find(c => c.id === collDocId);
+    if (!coll) { showError('Collectible not found. Refresh and try again.'); return; }
+
+    const amountStr = document.getElementById('paymentAmount')?.value;
+    const date = document.getElementById('paymentDate')?.value;
+    const methodSel = document.getElementById('paymentMode')?.value;
+    const methodOther = document.getElementById('paymentModeOther')?.value?.trim() || '';
+    const reference = document.getElementById('paymentReference')?.value?.trim() || '';
+
+    if (!date) { showError('Payment Date is required.'); return; }
+    if (!methodSel) { showError('Payment Method is required.'); return; }
+    if (methodSel === 'Other' && !methodOther) { showError('Specify the "Other" payment method.'); return; }
+
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) { showError('Amount must be greater than zero.'); return; }
+
+    const totalPaidExisting = (coll.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+    const remainingBalance = (parseFloat(coll.amount_requested) || 0) - totalPaidExisting;
+    // Allow tiny floating-point overshoot (within 0.01)
+    if (amount > remainingBalance + 0.01) {
+        showError(`Amount exceeds remaining balance (${formatCurrency(remainingBalance)}).`);
+        return;
+    }
+
+    const paymentRecord = {
+        payment_id: `PAY-${Date.now()}`,
+        amount,
+        date,
+        method: methodSel === 'Other' ? methodOther : methodSel,
+        reference,
+        status: 'active',
+        recorded_at: new Date().toISOString()
+    };
+
+    try {
+        await updateDoc(doc(db, 'collectibles', collDocId), {
+            payment_records: arrayUnion(paymentRecord)
+        });
+        document.getElementById('recordCollectiblePaymentModal')?.remove();
+        showToast(`Payment recorded for ${coll.coll_id}.`, 'success');
+        // D-23: No Fully-Paid notification this phase. Deferred polish.
+    } catch (err) {
+        console.error('[Collectibles] submitCollectiblePayment error:', err);
+        showError('Failed to record payment. Check your connection and try again.');
+    }
+}
+
+/**
+ * Void a payment record on a collectible (D-16).
+ * Read-modify-write: getDoc → tag matching record with status:'voided' + audit
+ * fields → updateDoc full new array. Voided records persist in the array for
+ * audit trail (D-17) and are excluded from total_paid in deriveCollectibleStatus.
+ */
+async function voidCollectiblePayment(collDocId, paymentId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to void payments.', 'error');
+        return;
+    }
+    const reason = (prompt('Reason for voiding this payment? (optional)') ?? '').trim();
+    if (!confirm('Void this payment record? Voided records remain in the audit trail and cannot be unvoided.')) return;
+
+    try {
+        const ref = doc(db, 'collectibles', collDocId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) { showToast('Collectible not found.', 'error'); return; }
+
+        const records = snap.data().payment_records || [];
+        const updated = records.map(r =>
+            r.payment_id === paymentId
+                ? {
+                    ...r,
+                    status: 'voided',
+                    voided: true,
+                    voided_by: window.getCurrentUser?.()?.uid ?? null,
+                    voided_at: new Date().toISOString(),
+                    void_reason: reason
+                }
+                : r
+        );
+        await updateDoc(ref, { payment_records: updated });
+        showToast('Payment voided.', 'success');
+    } catch (err) {
+        console.error('[Collectibles] voidCollectiblePayment error:', err);
+        showToast('Failed to void payment. Check your connection and try again.', 'error');
+    }
+}
+
+/**
+ * Toggle the expandable payment-history sub-row for a collectible.
+ * Plan 05 renderCollectiblesTable emits a hidden <tr id="coll-history-${id}">
+ * sibling per row. Expand: render chronological list of ALL records (active +
+ * voided per D-17) with strike-through and "(voided)" indicator. Collapse: hide.
+ */
+function toggleCollPaymentHistory(collDocId) {
+    const row = document.getElementById(`coll-history-${collDocId}`);
+    if (!row) return;
+    if (row.style.display !== 'none') {
+        row.style.display = 'none';
+        return;
+    }
+    const coll = collectiblesData.find(c => c.id === collDocId);
+    if (!coll) return;
+
+    const records = (coll.payment_records || [])
+        .slice()
+        .sort((a, b) => (a.recorded_at || '').localeCompare(b.recorded_at || ''));
+
+    const cell = row.querySelector('td');
+    if (!cell) return;
+    if (records.length === 0) {
+        cell.innerHTML = '<em style="color:#64748b;">No payments recorded yet.</em>';
+    } else {
+        cell.innerHTML = `
+            <div style="font-size:0.75rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-bottom:6px;">Payment History (${records.length})</div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                ${records.map(r => {
+                    const isVoided = r.status === 'voided';
+                    const lineStyle = isVoided ? 'text-decoration:line-through;color:#94a3b8;' : 'color:#1e293b;';
+                    const voidLabel = isVoided ? ' <span style="font-style:italic;color:#991b1b;">(voided)</span>' : '';
+                    const reason = isVoided && r.void_reason ? ` &mdash; reason: ${escapeHTML(r.void_reason)}` : '';
+                    return `<div style="${lineStyle}font-size:0.8125rem;">${formatCurrency(r.amount)} on ${escapeHTML(r.date || '')} via ${escapeHTML(r.method || '')}${r.reference ? ' &mdash; ref ' + escapeHTML(r.reference) : ''}${voidLabel}${reason}</div>`;
+                }).join('')}
+            </div>
+        `;
+    }
+    row.style.display = 'table-row';
+}
+
+// ----- Plan 06 Task 3: Cancel-collectible (right-click) + CSV export -----
+
+/**
+ * Pure helper: a collectible is cancellable iff it has zero non-voided
+ * payment_records. Voided records do NOT block cancellation (they exist for
+ * audit only). Mirrors Phase 65.10 isRFPCancellable semantics.
+ */
+function isCollectibleCancellable(coll) {
+    const totalPaid = (coll.payment_records || [])
+        .filter(r => r.status !== 'voided')
+        .reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    return totalPaid === 0;
+}
+
+/**
+ * Show the right-click context menu for a collectible row.
+ * Edit visible to write-authorized roles; Cancel only when isCollectibleCancellable.
+ * Mirrors Phase 65.10 showRFPContextMenu pattern.
+ */
+function showCollectibleContextMenu(event, collDocId) {
+    const existing = document.getElementById('collContextMenu');
+    if (existing) existing.remove();
+
+    const coll = collectiblesData.find(c => c.id === collDocId);
+    if (!coll) return;
+
+    const cancellable = isCollectibleCancellable(coll);
+    const canEdit = hasCollectibleWriteAuthority();
+
+    const menu = document.createElement('div');
+    menu.id = 'collContextMenu';
+    menu.style.cssText = `position:fixed;left:${event.clientX}px;top:${event.clientY}px;background:white;border:1px solid #e5e7eb;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);padding:4px 0;z-index:10000;min-width:200px;`;
+
+    let html = `<div style="padding:6px 16px;font-size:0.7rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">${escapeHTML(coll.coll_id || '')}</div>`;
+    if (canEdit) {
+        html += `
+            <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#1e293b;"
+                 onmouseenter="this.style.background='#f1f5f9'"
+                 onmouseleave="this.style.background='transparent'"
+                 onclick="document.getElementById('collContextMenu')?.remove(); window.openEditCollectibleModal('${escapeHTML(coll.id)}')">
+                Edit Description / Due Date
+            </div>
+        `;
+        if (cancellable) {
+            html += `
+                <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+                <div style="padding:8px 16px;cursor:pointer;font-size:0.875rem;color:#ef4444;"
+                     onmouseenter="this.style.background='#fef2f2'"
+                     onmouseleave="this.style.background='transparent'"
+                     onclick="document.getElementById('collContextMenu')?.remove(); window.cancelCollectible('${escapeHTML(coll.id)}')">
+                    Cancel ${escapeHTML(coll.coll_id || '')}
+                </div>
+            `;
+        } else {
+            html += `
+                <div style="border-top:1px solid #f1f5f9;margin:4px 0;"></div>
+                <div style="padding:8px 16px;font-size:0.875rem;color:#94a3b8;cursor:not-allowed;">
+                    Cancel — not allowed (payments recorded)
+                </div>
+            `;
+        }
+    } else {
+        html += `<div style="padding:8px 16px;font-size:0.875rem;color:#94a3b8;">No actions available for your role.</div>`;
+    }
+
+    menu.innerHTML = html;
+    document.body.appendChild(menu);
+    // Dismiss on next outside click
+    setTimeout(() => {
+        document.addEventListener('click', function handler() {
+            menu.remove();
+            document.removeEventListener('click', handler);
+        }, { once: true });
+    }, 10);
+}
+
+/**
+ * Cancel a collectible: deleteDoc when zero non-voided payments.
+ * Frees the tranche slot to be re-billed (D-12 strict 1:1 dedup releases the
+ * tranche_index back to the dropdown). Cannot be undone — confirm dialog used.
+ */
+async function cancelCollectible(collDocId) {
+    if (!hasCollectibleWriteAuthority()) {
+        showToast('You do not have permission to cancel collectibles.', 'error');
+        return;
+    }
+    const coll = collectiblesData.find(c => c.id === collDocId);
+    if (!coll) { showToast('Collectible not found.', 'error'); return; }
+    if (!isCollectibleCancellable(coll)) {
+        showToast('Cannot cancel a collectible with recorded payments. Void payments first.', 'error');
+        return;
+    }
+    if (!confirm(`Cancel collectible ${coll.coll_id}? This frees the tranche slot to be re-billed. Cannot be undone.`)) return;
+
+    try {
+        await deleteDoc(doc(db, 'collectibles', collDocId));
+        showToast(`Collectible ${coll.coll_id} cancelled.`, 'success');
+    } catch (err) {
+        console.error('[Collectibles] cancelCollectible error:', err);
+        showToast('Failed to cancel collectible. Check your connection and try again.', 'error');
+    }
+}
+
+/**
+ * Export currently-displayed (filter-aware) collectibles to a CSV file.
+ * D-26: Reuses getDisplayedCollectibles (filter pipeline shared with table).
+ * D-27: 13 columns — ID, Project/Service Code, Project/Service Name, Department,
+ *       Tranche Label, Tranche %, Amount Requested, Total Paid, Balance,
+ *       Due Date, Status, Created Date, Description.
+ * Filename: collectibles-{YYYY-MM-DD}.csv
+ *
+ * SECURITY (T-85.6-01): CSV-injection mitigation — every string cell that may
+ * carry user input gets prefixed with a single quote (') if it begins with =,
+ * +, -, @, tab (\t), or carriage-return (\r). This neutralises the value so
+ * Excel / Sheets / Numbers treat it as a literal string instead of evaluating
+ * it as a formula. The existing downloadCSV utility only escapes commas /
+ * quotes / newlines — it does not mitigate formula injection — so we apply
+ * the safe() wrapper here before passing rows in.
+ */
+function exportCollectiblesCSV() {
+    const displayed = getDisplayedCollectibles();
+    if (displayed.length === 0) {
+        showToast('No collectibles to export.', 'info');
+        return;
+    }
+
+    // T-85.6-01 mitigation. Trigger chars per OWASP CSV-injection guidance:
+    // = + - @ tab \r — any of these as the leading character can start a
+    // formula in a spreadsheet. Prefix with ' to disarm.
+    const safe = v => (typeof v === 'string' && /^[=+\-@\t\r]/.test(v)) ? "'" + v : v;
+
+    const headers = [
+        'ID',
+        'Project/Service Code',
+        'Project/Service Name',
+        'Department',
+        'Tranche Label',
+        'Tranche %',
+        'Amount Requested',
+        'Total Paid',
+        'Balance',
+        'Due Date',
+        'Status',
+        'Created Date',
+        'Description'
+    ];
+
+    const rows = displayed.map(c => {
+        const totalPaid = (c.payment_records || [])
+            .filter(r => r.status !== 'voided')
+            .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+        const balance = (parseFloat(c.amount_requested) || 0) - totalPaid;
+        const status = deriveCollectibleStatus(c);
+        const code = c.department === 'projects' ? (c.project_code || '') : (c.service_code || '');
+        const name = c.department === 'projects' ? (c.project_name || '') : (c.service_name || '');
+        // date_created is a Firestore Timestamp — handle gracefully
+        let createdDate = '';
+        try {
+            if (c.date_created?.toDate) createdDate = c.date_created.toDate().toISOString().slice(0, 10);
+            else if (c.date_created?.seconds) createdDate = new Date(c.date_created.seconds * 1000).toISOString().slice(0, 10);
+            else if (typeof c.date_created === 'string') createdDate = c.date_created.slice(0, 10);
+        } catch (e) { /* leave empty */ }
+
+        return [
+            safe(c.coll_id || ''),
+            safe(code),
+            safe(name),
+            c.department === 'projects' ? 'Projects' : 'Services',
+            safe(c.tranche_label || ''),
+            (parseFloat(c.tranche_percentage) || 0).toFixed(2),
+            (parseFloat(c.amount_requested) || 0).toFixed(2),
+            totalPaid.toFixed(2),
+            balance.toFixed(2),
+            safe(c.due_date || ''),
+            safe(status),
+            safe(createdDate),
+            safe(c.description || '')
+        ];
+    });
+
+    const date = new Date().toISOString().slice(0, 10);
+    downloadCSV(headers, rows, `collectibles-${date}.csv`);
 }
 
 /**
@@ -1536,9 +3594,20 @@ function formatDocumentDate(dateString) {
     });
 }
 
-async function viewPODetailsFromRFP(poDocId) {
+async function viewPODetailsFromRFP(poRef) {
     showLoading(true);
     try {
+        // poRef is the human-readable po_id (e.g. "PO-2026-001"). Resolve it to the
+        // Firestore doc id via the live pos collection — RFP docs store an unreliable/
+        // empty doc-id field, so we never pass that straight to getDoc (Phase 98 gap fix:
+        // empty id -> "pos has 1 segment" FirebaseError). Map first, query fallback,
+        // then assume poRef is already a doc id as a last resort.
+        if (!poRef) { showToast('PO not found', 'error'); return; }
+        let poDocId = posDocIdMap.get(poRef) || '';
+        if (!poDocId) {
+            const qSnap = await getDocs(query(collection(db, 'pos'), where('po_id', '==', poRef)));
+            poDocId = qSnap.empty ? poRef : qSnap.docs[0].id;
+        }
         const poDoc = await getDoc(doc(db, 'pos', poDocId));
         if (!poDoc.exists()) {
             showToast('PO not found', 'error');
@@ -1640,6 +3709,88 @@ async function viewPODetailsFromRFP(poDocId) {
 }
 
 /**
+ * Read-only Transport Request detail modal, self-contained within finance.js
+ * (ported from mrf-records.js viewTRDetailsLocal so the Payables Ref link does not
+ * depend on window.viewTRDetails being registered by another view). Fetches by
+ * Firestore doc ID; all rendered fields are escapeHTML'd (D-06/D-12, T-98-05).
+ * @param {string} trDocId - Firestore document ID of the transport_requests doc
+ */
+async function viewTRDetailsFromRFP(trRef) {
+    showLoading(true);
+    try {
+        // trRef is the human-readable tr_id (e.g. "TR-2026-001"). transport_requests
+        // are not preloaded in finance, and the stored RFP doc-id field is unreliable, so
+        // resolve the doc id by querying tr_id (fallback: assume trRef is already a doc id).
+        if (!trRef) { showToast('TR not found', 'error'); return; }
+        let trDocId = trRef;
+        const qSnap = await getDocs(query(collection(db, 'transport_requests'), where('tr_id', '==', trRef)));
+        if (!qSnap.empty) trDocId = qSnap.docs[0].id;
+        const trDoc = await getDoc(doc(db, 'transport_requests', trDocId));
+        if (!trDoc.exists()) { showToast('TR not found', 'error'); return; }
+        const tr = { id: trDoc.id, ...trDoc.data() };
+        const items = JSON.parse(tr.items_json || '[]');
+
+        const body = `
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">TR ID</div><div style="font-weight: 600;">${escapeHTML(tr.tr_id || 'N/A')}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">MRF Reference</div><div style="font-weight: 600;">${escapeHTML(tr.mrf_id || 'N/A')}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Supplier</div><div style="font-weight: 600;">${escapeHTML(tr.supplier_name || 'Not specified')}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Finance Status</div><div><span class="status-badge ${getStatusClass(tr.finance_status || 'Pending')}">${escapeHTML(tr.finance_status || 'Pending')}</span></div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Total Amount</div><div style="font-weight: 600;">${formatCurrency(tr.total_amount || 0)}</div></div>
+                    <div><div style="font-size: 0.75rem; color: #5f6368;">Date Submitted</div><div>${(tr.date_submitted || tr.date_generated) ? (formatTimestamp(tr.date_submitted || tr.date_generated) || 'N/A') : 'N/A'}</div></div>
+                </div>
+                ${tr.rejection_reason ? `
+                <div style="margin-bottom: 1rem; padding: 0.75rem; background: #fee2e2; border-radius: 4px; border-left: 3px solid #dc2626;">
+                    <div style="font-size: 0.75rem; color: #dc2626; font-weight: 600; margin-bottom: 0.25rem;">Rejection Reason</div>
+                    <div style="font-size: 0.875rem; color: #1e293b;">${escapeHTML(tr.rejection_reason)}</div>
+                </div>` : ''}
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="margin-bottom: 0.75rem;">Items (${items.length})</h4>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+                        <thead><tr style="background: #f3f4f6;">
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Item</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Category</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Qty</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Unit Cost</th>
+                            <th style="padding: 0.5rem; text-align: left; border-bottom: 2px solid #e5e7eb;">Subtotal</th>
+                        </tr></thead>
+                        <tbody>${items.length > 0 ? items.map(item => `
+                            <tr>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.item || item.item_name || '')}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(item.category || 'N/A')}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${escapeHTML(String(item.qty || item.quantity || 0))} ${escapeHTML(item.unit || 'pcs')}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.unit_cost || 0)}</td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.subtotal || ((item.qty || item.quantity || 0) * (item.unit_cost || 0)))}</td>
+                            </tr>`).join('') : '<tr><td colspan="5" style="padding: 0.5rem; color: #64748b;">No items found</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            </div>`;
+
+        let container = document.getElementById('financeTRDetailsModalContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'financeTRDetailsModalContainer';
+            document.body.appendChild(container);
+        }
+        container.innerHTML = createModal({
+            id: 'financeTRDetailsModal',
+            title: `Transport Request Details: ${escapeHTML(tr.tr_id || '')}`,
+            body,
+            footer: `<button class="btn btn-secondary" onclick="closeModal('financeTRDetailsModal')">Close</button>`,
+            size: 'large'
+        });
+        openModal('financeTRDetailsModal');
+    } catch (err) {
+        console.error('[Finance] viewTRDetailsFromRFP error:', err);
+        showToast('Failed to load TR details', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+/**
  * Generate PO Document
  * @param {string} poDocId - Firestore document ID of the PO
  */
@@ -1731,6 +3882,10 @@ export function render(activeTab = 'approvals') {
                        class="finance-sub-nav-tab ${activeTab === 'payables' ? 'finance-sub-nav-tab--active' : ''}"
                        role="tab"
                        aria-selected="${activeTab === 'payables' ? 'true' : 'false'}">Payables</a>
+                    <a href="#/finance/collectibles"
+                       class="finance-sub-nav-tab ${activeTab === 'collectibles' ? 'finance-sub-nav-tab--active' : ''}"
+                       role="tab"
+                       aria-selected="${activeTab === 'collectibles' ? 'true' : 'false'}">Collectibles</a>
                 </div>
             </div>
         </nav>
@@ -2074,6 +4229,98 @@ export function render(activeTab = 'approvals') {
                     </div>
                 </div>
             </section>
+
+            <!-- Tab 5: Collectibles (Phase 85) -->
+            <section id="collectibles-section" class="section ${activeTab === 'collectibles' ? 'active' : ''}">
+                <!-- Phase 99 D-14 — pending billing requests banner (filled/cleared by renderPendingBillingBanner) -->
+                <div id="pendingBillingBanner"></div>
+                <div class="card">
+                    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+                        <h2>Collectibles</h2>
+                        <button class="btn btn-primary" onclick="window.openCreateCollectibleModal()" id="createCollectibleBtn"
+                                style="font-size:0.875rem;">+ Create Collectible</button>
+                    </div>
+                    <div style="padding:1rem;">
+                        <div style="display:flex;gap:0.75rem;margin-bottom:0.75rem;align-items:center;flex-wrap:wrap;">
+                            <input type="search" id="collSearchInput" class="form-control"
+                                   placeholder="Search project, tranche, COLL ID, code…"
+                                   style="width:auto;min-width:220px;font-size:0.875rem;"
+                                   oninput="window.filterCollectiblesTable()">
+                            <select id="collStatusFilter" class="form-control"
+                                    style="width:auto;min-width:160px;font-size:0.875rem;"
+                                    onchange="window.filterCollectiblesTable()">
+                                <option value="">All Statuses</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Partially Paid">Partially Paid</option>
+                                <option value="Fully Paid">Fully Paid</option>
+                                <option value="Overdue">Overdue</option>
+                                <option value="Near Due">Near due (≤7 days)</option>
+                            </select>
+                            <select id="collDeptFilter" class="form-control"
+                                    style="width:auto;min-width:160px;font-size:0.875rem;"
+                                    onchange="window.filterCollectiblesTable()">
+                                <option value="">All Departments</option>
+                                <option value="projects">Projects</option>
+                                <option value="services">Services</option>
+                            </select>
+                            <div class="coll-date-picker-wrap" id="collDatePickerWrap">
+                                <button type="button" class="coll-date-picker-btn" id="collDatePickerBtn"
+                                        onclick="window.toggleCollDatePicker()">
+                                    <span id="collDatePickerLabel">Due: Any time</span>
+                                    <span class="coll-dp-chevron">▾</span>
+                                </button>
+                                <div class="coll-dp-panel" id="collDpPanel" style="display:none;">
+                                    <div class="coll-dp-section-label">Quick select</div>
+                                    <div class="coll-dp-preset" data-mode="today"      onclick="window.selectCollDuePreset('today')">Today</div>
+                                    <div class="coll-dp-preset" data-mode="yesterday"  onclick="window.selectCollDuePreset('yesterday')">Yesterday</div>
+                                    <div class="coll-dp-preset" data-mode="this_month" onclick="window.selectCollDuePreset('this_month')">This month</div>
+                                    <div class="coll-dp-preset" data-mode="last7"      onclick="window.selectCollDuePreset('last7')">Last 7 days</div>
+                                    <div class="coll-dp-preset" data-mode="last30"     onclick="window.selectCollDuePreset('last30')">Last 30 days</div>
+                                    <div class="coll-dp-divider"></div>
+                                    <div class="coll-dp-preset" data-mode=""      onclick="window.selectCollDuePreset('')">Any time</div>
+                                    <div class="coll-dp-preset" data-mode="fixed"  onclick="window.selectCollDuePreset('fixed')">Fixed range ▸</div>
+                                    <div class="coll-dp-fixed" id="collDpFixed" style="display:none;">
+                                        <div class="coll-dp-fixed-row">
+                                            <span class="coll-dp-fixed-lbl">From</span>
+                                            <input type="date" id="collDueFromFilter" onchange="window.onCollFixedRangeChange()">
+                                        </div>
+                                        <div class="coll-dp-fixed-row">
+                                            <span class="coll-dp-fixed-lbl">To</span>
+                                            <input type="date" id="collDueToFilter" onchange="window.onCollFixedRangeChange()">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button id="collGroupByBtn" class="btn btn-outline btn-sm" onclick="window.toggleCollGroupBy()" style="font-size:0.8125rem;">⊞ Group by Project</button>
+                            <button class="btn btn-outline btn-sm" onclick="window.exportCollectiblesCSV()"
+                                    id="exportCollectiblesBtn" style="font-size:0.8125rem;">Export CSV</button>
+                        </div>
+                        <!-- Phase 99.2 — reactive scorecard (filled by renderCollectiblesScorecard) -->
+                        <div id="collectiblesScorecard" class="coll-scorecard"></div>
+                        <div class="table-scroll-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Project · Tranche</th>
+                                        <th>Collection Progress</th>
+                                        <th>Due · Urgency</th>
+                                        <th>Last Payment</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="collectiblesTableBody">
+                                    <tr><td colspan="5" style="text-align:center;padding:2rem;color:#64748b;">Loading collectibles...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Phase 99.2 — ≤768px mobile card list (populated by renderCollectiblesTable) -->
+                        <div class="fc-card-list" id="collectiblesCardList"></div>
+                        <!-- Phase 99.2 — "Show N completed" toggle host -->
+                        <div id="collShowCompletedHost"></div>
+                        <div id="collectiblesPagination" class="pagination-container"></div>
+                    </div>
+                </div>
+            </section>
         </div>
 
         <!-- PR Details Modal -->
@@ -2192,6 +4439,11 @@ export async function init(activeTab = 'approvals') {
             await initPayablesTab();
         }
 
+        // Load collectibles if on collectibles tab (Phase 85)
+        if (activeTab === 'collectibles') {
+            await initCollectiblesTab();
+        }
+
     } catch (error) {
         console.error('Error initializing finance view:', error);
         showToast('Error loading finance data', 'error');
@@ -2224,8 +4476,12 @@ async function refreshProjectExpenses(forceRefresh = false) {
         const projectPromises = projectsSnapshot.docs.map(async (projectDoc) => {
             const project = projectDoc.data();
 
-            // Run PO and TR aggregation in parallel for each project
-            const [posAgg, trAgg] = await Promise.all([
+            // Phase 88 D-05 — Draft projects are pre-proposal; exclude from Finance Project List.
+            if (project.project_status === 'Draft') return null;
+
+            // Run PO, TR, and RFP fee aggregation in parallel for each project
+            const projectCode = project.project_code || '';
+            const [posAgg, trAgg, rfpSnap] = await Promise.all([
                 getAggregateFromServer(
                     query(collection(db, 'pos'), where('project_name', '==', project.project_name)),
                     { totalExpense: sum('total_amount'), poCount: count() }
@@ -2233,10 +4489,16 @@ async function refreshProjectExpenses(forceRefresh = false) {
                 getAggregateFromServer(
                     query(collection(db, 'transport_requests'), where('project_name', '==', project.project_name), where('finance_status', '==', 'Approved')),
                     { transportTotal: sum('total_amount'), trCount: count() }
-                )
+                ),
+                projectCode
+                    ? getDocs(query(collection(db, 'rfps'), where('project_code', '==', projectCode)))
+                    : Promise.resolve({ docs: [] })
             ]);
 
-            const totalExpense = (posAgg.data().totalExpense || 0) + (trAgg.data().transportTotal || 0);
+            let rfpFeesTotal = 0;
+            rfpSnap.docs.forEach(d => { rfpFeesTotal += getRFPFees(d.data()).feesTotal; });
+
+            const totalExpense = (posAgg.data().totalExpense || 0) + (trAgg.data().transportTotal || 0) + rfpFeesTotal;
             const budget = project.budget || 0;
 
             return {
@@ -2252,7 +4514,8 @@ async function refreshProjectExpenses(forceRefresh = false) {
             };
         });
 
-        projectExpenses = await Promise.all(projectPromises);
+        // .filter(Boolean) removes the null entries returned for Draft projects (Phase 88 D-05 / MED-1).
+        projectExpenses = (await Promise.all(projectPromises)).filter(Boolean);
 
         // Sort: active projects A-Z first, then inactive A-Z
         projectExpenses.sort((a, b) => {
@@ -2464,13 +4727,16 @@ async function refreshServiceExpenses(forceRefresh = false) {
             const service = serviceDoc.data();
             const code = service.service_code || '';
 
-            // Aggregate PO totals + fetch TRs client-side (avoids composite index on transport_requests)
-            const [posAgg, trSnap] = await Promise.all([
+            // Aggregate PO totals + fetch TRs + RFPs in parallel
+            const [posAgg, trSnap, rfpSnap] = await Promise.all([
                 getAggregateFromServer(
                     query(collection(db, 'pos'), where('service_code', '==', code)),
                     { totalExpense: sum('total_amount'), poCount: count() }
                 ),
-                getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', code)))
+                getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', code))),
+                code
+                    ? getDocs(query(collection(db, 'rfps'), where('service_code', '==', code)))
+                    : Promise.resolve({ docs: [] })
             ]);
 
             let transportTotal = 0, trCount = 0;
@@ -2481,7 +4747,10 @@ async function refreshServiceExpenses(forceRefresh = false) {
                 }
             });
 
-            const totalExpense = (posAgg.data().totalExpense || 0) + transportTotal;
+            let rfpFeesTotal = 0;
+            rfpSnap.docs.forEach(d => { rfpFeesTotal += getRFPFees(d.data()).feesTotal; });
+
+            const totalExpense = (posAgg.data().totalExpense || 0) + transportTotal + rfpFeesTotal;
             const budget = service.budget || 0;
 
             return {
@@ -2529,13 +4798,16 @@ async function refreshRecurringExpenses(forceRefresh = false) {
             const service = serviceDoc.data();
             const code = service.service_code || '';
 
-            // Aggregate PO totals + fetch TRs client-side (avoids composite index on transport_requests)
-            const [posAgg, trSnap] = await Promise.all([
+            // Aggregate PO totals + fetch TRs + RFPs in parallel
+            const [posAgg, trSnap, rfpSnap] = await Promise.all([
                 getAggregateFromServer(
                     query(collection(db, 'pos'), where('service_code', '==', code)),
                     { totalExpense: sum('total_amount'), poCount: count() }
                 ),
-                getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', code)))
+                getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', code))),
+                code
+                    ? getDocs(query(collection(db, 'rfps'), where('service_code', '==', code)))
+                    : Promise.resolve({ docs: [] })
             ]);
 
             let transportTotal = 0, trCount = 0;
@@ -2546,7 +4818,10 @@ async function refreshRecurringExpenses(forceRefresh = false) {
                 }
             });
 
-            const totalExpense = (posAgg.data().totalExpense || 0) + transportTotal;
+            let rfpFeesTotal = 0;
+            rfpSnap.docs.forEach(d => { rfpFeesTotal += getRFPFees(d.data()).feesTotal; });
+
+            const totalExpense = (posAgg.data().totalExpense || 0) + transportTotal + rfpFeesTotal;
             const budget = service.budget || 0;
 
             return {
@@ -2883,6 +5158,7 @@ export async function destroy() {
     delete window.promptPODocument;
     delete window.generatePODocument;
     delete window.viewPODetailsFromRFP;
+    delete window.viewTRDetailsFromRFP;
     delete window.financeShowProofModal;
     delete window.refreshProjectExpenses;
     delete window.showProjectExpenseModal;
@@ -2926,6 +5202,60 @@ export async function destroy() {
     poSummaryStatusFilter = '';
     poSummaryDeptFilter = '';
     poSummaryCurrentPage = 1;
+
+    // Clean up Collectibles tab window functions (Phase 85)
+    delete window.filterCollectiblesTable;
+    delete window.changeCollectiblesPage;
+    delete window.toggleCollShowCompleted;   // Phase 99.2
+    delete window.toggleCollDatePicker;      // Phase 99.3
+    delete window.selectCollDuePreset;       // Phase 99.3
+    delete window.onCollFixedRangeChange;    // Phase 99.3
+    delete window.toggleCollGroupBy;         // Phase 99.3
+    delete window.toggleCollGroup;           // Phase 99.3
+    // Plan 06 Task 1 — create + edit
+    delete window.openCreateCollectibleModal;
+    delete window.submitCollectible;
+    delete window.openEditCollectibleModal;
+    delete window.submitEditCollectible;
+    delete window._refreshCreateCollProjectDropdown;
+    delete window._refreshCreateCollTrancheDropdown;
+    // Plan 06 Task 2 — payment recording + voiding + history
+    delete window.openRecordCollectiblePaymentModal;
+    delete window.submitCollectiblePayment;
+    delete window.voidCollectiblePayment;
+    delete window.toggleCollPaymentHistory;
+    delete window.toggleCollPaymentOtherField;
+    // Plan 06 Task 3 — cancel + context menu + CSV export
+    delete window.cancelCollectible;
+    delete window.showCollectibleContextMenu;
+    delete window.exportCollectiblesCSV;
+    // Phase 99 — billing request review queue cleanup
+    delete window.approveBillingRequest;
+    delete window.rejectBillingRequest;
+    delete window.toggleBillingBanner;
+    delete window.toggleApprovedBanner;            // Phase 99.2
+    delete window.fileCollectibleFromBanner;       // Phase 99.2
+
+    // Reset Collectibles tab state
+    collectiblesData = [];
+    projectsForCollMap = new Map();
+    servicesForCollMap = new Map();
+    // Phase 99 — billing request banner state
+    pendingBillingRequests = [];
+    billingBannerCollapsed = false;
+    // Phase 99.2 — approved-not-filed recovery + fully-paid hide state
+    approvedBillingRequests = [];
+    approvedBannerCollapsed = false;
+    collShowCompleted = false;   // D-05b — must reset so fully-paid rows stay hidden by default on remount
+    collSearchQuery = '';        // Phase 99.3
+    collDuePreset = '';          // Phase 99.3 — date label resets to "Due: Any time" on remount
+    collGroupBy = false;         // Phase 99.3 — flat default on remount
+    collGroupExpanded = {};      // Phase 99.3 — no groups expanded on remount
+    collStatusFilter = '';
+    collDeptFilter = '';
+    collDueFromFilter = '';
+    collDueToFilter = '';
+    collCurrentPage = 1;
 
     // Reset sort state
     projectExpenseSortColumn = 'projectName';
@@ -3817,6 +6147,24 @@ async function approvePRWithSignature(prId) {
             approved_by_uid: currentUser.uid
         });
 
+        // Phase 84.1 NOTIF-15: notify PR creator that Finance approved the PR (fire-and-forget)
+        try {
+            if (pr.pr_creator_user_id) {
+                await createNotification({
+                    user_id: pr.pr_creator_user_id,
+                    type: NOTIFICATION_TYPES.PR_DECIDED,
+                    message: `PR ${pr.pr_id} has been Approved by Finance`,
+                    link: '#/procurement/records',
+                    source_collection: 'prs',
+                    source_id: pr.pr_id || '',
+                    object_name: pr.mrf_id || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Finance] NOTIF-15 PR Approved notification failed:', notifErr);
+        }
+
         // Update MRF status
         const mrfsRef = collection(db, 'mrfs');
         const mrfQuery = query(mrfsRef, where('mrf_id', '==', pr.mrf_id));
@@ -3897,6 +6245,7 @@ async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) 
     for (const supplier of suppliers) {
         const supplierItems = itemsBySupplier[supplier];
         const supplierTotal = supplierItems.reduce((s, item) => s + parseFloat(item.subtotal || 0), 0);
+        const hasSubconItems = supplierItems.some(item => item.category === 'SUBCON');
 
         const firstWord = supplier.split(/\s+/)[0] || supplier;
         const supplierSlug = firstWord.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').toUpperCase();
@@ -3916,8 +6265,12 @@ async function generatePOsForPRWithSignature(pr, signatureDataURL, currentUser) 
             delivery_address: pr.delivery_address || '',
             items_json: JSON.stringify(supplierItems),
             total_amount: supplierTotal,
-            procurement_status: 'Pending Procurement',
-            is_subcon: false,
+            // Phase 84.1: PO creator inherits from PR creator (procurement actor who owns this work),
+            // NOT the Finance approver (currentUser). Used by NOTIF-18 (PO Delivered) routing.
+            po_creator_user_id: pr.pr_creator_user_id ?? null,
+            po_creator_name: pr.pr_creator_name ?? '',
+            procurement_status: hasSubconItems ? 'Pending' : 'Pending Procurement',
+            is_subcon: hasSubconItems,
             finance_approver_user_id: currentUser.uid,
             finance_approver_name: currentUser.full_name || currentUser.email || 'Finance User',
             finance_signature_url: signatureDataURL,
@@ -3973,6 +6326,24 @@ async function approveTR(trId) {
             approved_by_name: currentUser.full_name || currentUser.email || 'Finance User',
             approved_by_uid: currentUser.uid
         });
+
+        // Phase 84.1 NOTIF-17: notify TR creator that Finance approved the TR (fire-and-forget)
+        try {
+            if (tr.tr_creator_user_id) {
+                await createNotification({
+                    user_id: tr.tr_creator_user_id,
+                    type: NOTIFICATION_TYPES.TR_DECIDED,
+                    message: `TR ${tr.tr_id} has been Approved by Finance`,
+                    link: '#/procurement/records',
+                    source_collection: 'transport_requests',
+                    source_id: tr.tr_id || '',
+                    object_name: tr.mrf_id || '',
+                    actor_name: window.getCurrentUser?.()?.full_name || 'System'
+                });
+            }
+        } catch (notifErr) {
+            console.error('[Finance] NOTIF-17 TR Approved notification failed:', notifErr);
+        }
 
         // Close modal only after successful approval
         window.closePRModal();
@@ -4125,6 +6496,24 @@ async function submitRejection() {
                 approved_by_uid: currentUser?.uid
             });
 
+            // Phase 84.1 NOTIF-17: notify TR creator that Finance rejected the TR (fire-and-forget)
+            try {
+                if (request.tr_creator_user_id) {
+                    await createNotification({
+                        user_id: request.tr_creator_user_id,
+                        type: NOTIFICATION_TYPES.TR_DECIDED,
+                        message: `TR ${request.tr_id} has been Rejected${reason ? `: ${reason}` : ''}`,
+                        link: '#/procurement/records',
+                        source_collection: 'transport_requests',
+                        source_id: request.tr_id || '',
+                        object_name: request.mrf_id || '',
+                        actor_name: window.getCurrentUser?.()?.full_name || 'System'
+                    });
+                }
+            } catch (notifErr) {
+                console.error('[Finance] NOTIF-17 TR Rejected notification failed:', notifErr);
+            }
+
             showToast('Transport Request rejected', 'success');
         } else {
             // Reject PR
@@ -4156,6 +6545,26 @@ async function submitRejection() {
                     rejected_by_user_id: currentUser?.uid,
                     updated_at: new Date().toISOString()
                 });
+            }
+
+            // Phase 84.1 NOTIF-15: notify PR creator that Finance rejected the PR (fire-and-forget).
+            // Placed after BOTH the PR updateDoc AND the MRF updateDoc resolve — both writes must
+            // succeed before notifying so a partial-failure does not produce a misleading rejection notification.
+            try {
+                if (request.pr_creator_user_id) {
+                    await createNotification({
+                        user_id: request.pr_creator_user_id,
+                        type: NOTIFICATION_TYPES.PR_DECIDED,
+                        message: `PR ${request.pr_id} has been Rejected${reason ? `: ${reason}` : ''}`,
+                        link: '#/procurement/records',
+                        source_collection: 'prs',
+                        source_id: request.pr_id || '',
+                        object_name: request.mrf_id || '',
+                        actor_name: window.getCurrentUser?.()?.full_name || 'System'
+                    });
+                }
+            } catch (notifErr) {
+                console.error('[Finance] NOTIF-15 PR Rejected notification failed:', notifErr);
             }
 
             showToast('Purchase Request rejected', 'success');

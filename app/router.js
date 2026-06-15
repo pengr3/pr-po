@@ -11,12 +11,19 @@ const routePermissionMap = {
     '/clients': 'clients',
     '/projects': 'projects',
     '/project-detail': 'projects',  // Detail view uses projects permission
+    '/project-plan': 'projects',  // Phase 86 — same gate as project-detail (PM-11 enforced at firestore.rules layer)
+    '/service-plan': 'services',  // Phase 105 — same gate as service-detail (rules enforce at firestore.rules layer)
     '/services': 'services',
     '/service-detail': 'services',  // Detail view uses services permission
-    '/mrf-form': 'mrf_form',
     '/procurement': 'procurement',
     '/finance': 'finance',
-    '/admin': 'role_config'
+    '/admin': 'role_config',
+    // Every active user has access to notifications — no role gate needed.
+    // Maps to 'dashboard' (same neutral key as '/') so the existing auth+active check applies.
+    '/notifications': 'dashboard',
+    // Phase 87.1 Plan 06 (D-02): the former Phase 88 /proposals entry was removed
+    // — the standalone /proposals route no longer exists. Proposal surfaces are
+    // role-gated at the home sub-tab and detail-view inline-card layer instead.
 };
 
 // Routes that don't require permission checks (auth routes)
@@ -44,17 +51,11 @@ const routes = {
         load: () => import('./views/projects.js'),
         title: 'Projects | CLMC Procurement'
     },
-    '/mrf-form': {
-        name: 'Material Request',
-        load: () => import('./views/mrf-form.js'),
-        title: 'Submit MRF | CLMC Procurement',
-        defaultTab: 'form'
-    },
     '/procurement': {
         name: 'Procurement',
         load: () => import('./views/procurement.js'),
         title: 'Procurement Dashboard | CLMC Procurement',
-        defaultTab: 'mrfs'
+        defaultTab: 'request'
     },
     '/finance': {
         name: 'Finance',
@@ -66,6 +67,16 @@ const routes = {
         name: 'Project Detail',
         load: () => import('./views/project-detail.js'),
         title: 'Project Details | CLMC Procurement'
+    },
+    '/project-plan': {
+        name: 'Project Plan',
+        load: () => import('./views/project-plan.js'),
+        title: 'Project Plan | CLMC Procurement'
+    },
+    '/service-plan': {
+        name: 'Service Plan',
+        load: () => import('./views/service-plan.js'),
+        title: 'Service Plan | CLMC Procurement'
     },
     '/services': {
         name: 'Services',
@@ -98,7 +109,18 @@ const routes = {
         load: () => import('./views/admin.js'),
         title: 'Admin | CLMC Procurement',
         defaultTab: 'users'
+    },
+    '/notifications': {
+        name: 'Notifications',
+        load: () => import('./views/notifications.js'),
+        title: 'Notifications | CLMC Operations'
     }
+    // Phase 87.1 Plan 06 (D-02): #/proposals route retired. Proposal surfaces
+    // now live as home sub-tabs (Engagements + Proposals) and inline cards on
+    // project/service detail. proposals.js remains as a pure module providing
+    // shared exports (STAGE_ORDER, PROPOSAL_RANGE_STATUSES, helper functions,
+    // _applyProposalStateTransition) consumed by home.js, proposal-modal.js,
+    // project-detail.js, and service-detail.js.
 };
 
 /**
@@ -113,7 +135,7 @@ function parseHash() {
         return { path: '/', tab: null, subpath: null };
     }
 
-    const path = '/' + parts[0];
+    const path = '/' + parts[0].split('?')[0];
     const tab = parts[1] || null;
     const subpath = parts[2] || null;
 
@@ -270,6 +292,12 @@ export async function navigate(path, tab = null, param = null) {
         }
     }
 
+    // Phase 87.1 Plan 06 (D-02): the Phase 88 hard super_admin gate for
+    // /proposals was removed alongside the route entry above. Proposal access
+    // is now role-gated inside home.js getHomeSubTabConfig() (home sub-tabs)
+    // and inside project-detail.js / service-detail.js (inline card visibility
+    // bound to PROPOSAL_RANGE_STATUSES). No router-level gate needed.
+
     // Show loading
     showLoading(true);
 
@@ -373,6 +401,24 @@ function handleHashChange() {
         return;
     }
 
+    // Phase 86 — handle plan route: #/projects/CODE/plan -> navigate to /project-plan with param=CODE
+    if (path === '/projects' && tab && subpath === 'plan') {
+        navigate('/project-plan', null, tab);
+        return;
+    }
+
+    // Phase 105 — handle plan route: #/services/CODE/plan -> navigate to /service-plan with param=CODE
+    if (path === '/services' && tab && subpath === 'plan') {
+        navigate('/service-plan', null, tab);
+        return;
+    }
+
+    // Phase 91 — #/mrf-form is retired; redirect to #/procurement/request
+    if (path === '/mrf-form') {
+        navigate('/procurement', 'request');
+        return;
+    }
+
     navigate(path, tab);
 }
 
@@ -404,6 +450,15 @@ export function handleInitialRoute() {
         navigate('/project-detail', null, subpath);
     } else if (path === '/services' && tab === 'detail' && subpath) {
         navigate('/service-detail', null, subpath);
+    } else if (path === '/projects' && tab && subpath === 'plan') {
+        // Phase 86 — initial-load branch for #/projects/CODE/plan
+        navigate('/project-plan', null, tab);
+    } else if (path === '/services' && tab && subpath === 'plan') {
+        // Phase 105 — initial-load branch for #/services/CODE/plan
+        navigate('/service-plan', null, tab);
+    } else if (path === '/mrf-form') {
+        // Phase 91 — #/mrf-form is retired; redirect to #/procurement/request
+        navigate('/procurement', 'request');
     } else {
         navigate(path, tab);
     }

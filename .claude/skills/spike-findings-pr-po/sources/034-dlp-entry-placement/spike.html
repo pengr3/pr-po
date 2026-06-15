@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spike 034 — DLP Entry Placement</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 14px; }
+
+/* ── Variant switcher ── */
+.variant-bar {
+  position: sticky; top: 0; z-index: 100;
+  background: #0f172a; padding: 10px 20px;
+  display: flex; align-items: center; gap: 8px;
+}
+.variant-bar span { color: #94a3b8; font-size: 12px; margin-right: 4px; }
+.vbtn {
+  padding: 6px 16px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 13px; font-weight: 500; transition: all .15s;
+  background: #1e293b; color: #94a3b8;
+}
+.vbtn.active { background: #1a73e8; color: #fff; }
+.vbtn:hover:not(.active) { background: #334155; color: #e2e8f0; }
+.variant-label { margin-left: auto; color: #64748b; font-size: 12px; font-style: italic; }
+
+/* ── App frame mock ── */
+.app-frame { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+.page-header {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 20px 24px; margin-bottom: 16px;
+  display: flex; align-items: flex-start; justify-content: space-between;
+}
+.page-header-left h1 { font-size: 20px; font-weight: 700; color: #1e293b; }
+.page-header-left .meta { font-size: 12px; color: #64748b; margin-top: 4px; display: flex; gap: 12px; }
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+}
+.status-ongoing { background: #dbeafe; color: #1d4ed8; }
+.status-completed { background: #dcfce7; color: #166534; }
+.status-dlp { background: #fef3c7; color: #92400e; }
+
+.card-grid { display: grid; gap: 16px; }
+.card {
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 24px;
+}
+.card-title { font-size: 13px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 16px; }
+.two-col { grid-template-columns: 1fr 1fr; }
+.three-row { display: grid; gap: 16px; }
+
+/* ── Info card ── */
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
+.info-row label { font-size: 11px; color: #94a3b8; display: block; }
+.info-row span { font-size: 14px; color: #1e293b; font-weight: 500; }
+
+/* ── Finance bar ── */
+.finance-bar {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px;
+}
+.finance-bar .fb-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.finance-bar .fb-label { font-size: 13px; color: #475569; font-weight: 600; }
+.finance-bar .fb-amount { font-size: 18px; font-weight: 700; color: #1e293b; }
+.bar-track { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width .4s; }
+.bar-fill.blue { background: #1a73e8; }
+.bar-fill.green { background: #059669; }
+.bar-fill.amber { background: #f59e0b; }
+.bar-fill.red { background: #ef4444; }
+.bar-detail { font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; }
+
+/* ── Tranche editor ── */
+.tranche-list { display: flex; flex-direction: column; gap: 8px; }
+.tranche-row {
+  display: grid; grid-template-columns: 1fr 80px 28px; gap: 8px; align-items: center;
+}
+.tranche-row input, .tranche-row select {
+  border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px;
+  font-size: 13px; color: #1e293b; background: #fff; width: 100%;
+}
+.tranche-row input:focus, .tranche-row select:focus {
+  outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,.1);
+}
+.tranche-row .remove-btn {
+  width: 28px; height: 28px; border-radius: 6px; border: 1px solid #fecaca;
+  background: #fff; color: #ef4444; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; line-height: 1;
+}
+.tranche-row .remove-btn:hover { background: #fef2f2; }
+.tranche-total { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 6px; }
+.tranche-total span { font-size: 12px; color: #94a3b8; }
+.tranche-total strong { font-size: 14px; font-weight: 700; color: #1e293b; }
+.tranche-total strong.ok { color: #059669; }
+.tranche-total strong.err { color: #ef4444; }
+.add-tranche-btn {
+  margin-top: 8px; padding: 7px 14px; border-radius: 6px; border: 1px dashed #cbd5e1;
+  background: transparent; color: #64748b; cursor: pointer; font-size: 13px; width: 100%;
+}
+.add-tranche-btn:hover { background: #f8fafc; border-color: #94a3b8; color: #1e293b; }
+
+/* ── Retention toggle row ── */
+.retention-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 8px; border-radius: 12px; font-size: 11px; font-weight: 600;
+  background: #fef3c7; color: #92400e; cursor: pointer; user-select: none;
+  border: 1px solid #fde68a;
+}
+.retention-badge:hover { background: #fde68a; }
+.dlp-sub-fields {
+  background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;
+  padding: 12px 16px; margin-top: 10px; display: none;
+}
+.dlp-sub-fields.visible { display: block; }
+.dlp-sub-fields .dlp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.dlp-sub-fields label { font-size: 11px; color: #92400e; font-weight: 600; display: block; margin-bottom: 4px; }
+.dlp-sub-fields input, .dlp-sub-fields select {
+  border: 1px solid #fde68a; border-radius: 6px; padding: 6px 10px; font-size: 13px; width: 100%; background: #fff;
+}
+.dlp-sub-fields .dlp-hint { font-size: 11px; color: #a16207; margin-top: 6px; }
+
+/* ── Completion gate (Variant B) ── */
+.gate-modal-backdrop {
+  position: fixed; inset: 0; background: rgba(15,23,42,.5); backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center; z-index: 200;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.gate-modal-backdrop.open { opacity: 1; pointer-events: all; }
+.gate-modal {
+  background: #fff; border-radius: 14px; width: 480px; max-width: 96vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25); overflow: hidden;
+  transform: translateY(16px); transition: transform .2s;
+}
+.gate-modal-backdrop.open .gate-modal { transform: translateY(0); }
+.gate-modal-header {
+  padding: 20px 24px 0; display: flex; align-items: center; gap: 12px;
+}
+.gate-modal-header .icon {
+  width: 40px; height: 40px; background: #dcfce7; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 20px;
+}
+.gate-modal-header h2 { font-size: 17px; font-weight: 700; color: #1e293b; }
+.gate-modal-header p { font-size: 13px; color: #64748b; margin-top: 2px; }
+.step-indicators {
+  display: flex; gap: 6px; padding: 16px 24px 0;
+}
+.step-dot {
+  height: 4px; flex: 1; border-radius: 2px; background: #e2e8f0; transition: background .2s;
+}
+.step-dot.done { background: #059669; }
+.step-dot.active { background: #1a73e8; }
+.gate-modal-body { padding: 16px 24px; }
+.gate-step { display: none; }
+.gate-step.active { display: block; }
+.field-row { margin-bottom: 14px; }
+.field-row label { font-size: 12px; color: #475569; font-weight: 600; display: block; margin-bottom: 5px; }
+.field-row input, .field-row select {
+  border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px;
+  font-size: 14px; color: #1e293b; background: #fff; width: 100%;
+}
+.field-row input:focus, .field-row select:focus {
+  outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,.1);
+}
+.field-row .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.two-col-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.gate-modal-footer {
+  padding: 12px 24px 20px;
+  display: flex; justify-content: space-between; gap: 8px;
+  border-top: 1px solid #f1f5f9;
+}
+.btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 500; transition: all .15s; }
+.btn-ghost { background: transparent; color: #64748b; }
+.btn-ghost:hover { background: #f1f5f9; }
+.btn-primary { background: #1a73e8; color: #fff; }
+.btn-primary:hover { background: #1557b0; }
+.btn-success { background: #059669; color: #fff; }
+.btn-success:hover { background: #047857; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+
+/* ── DLP Card (Variant C) ── */
+.dlp-card {
+  border-radius: 12px; border: 1px solid #fde68a; background: #fffbeb; padding: 20px 24px;
+}
+.dlp-card .dlp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.dlp-card .dlp-title { font-size: 13px; font-weight: 600; color: #92400e; text-transform: uppercase; letter-spacing: .5px; }
+.dlp-card .edit-link { font-size: 12px; color: #1a73e8; cursor: pointer; text-decoration: underline; }
+.dlp-state-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.dlp-state-chip {
+  padding: 12px 14px; border-radius: 8px; text-align: center;
+  font-size: 12px; font-weight: 600; opacity: .3; transition: opacity .3s;
+}
+.dlp-state-chip.active { opacity: 1; }
+.chip-amber { background: #fef3c7; color: #92400e; border: 2px solid #fde68a; }
+.chip-red { background: #fee2e2; color: #991b1b; border: 2px solid #fecaca; }
+.chip-green { background: #dcfce7; color: #166534; border: 2px solid #bbf7d0; }
+.dlp-detail-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 14px; }
+.dlp-detail-item label { font-size: 11px; color: #a16207; display: block; margin-bottom: 2px; }
+.dlp-detail-item span { font-size: 14px; font-weight: 600; color: #1e293b; }
+.dlp-setup-prompt {
+  text-align: center; padding: 24px; color: #a16207; font-size: 13px;
+}
+.dlp-setup-prompt button {
+  display: block; margin: 10px auto 0; padding: 8px 20px; border-radius: 8px;
+  background: #f59e0b; color: #fff; border: none; cursor: pointer; font-size: 13px; font-weight: 600;
+}
+.dlp-setup-prompt button:hover { background: #d97706; }
+
+/* ── Inline DLP form ── */
+.inline-form {
+  background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 16px; margin-top: 14px; display: none;
+}
+.inline-form.visible { display: block; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.form-row label { font-size: 12px; color: #475569; font-weight: 600; display: block; margin-bottom: 4px; }
+.form-row input, .form-row select {
+  border: 1px solid #e2e8f0; border-radius: 6px; padding: 7px 10px; font-size: 13px; width: 100%;
+}
+.form-row input:focus, .form-row select:focus {
+  outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,.1);
+}
+.form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+/* ── Variant containers ── */
+.variant-view { display: none; }
+.variant-view.active { display: block; }
+
+/* ── Log pane ── */
+.log-pane {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+  background: #0f172a; border-top: 1px solid #1e293b; height: 120px;
+  overflow-y: auto; padding: 8px 16px;
+}
+.log-entry { font-family: monospace; font-size: 12px; padding: 2px 0; }
+.log-entry.event { color: #94a3b8; }
+.log-entry.save { color: #4ade80; }
+.log-entry.action { color: #60a5fa; }
+.log-entry.toggle { color: #fbbf24; }
+.log-entry.error { color: #f87171; }
+
+/* ── Annotation badges ── */
+.anno {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;
+  border-radius: 6px; padding: 3px 8px; font-size: 11px; font-weight: 600;
+  margin-left: 8px;
+}
+
+.section-divider {
+  height: 1px; background: #e2e8f0; margin: 20px 0;
+}
+body { padding-bottom: 136px; }
+
+/* trigger btn */
+.trigger-btn {
+  padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px;
+  font-weight: 600; transition: all .15s; display: inline-flex; align-items: center; gap: 8px;
+}
+.trigger-btn.green { background: #059669; color: #fff; }
+.trigger-btn.green:hover { background: #047857; }
+.trigger-btn.blue { background: #1a73e8; color: #fff; }
+.trigger-btn.blue:hover { background: #1557b0; }
+.trigger-btn.outline { background: #fff; border: 1px solid #e2e8f0; color: #475569; }
+.trigger-btn.outline:hover { background: #f8fafc; }
+</style>
+</head>
+<body>
+
+<!-- Variant switcher -->
+<div class="variant-bar">
+  <span>Where does DLP entry live?</span>
+  <button class="vbtn active" onclick="showVariant('A')">A — On the Tranche</button>
+  <button class="vbtn" onclick="showVariant('B')">B — Completion Gate Step</button>
+  <button class="vbtn" onclick="showVariant('C')">C — Standalone DLP Card</button>
+  <span class="variant-label" id="variantLabel">Tranche editor in project-detail · DLP fields on retention tranche</span>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     VARIANT A — DLP on the Tranche
+     ══════════════════════════════════════════════════════════ -->
+<div class="app-frame variant-view active" id="variantA">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>CLMC-BLDG-003 — Annex Building Renovation</h1>
+      <div class="meta">
+        <span>Contract: ₱4,200,000</span>
+        <span>Client: BLDG Corp</span>
+        <span>Assigned: Carlo Reyes</span>
+      </div>
+    </div>
+    <span class="status-pill status-ongoing">● On-going</span>
+  </div>
+
+  <!-- Two-col layout -->
+  <div class="card-grid two-col">
+
+    <!-- Info card -->
+    <div class="card">
+      <div class="card-title">Project Information</div>
+      <div class="info-grid">
+        <div class="info-row"><label>Project Code</label><span>CLMC-BLDG-003</span></div>
+        <div class="info-row"><label>Client</label><span>BLDG Corp</span></div>
+        <div class="info-row"><label>Contract Type</label><span>Lump Sum</span></div>
+        <div class="info-row"><label>Duration</label><span>8 months</span></div>
+        <div class="info-row"><label>Start Date</label><span>Oct 1, 2025</span></div>
+        <div class="info-row"><label>Target End</label><span>Jun 1, 2026</span></div>
+      </div>
+    </div>
+
+    <!-- Financial + Collection Tranches -->
+    <div class="card">
+      <div class="card-title">Financial Summary</div>
+      <div class="finance-bar" style="margin-bottom:16px">
+        <div class="fb-header">
+          <span class="fb-label">Contract Cost</span>
+          <span class="fb-amount">₱4,200,000</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill blue" style="width:65%"></div></div>
+        <div class="bar-detail"><span>₱2,730,000 collected (65%)</span><span>₱1,470,000 remaining</span></div>
+      </div>
+
+      <div class="card-title" style="margin-bottom:12px; display:flex; align-items:center; justify-content:space-between;">
+        Collection Tranches
+        <span class="anno">↓ New: editable while On-going</span>
+      </div>
+
+      <div class="tranche-list" id="trancheListA">
+        <!-- Tranche rows injected by JS -->
+      </div>
+      <div class="tranche-total">
+        <span>Total:</span>
+        <strong class="ok" id="trancheTotalA">100%</strong>
+      </div>
+      <button class="add-tranche-btn" onclick="addTrancheA()">+ Add Tranche</button>
+
+      <!-- DLP sub-fields appear when retention tranche is toggled -->
+      <div class="dlp-sub-fields" id="dlpSubFieldsA">
+        <div style="font-size:12px; font-weight:700; color:#92400e; margin-bottom:10px;">
+          ◆ Retention / DLP Settings
+          <span style="font-weight:400; color:#a16207; font-size:11px; margin-left:8px;">Stored on this tranche, unlocked when invoicing retention collectible</span>
+        </div>
+        <div class="dlp-row">
+          <div>
+            <label>Retention %</label>
+            <input type="number" id="dlpRetentionA" placeholder="e.g. 10" min="0" max="20" value="10"
+              oninput="log('toggle','Retention % → ' + this.value + '%')">
+          </div>
+          <div>
+            <label>DLP Period (months)</label>
+            <input type="number" id="dlpMonthsA" placeholder="e.g. 12" min="1" max="36" value="12"
+              oninput="log('toggle','DLP months → ' + this.value)">
+          </div>
+        </div>
+        <div class="dlp-row">
+          <div>
+            <label>DLP Start</label>
+            <input type="date" id="dlpStartA" value="2026-06-15" oninput="calcDlpExpiry('A')">
+          </div>
+          <div>
+            <label>DLP Expiry <span style="font-weight:400; color:#a16207;">(auto-calculated)</span></label>
+            <input type="text" id="dlpExpiryA" readonly style="background:#fef9c3; color:#92400e;">
+          </div>
+        </div>
+        <div class="dlp-hint">💡 DLP fields are only relevant on the retention tranche. They activate the amber → red → green states in the finance bar once the project is Completed.</div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+        <button class="trigger-btn blue btn-sm" onclick="saveTranchesA()" style="padding:7px 16px; font-size:13px;">Save Tranches</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     VARIANT B — Completion Gate Step
+     ══════════════════════════════════════════════════════════ -->
+<div class="app-frame variant-view" id="variantB">
+
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>CLMC-BLDG-003 — Annex Building Renovation</h1>
+      <div class="meta">
+        <span>Contract: ₱4,200,000</span>
+        <span>Client: BLDG Corp</span>
+        <span>Assigned: Carlo Reyes</span>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span class="status-pill status-ongoing">● On-going</span>
+      <button class="trigger-btn green" onclick="openGateModal()">✓ Mark Completed</button>
+    </div>
+  </div>
+
+  <div class="card-grid two-col">
+    <div class="card">
+      <div class="card-title">Project Information</div>
+      <div class="info-grid">
+        <div class="info-row"><label>Project Code</label><span>CLMC-BLDG-003</span></div>
+        <div class="info-row"><label>Client</label><span>BLDG Corp</span></div>
+        <div class="info-row"><label>Contract Type</label><span>Lump Sum</span></div>
+        <div class="info-row"><label>Duration</label><span>8 months</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Financial Summary</div>
+      <div class="finance-bar">
+        <div class="fb-header">
+          <span class="fb-label">Contract Cost</span>
+          <span class="fb-amount">₱4,200,000</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill blue" style="width:90%"></div></div>
+        <div class="bar-detail"><span>₱3,780,000 collected (90%)</span><span>₱420,000 retention pending</span></div>
+      </div>
+      <div style="margin-top:16px; padding:12px 14px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; font-size:13px; color:#92400e;">
+        ⚠ Retention collectible not yet created. DLP period will be set when you mark the project Completed.
+      </div>
+    </div>
+  </div>
+
+  <!-- Completion gate modal -->
+  <div class="gate-modal-backdrop" id="gateModalB">
+    <div class="gate-modal">
+      <div class="gate-modal-header">
+        <div class="icon">✅</div>
+        <div>
+          <h2>Mark Project Completed</h2>
+          <p>CLMC-BLDG-003 — Annex Building Renovation</p>
+        </div>
+      </div>
+
+      <div class="step-indicators">
+        <div class="step-dot active" id="stepDot0"></div>
+        <div class="step-dot" id="stepDot1"></div>
+        <div class="step-dot" id="stepDot2"></div>
+      </div>
+
+      <div class="gate-modal-body">
+        <!-- Step 1: Completion docs -->
+        <div class="gate-step active" id="gateStep0">
+          <div style="font-size:13px; color:#64748b; margin-bottom:14px;">Step 1 of 3 — Completion Documents</div>
+          <div class="field-row">
+            <label>Certificate of Completion (COC)</label>
+            <input type="text" placeholder="Paste link or upload…" value="https://drive.google.com/coc-annex.pdf">
+            <div class="hint">Reference document Finance uses when releasing remaining tranches.</div>
+          </div>
+          <div class="field-row">
+            <label>Completion Date</label>
+            <input type="date" value="2026-06-10">
+          </div>
+        </div>
+
+        <!-- Step 2: DLP Setup -->
+        <div class="gate-step" id="gateStep1">
+          <div style="font-size:13px; color:#64748b; margin-bottom:14px;">Step 2 of 3 — Defect Liability Period (DLP)</div>
+          <div style="font-size:13px; color:#475569; background:#f8fafc; border-radius:6px; padding:10px 12px; margin-bottom:14px;">
+            DLP is the post-completion window where you remain responsible for defects.
+            Retention is held until DLP expires with no claims.
+          </div>
+          <div class="two-col-fields">
+            <div class="field-row">
+              <label>DLP Period (months)</label>
+              <select id="dlpMonthsB" onchange="log('toggle','DLP period → ' + this.value + ' months')">
+                <option value="3">3 months</option>
+                <option value="6">6 months</option>
+                <option value="12" selected>12 months</option>
+                <option value="18">18 months</option>
+                <option value="24">24 months</option>
+                <option value="0">No DLP</option>
+              </select>
+            </div>
+            <div class="field-row">
+              <label>Retention %</label>
+              <input type="number" id="dlpRetentionB" value="10" min="0" max="20" placeholder="e.g. 10"
+                oninput="log('toggle','Retention % → ' + this.value + '%')">
+            </div>
+          </div>
+          <div class="field-row">
+            <label>DLP Start Date</label>
+            <input type="date" id="dlpStartB" value="2026-06-10" oninput="calcDlpExpiry('B')">
+            <div class="hint">Defaults to completion date. Adjust if different.</div>
+          </div>
+          <div class="field-row">
+            <label>DLP Expiry <span style="font-weight:400; color:#94a3b8;">(auto-calculated)</span></label>
+            <input type="text" id="dlpExpiryB" readonly value="Jun 10, 2027" style="background:#f1f5f9; color:#64748b;">
+          </div>
+          <div class="field-row">
+            <label>Retention Amount</label>
+            <input type="text" readonly id="dlpAmountB" value="₱420,000 (10% of ₱4,200,000)" style="background:#f1f5f9; color:#64748b;">
+          </div>
+        </div>
+
+        <!-- Step 3: Confirm -->
+        <div class="gate-step" id="gateStep2">
+          <div style="font-size:13px; color:#64748b; margin-bottom:14px;">Step 3 of 3 — Confirm</div>
+          <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:14px; font-size:13px; color:#166534;">
+            <strong>✓ Project will be marked Completed</strong>
+            <ul style="margin-top:8px; padding-left:18px; line-height:1.8;">
+              <li>COC attached: drive.google.com/coc-annex.pdf</li>
+              <li>Completion date: Jun 10, 2026</li>
+              <li>DLP: 12 months → expires Jun 10, 2027</li>
+              <li>Retention: 10% = ₱420,000 (held until DLP expires)</li>
+              <li>Finance bar will show amber "In DLP" state</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="gate-modal-footer">
+        <button class="btn btn-ghost" id="gateBackBtn" onclick="gateStep(-1)" style="display:none;">← Back</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost" onclick="closeGateModal()">Cancel</button>
+        <button class="btn btn-primary" id="gateNextBtn" onclick="gateStep(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     VARIANT C — Standalone DLP Card
+     ══════════════════════════════════════════════════════════ -->
+<div class="app-frame variant-view" id="variantC">
+
+  <div class="page-header">
+    <div class="page-header-left">
+      <h1>CLMC-BLDG-003 — Annex Building Renovation</h1>
+      <div class="meta">
+        <span>Contract: ₱4,200,000</span>
+        <span>Client: BLDG Corp</span>
+        <span>Assigned: Carlo Reyes</span>
+      </div>
+    </div>
+    <span class="status-pill status-dlp">◑ In DLP</span>
+  </div>
+
+  <div class="card-grid two-col">
+    <div class="card">
+      <div class="card-title">Project Information</div>
+      <div class="info-grid">
+        <div class="info-row"><label>Project Code</label><span>CLMC-BLDG-003</span></div>
+        <div class="info-row"><label>Client</label><span>BLDG Corp</span></div>
+        <div class="info-row"><label>Completed</label><span>Jun 10, 2026</span></div>
+        <div class="info-row"><label>Duration</label><span>8 months</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Financial Summary</div>
+      <div class="finance-bar">
+        <div class="fb-header">
+          <span class="fb-label">Contract Cost</span>
+          <span class="fb-amount">₱4,200,000</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill amber" style="width:90%"></div>
+        </div>
+        <div class="bar-detail"><span>90% collected · Retention ₱420,000 in DLP</span><span id="dlpCountdown">346 days left</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Standalone DLP card -->
+  <div class="dlp-card" style="margin-top:16px;">
+    <div class="dlp-header">
+      <span class="dlp-title">◑ Defect Liability Period &amp; Retention</span>
+      <span class="edit-link" onclick="toggleDlpForm('C')">Edit DLP settings</span>
+    </div>
+
+    <div id="dlpDisplayC">
+      <div class="dlp-state-row">
+        <div class="dlp-state-chip chip-amber active">
+          <div style="font-size:18px; margin-bottom:4px;">◑</div>
+          In DLP Period
+          <div style="font-size:10px; font-weight:400; margin-top:2px;">active now</div>
+        </div>
+        <div class="dlp-state-chip chip-red">
+          <div style="font-size:18px; margin-bottom:4px;">⚠</div>
+          DLP Expired
+          <div style="font-size:10px; font-weight:400; margin-top:2px;">retention not released</div>
+        </div>
+        <div class="dlp-state-chip chip-green">
+          <div style="font-size:18px; margin-bottom:4px;">✓</div>
+          Released
+          <div style="font-size:10px; font-weight:400; margin-top:2px;">fully collected</div>
+        </div>
+      </div>
+
+      <div class="dlp-detail-row">
+        <div class="dlp-detail-item"><label>DLP Period</label><span>12 months</span></div>
+        <div class="dlp-detail-item"><label>Expires</label><span>Jun 10, 2027</span></div>
+        <div class="dlp-detail-item"><label>Retention Amount</label><span>₱420,000 (10%)</span></div>
+      </div>
+
+      <!-- Simulate state switcher -->
+      <div style="margin-top:16px; padding-top:14px; border-top:1px solid #fde68a;">
+        <span style="font-size:11px; color:#a16207; font-weight:600;">SIMULATE STATE:</span>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button class="btn btn-sm" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;" onclick="simulateDlpState('active')">◑ In DLP</button>
+          <button class="btn btn-sm" style="background:#fee2e2; color:#991b1b; border:1px solid #fecaca;" onclick="simulateDlpState('expired')">⚠ Expired</button>
+          <button class="btn btn-sm" style="background:#dcfce7; color:#166534; border:1px solid #bbf7d0;" onclick="simulateDlpState('released')">✓ Released</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inline edit form -->
+    <div class="inline-form" id="dlpFormC">
+      <div style="font-size:12px; font-weight:700; color:#92400e; margin-bottom:12px;">Edit DLP Settings</div>
+      <div class="form-row">
+        <div><label>DLP Period (months)</label>
+          <select oninput="log('toggle','C: DLP months → ' + this.value)">
+            <option value="12" selected>12 months</option>
+            <option>6 months</option><option>18 months</option><option>24 months</option>
+          </select>
+        </div>
+        <div><label>Retention %</label>
+          <input type="number" value="10" min="0" max="20" oninput="log('toggle','C: Retention → ' + this.value + '%')">
+        </div>
+      </div>
+      <div class="form-row">
+        <div><label>DLP Start Date</label><input type="date" value="2026-06-10"></div>
+        <div><label>Retention Released Date</label><input type="date" placeholder="(leave blank if not released)"></div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-ghost btn-sm" onclick="toggleDlpForm('C')">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="saveDlpC()">Save DLP</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Log pane -->
+<div class="log-pane" id="logPane">
+  <div class="log-entry event">[034] Spike ready · Select a variant to explore entry points · A=tranche, B=completion gate, C=standalone card</div>
+</div>
+
+<script>
+const variantLabels = {
+  A: 'Tranche editor in project-detail · DLP fields on retention tranche',
+  B: 'DLP entered during "Mark Completed" gate · 3-step modal',
+  C: 'Standalone DLP card in project-detail · all states visible'
+};
+
+function showVariant(v) {
+  document.querySelectorAll('.variant-view').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.vbtn').forEach(el => el.classList.remove('active'));
+  document.getElementById('variant' + v).classList.add('active');
+  document.querySelectorAll('.vbtn')[['A','B','C'].indexOf(v)].classList.add('active');
+  document.getElementById('variantLabel').textContent = variantLabels[v];
+  log('action', 'Switched to Variant ' + v + ' — ' + variantLabels[v]);
+}
+
+function log(type, msg) {
+  const pane = document.getElementById('logPane');
+  const t = new Date().toLocaleTimeString('en-US', {hour12:false});
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + type;
+  entry.textContent = '[' + t + '] ' + msg;
+  pane.appendChild(entry);
+  pane.scrollTop = pane.scrollHeight;
+}
+
+// ── Variant A: Tranche editor ──
+const tranchesA = [
+  { label: 'Mobilization', pct: 20, retention: false },
+  { label: 'Progress Billing 1', pct: 30, retention: false },
+  { label: 'Progress Billing 2', pct: 30, retention: false },
+  { label: 'Final / Retention', pct: 20, retention: true },
+];
+
+function renderTranchesA() {
+  const list = document.getElementById('trancheListA');
+  list.innerHTML = tranchesA.map((t, i) => `
+    <div class="tranche-row" id="tr-${i}">
+      <input type="text" value="${t.label}" oninput="tranchesA[${i}].label=this.value; log('event','Tranche ${i} label → '+this.value)"
+        placeholder="Tranche label">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <input type="number" value="${t.pct}" min="0" max="100"
+          oninput="tranchesA[${i}].pct=+this.value; updateTotalA(); log('event','Tranche ${i} % → '+this.value+'%')"
+          style="width:60px;" placeholder="%">
+        <span style="font-size:12px;color:#94a3b8;">%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        ${t.retention
+          ? `<span class="retention-badge" onclick="toggleRetentionFields()" title="DLP/Retention settings">◆ Ret.</span>`
+          : `<button class="remove-btn" onclick="removeTrancheA(${i})">×</button>`}
+      </div>
+    </div>
+  `).join('');
+  updateTotalA();
+  // Show DLP fields if retention tranche exists
+  const retTranche = tranchesA.find(t => t.retention);
+  document.getElementById('dlpSubFieldsA').classList.toggle('visible', !!retTranche);
+  calcDlpExpiry('A');
+}
+
+function toggleRetentionFields() {
+  const fields = document.getElementById('dlpSubFieldsA');
+  fields.classList.toggle('visible');
+  log('toggle', fields.classList.contains('visible') ? 'DLP fields expanded' : 'DLP fields collapsed');
+}
+
+function addTrancheA() {
+  tranchesA.push({ label: '', pct: 0, retention: false });
+  renderTranchesA();
+  log('action', 'Added blank tranche row');
+}
+
+function removeTrancheA(i) {
+  const removed = tranchesA.splice(i, 1)[0];
+  renderTranchesA();
+  log('action', 'Removed tranche: ' + (removed.label || '(unnamed)'));
+}
+
+function updateTotalA() {
+  const total = tranchesA.reduce((s, t) => s + (+t.pct || 0), 0);
+  const el = document.getElementById('trancheTotalA');
+  el.textContent = total + '%';
+  el.className = total === 100 ? 'ok' : 'err';
+}
+
+function saveTranchesA() {
+  const total = tranchesA.reduce((s, t) => s + (+t.pct || 0), 0);
+  if (total !== 100) { log('error', 'Cannot save — tranches must total 100% (currently ' + total + '%)'); return; }
+  const ret = document.getElementById('dlpRetentionA').value;
+  const months = document.getElementById('dlpMonthsA').value;
+  const start = document.getElementById('dlpStartA').value;
+  const expiry = document.getElementById('dlpExpiryA').value;
+  log('save', 'Tranches saved to Firestore (collection_tranches, 4 items, 100%) · Retention: ' + ret + '% · DLP: ' + months + ' months · Expires: ' + expiry);
+}
+
+function calcDlpExpiry(v) {
+  const startEl = document.getElementById('dlpStart' + v);
+  const expiryEl = document.getElementById('dlpExpiry' + v);
+  if (!startEl || !expiryEl || !startEl.value) return;
+  const months = v === 'A'
+    ? (parseInt(document.getElementById('dlpMonths' + v)?.value) || 12)
+    : (parseInt(document.getElementById('dlpMonths' + v)?.value) || 12);
+  const d = new Date(startEl.value);
+  d.setMonth(d.getMonth() + months);
+  expiryEl.value = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+}
+
+renderTranchesA();
+
+// ── Variant B: Completion gate ──
+let gateStepIdx = 0;
+function openGateModal() {
+  gateStepIdx = 0;
+  updateGateStep();
+  document.getElementById('gateModalB').classList.add('open');
+  log('action', 'Completion gate opened — Step 1: Completion Documents');
+}
+function closeGateModal() {
+  document.getElementById('gateModalB').classList.remove('open');
+  log('event', 'Completion gate dismissed');
+}
+function gateStep(dir) {
+  gateStepIdx = Math.max(0, Math.min(2, gateStepIdx + dir));
+  updateGateStep();
+  const names = ['Completion Documents', 'DLP Setup', 'Confirm & Submit'];
+  log('action', 'Gate step → ' + (gateStepIdx+1) + '/3: ' + names[gateStepIdx]);
+}
+function updateGateStep() {
+  document.querySelectorAll('.gate-step').forEach((el,i) => el.classList.toggle('active', i===gateStepIdx));
+  document.querySelectorAll('.step-dot').forEach((el,i) => {
+    el.className = 'step-dot' + (i < gateStepIdx ? ' done' : i === gateStepIdx ? ' active' : '');
+  });
+  document.getElementById('gateBackBtn').style.display = gateStepIdx > 0 ? 'block' : 'none';
+  const nextBtn = document.getElementById('gateNextBtn');
+  if (gateStepIdx === 2) {
+    nextBtn.textContent = 'Mark Completed ✓';
+    nextBtn.className = 'btn btn-success';
+    nextBtn.onclick = () => { closeGateModal(); log('save', 'Project marked Completed. DLP starts Jun 10, 2026 → expires Jun 10, 2027. Retention ₱420,000 held.'); };
+  } else {
+    nextBtn.textContent = 'Next →';
+    nextBtn.className = 'btn btn-primary';
+    nextBtn.onclick = () => gateStep(1);
+  }
+}
+
+// ── Variant C: Standalone DLP card ──
+function toggleDlpForm(v) {
+  const form = document.getElementById('dlpForm' + v);
+  form.classList.toggle('visible');
+  const display = document.getElementById('dlpDisplay' + v);
+  display.style.display = form.classList.contains('visible') ? 'none' : 'block';
+  log('toggle', 'DLP form ' + (form.classList.contains('visible') ? 'opened' : 'closed'));
+}
+function saveDlpC() {
+  toggleDlpForm('C');
+  log('save', 'DLP settings saved: 12 months · Retention 10% · Start Jun 10 2026 · Expiry Jun 10 2027');
+}
+
+function simulateDlpState(state) {
+  const chips = document.querySelectorAll('#variantC .dlp-state-chip');
+  chips.forEach(c => c.classList.remove('active'));
+  const statusPill = document.querySelector('#variantC .status-pill');
+  const bar = document.querySelector('#variantC .bar-fill');
+  const countdown = document.getElementById('dlpCountdown');
+
+  if (state === 'active') {
+    chips[0].classList.add('active');
+    statusPill.className = 'status-pill status-dlp';
+    statusPill.textContent = '◑ In DLP';
+    bar.className = 'bar-fill amber';
+    countdown.textContent = '346 days left';
+    log('event', 'Simulating: In DLP (amber) — 346 days remaining');
+  } else if (state === 'expired') {
+    chips[1].classList.add('active');
+    statusPill.className = 'status-pill';
+    statusPill.style.cssText = 'background:#fee2e2;color:#991b1b;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;';
+    statusPill.textContent = '⚠ DLP Expired';
+    bar.className = 'bar-fill red';
+    countdown.textContent = 'Expired 32 days ago';
+    log('event', 'Simulating: DLP Expired (red) — retention not released, Finance action needed');
+  } else {
+    chips[2].classList.add('active');
+    statusPill.className = 'status-pill status-completed';
+    statusPill.textContent = '✓ Completed';
+    bar.className = 'bar-fill green';
+    bar.style.width = '100%';
+    countdown.textContent = 'Retention released Jun 15, 2027';
+    log('event', 'Simulating: Released (green) — ₱420,000 released, project fully collected');
+  }
+}
+</script>
+</body>
+</html>

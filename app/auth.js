@@ -236,8 +236,11 @@ export function initAuthObserver() {
                                 await initPermissionsObserver(currentUser);
                             }
 
-                            // Update navigation for authenticated user
-                            updateNavForAuth(currentUser);
+                            // Phase 83: Attach bell-listener for active users. Window-guarded so notifications
+                            // module is optional (defensive — auth.js works even if notifications.js fails to load).
+                            if (userData.status === 'active' && window.initNotifications) {
+                                window.initNotifications(currentUser);
+                            }
 
                             // Status-based routing (AUTH-08)
                             const currentHash = window.location.hash;
@@ -260,11 +263,28 @@ export function initAuthObserver() {
                                 }
                             } else if (userData.status === 'deactivated') {
                                 if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
+                                if (window.destroyNotifications) window.destroyNotifications();
                                 await signOut(auth);
                                 window.location.hash = '#/login';
                                 return;
                             }
+                            // Update navigation only for non-deactivated users (pending, rejected, active).
+                            // Deactivated path returns above — calling updateNavForAuth before the check
+                            // caused the nav to flash visible for deactivated users on sign-in.
+                            updateNavForAuth(currentUser);
                             // Active users: no forced redirect
+                            // Post-login redirect: if the user landed here from #/login, send them
+                            // to their intended route (or home). This is the race-safe path because
+                            // currentUser is guaranteed to be set before this block runs (Plan 90-01).
+                            if (window.location.hash.includes('/login')) {
+                                const intendedRoute = sessionStorage.getItem('intendedRoute');
+                                if (intendedRoute) {
+                                    sessionStorage.removeItem('intendedRoute');
+                                    window.location.hash = '#' + intendedRoute;
+                                } else {
+                                    window.location.hash = '#/';
+                                }
+                            }
 
                             window.dispatchEvent(new CustomEvent('authStateChanged', {
                                 detail: { user: currentUser }
@@ -295,6 +315,7 @@ export function initAuthObserver() {
 
                             if (userData.status === 'deactivated') {
                                 if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
+                                if (window.destroyNotifications) window.destroyNotifications();
                                 signOut(auth).then(() => {
                                     window.location.hash = '#/login';
                                     alert('Your account has been deactivated. Please contact an administrator.');
@@ -345,6 +366,9 @@ export function initAuthObserver() {
             // Clean up permissions observer
             destroyPermissionsObserver();
 
+            // Phase 83: Detach bell-listener and reset module state
+            if (window.destroyNotifications) window.destroyNotifications();
+
             // Clear current user
             currentUser = null;
 
@@ -391,6 +415,11 @@ function updateNavForAuth(user) {
             link.style.display = hasAccess ? '' : 'none';
         });
 
+        // Phase 87.1 Plan 06 (D-02): the former Phase 88 Proposals nav visibility
+        // block was removed alongside the retired /proposals route and nav links.
+        // Proposal access is now role-gated inside home.js sub-tabs and inline
+        // detail-view cards, not at the top-level nav.
+
         // Handle dropdown containers (Admin dropdown)
         const dropdowns = document.querySelectorAll('.nav-dropdown[data-route]');
         dropdowns.forEach(dropdown => {
@@ -426,6 +455,10 @@ function updateNavForAuth(user) {
         dropdowns.forEach(dropdown => {
             dropdown.style.display = 'none';
         });
+
+        // Phase 87.1 Plan 06 (D-02): the former Phase 88 unauthenticated-state
+        // Proposals-links hide block was removed alongside the retired
+        // /proposals route and nav links.
 
         // Hide all mobile nav items
         const mobileItems = document.querySelectorAll('.mobile-nav-item[data-route]');

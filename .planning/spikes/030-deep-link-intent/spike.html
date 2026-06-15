@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 030 — Deep-Link Intent</title>
+<style>
+  :root{
+    --primary:#1a73e8; --primary-dark:#1557b0;
+    --success:#059669; --warning:#f59e0b; --danger:#ef4444;
+    --border:#e5e7eb; --text:#1e293b; --text-2:#475569; --text-3:#64748b;
+    --gray-50:#f8fafc; --gray-100:#f1f5f9;
+    --shadow:0 4px 16px rgba(0,0,0,.08);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+    color:var(--text); background:#eef1f5; padding-bottom:170px; font-size:14px;}
+
+  .appnav{position:sticky; top:0; z-index:40; height:52px; background:#fff;
+    border-bottom:1px solid var(--border); display:flex; align-items:center; gap:1rem; padding:0 1.25rem;}
+  .appnav .logo{font-weight:700;}
+  .appnav .sub{font-size:.8rem; color:var(--text-3);}
+
+  /* router mode toggle */
+  .modebar{position:sticky; top:52px; z-index:30; background:#0f172a; color:#cbd5e1;
+    display:flex; align-items:center; gap:.6rem; padding:.6rem 1.25rem; flex-wrap:wrap;}
+  .modebar .lbl{font-size:.68rem; text-transform:uppercase; letter-spacing:.08em; font-weight:700; color:#94a3b8;}
+  .mode-btn{background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:8px;
+    padding:.4rem .8rem; font-size:.8rem; font-weight:600; cursor:pointer;}
+  .mode-btn.active{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .mode-btn.fix.active{background:var(--success); border-color:var(--success);}
+  .modebar .hint{font-size:.78rem; color:#94a3b8; width:100%; padding-top:.35rem;}
+
+  /* fake URL bar */
+  .urlbar{max-width:1240px; margin:1rem auto 0; padding:0 1.25rem; display:flex; align-items:center; gap:.6rem;}
+  .urlbox{flex:1; background:#fff; border:1px solid var(--border); border-radius:999px; padding:.5rem 1rem;
+    font-family:'SF Mono','Consolas',monospace; font-size:.85rem; color:var(--text-2); box-shadow:var(--shadow);}
+  .urlbox b{color:var(--primary);}
+
+  .page{max-width:1240px; margin:0 auto; padding:1rem 1.25rem 2rem; display:grid;
+    grid-template-columns:300px 1fr; gap:1rem; align-items:start;}
+
+  .panel{background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); overflow:hidden;}
+  .panel-head{padding:.7rem .9rem; border-bottom:1px solid var(--border); font-weight:700; font-size:.85rem;}
+  .panel-body{padding:.85rem .9rem;}
+
+  /* action tiles */
+  .tile{display:block; width:100%; text-align:left; background:var(--gray-50); border:1px solid var(--border);
+    border-left:4px solid var(--primary); border-radius:10px; padding:.65rem .8rem; margin-bottom:.55rem; cursor:pointer; font:inherit; color:inherit;}
+  .tile:hover{background:#fff; box-shadow:var(--shadow);}
+  .tile--warning{border-left-color:var(--warning);} .tile--danger{border-left-color:var(--danger);}
+  .tile-top{display:flex; align-items:center; gap:.45rem;}
+  .tile-count{font-size:1.2rem; font-weight:800; font-family:'SF Mono','Consolas',monospace;}
+  .tile-name{font-weight:700; font-size:.9rem;}
+  .tile-hash{font-size:.7rem; color:var(--text-3); margin-top:.25rem; font-family:'SF Mono','Consolas',monospace;}
+
+  /* router trace */
+  .trace{margin-top:1rem;}
+  .trace .row{display:flex; justify-content:space-between; padding:.3rem 0; border-bottom:1px solid var(--gray-100); font-size:.8rem; font-family:'SF Mono','Consolas',monospace;}
+  .trace .row:last-child{border-bottom:none;}
+  .trace .k{color:var(--text-3);} .trace .v{font-weight:700;}
+  .v.good{color:var(--success);} .v.bad{color:var(--danger);} .v.muted{color:#9ca3af;}
+
+  /* destination */
+  .dest-banner{padding:.6rem .8rem; border-radius:8px; font-size:.82rem; margin-bottom:.8rem; font-weight:600;}
+  .dest-banner.good{background:#ecfdf5; color:var(--success); border:1px solid #a7f3d0;}
+  .dest-banner.bad{background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;}
+  .dest-banner.neutral{background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;}
+
+  .toolbar{display:flex; gap:.6rem; align-items:center; margin-bottom:.7rem; flex-wrap:wrap;}
+  select.fc{padding:.4rem .6rem; border:1px solid var(--border); border-radius:7px; font:inherit; font-size:.85rem;}
+  .filter-flag{font-size:.72rem; font-weight:700; color:var(--success); background:#ecfdf5; border:1px solid #a7f3d0; padding:2px 8px; border-radius:999px;}
+
+  table.dt{width:100%; border-collapse:collapse; font-size:.83rem;}
+  table.dt th{text-align:left; padding:.5rem .6rem; color:var(--text-3); font-size:.72rem; text-transform:uppercase; letter-spacing:.03em; border-bottom:1px solid var(--border); background:var(--gray-50);}
+  table.dt td{padding:.5rem .6rem; border-bottom:1px solid var(--gray-100);}
+  table.dt td.num{text-align:right; font-family:'SF Mono','Consolas',monospace;}
+  .badge{font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:999px;}
+  .b-Overdue{background:#fef2f2; color:#b91c1c;} .b-Pending{background:#fffbeb; color:#b45309;}
+  .b-FullyPaid{background:#ecfdf5; color:#059669;} .b-PartiallyPaid{background:#eff6ff; color:#1d4ed8;}
+  tr.hl{background:#fff7ed;}
+
+  .findings{grid-column:1/-1; margin-top:.25rem;}
+  .finding{display:flex; gap:.6rem; padding:.6rem .9rem; border-bottom:1px solid var(--gray-100); font-size:.84rem; line-height:1.5;}
+  .finding:last-child{border-bottom:none;}
+  .finding .sev{flex-shrink:0; font-size:.62rem; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:5px; height:fit-content;}
+  .sev-win{background:#ecfdf5; color:#059669;} .sev-watch{background:#fffbeb; color:#b45309;} .sev-info{background:#eff6ff; color:#1d4ed8;}
+  .finding code{background:var(--gray-100); padding:1px 5px; border-radius:4px; font-size:.78rem;}
+
+  .logpane{position:fixed; right:1rem; bottom:1rem; z-index:50; width:430px; max-width:42vw;
+    background:#0f172a; border-radius:12px; box-shadow:0 12px 32px rgba(0,0,0,.2); overflow:hidden; font-family:'SF Mono','Consolas',monospace;}
+  .logpane-head{display:flex; justify-content:space-between; align-items:center; padding:.5rem .8rem; background:#1e293b; color:#94a3b8; font-size:.7rem; font-weight:700;}
+  .logpane-head button{background:none; border:1px solid #334155; color:#94a3b8; border-radius:6px; padding:2px 8px; cursor:pointer;}
+  .logpane-body{max-height:110px; overflow-y:auto; padding:.5rem .8rem; font-size:.7rem; line-height:1.7;}
+  .log-ts{color:#475569;} .log-nav{color:#34d399;} .log-drop{color:#f87171;} .log-mode{color:#60a5fa;}
+
+  @media(max-width:900px){ .page{grid-template-columns:1fr;} .logpane{position:static; width:auto; max-width:100%; margin:1rem;} body{padding-bottom:1rem;} }
+</style>
+</head>
+<body>
+  <div class="appnav">
+    <span class="logo">🔗 Spike 030</span>
+    <span class="sub">Deep-Link Intent — can an Action Center tile land you <i>pre-filtered</i>?</span>
+  </div>
+
+  <div class="modebar">
+    <span class="lbl">Router</span>
+    <button class="mode-btn today active" data-m="today" onclick="setMode('today')">Today's router (drops intent)</button>
+    <button class="mode-btn fix" data-m="fixed" onclick="setMode('fixed')">Intent-aware router (proposed fix)</button>
+    <span class="hint" id="modeHint"></span>
+  </div>
+
+  <div class="urlbar">
+    <span style="font-size:.75rem;color:var(--text-3);font-weight:700;">URL</span>
+    <div class="urlbox" id="urlBox">#/</div>
+  </div>
+
+  <div class="page">
+    <!-- left: action center + trace -->
+    <div>
+      <div class="panel">
+        <div class="panel-head">Action Center (Finance) — click a tile</div>
+        <div class="panel-body" id="tiles"></div>
+      </div>
+      <div class="panel trace">
+        <div class="panel-head">Router trace</div>
+        <div class="panel-body" id="trace"><span style="color:var(--text-3);font-size:.82rem;">Click a tile above.</span></div>
+      </div>
+    </div>
+
+    <!-- right: destination -->
+    <div class="panel">
+      <div class="panel-head" id="destHead">Destination</div>
+      <div class="panel-body" id="dest"><span style="color:var(--text-3);font-size:.82rem;">No navigation yet.</span></div>
+    </div>
+
+    <!-- findings -->
+    <div class="panel findings">
+      <div class="panel-head">Findings</div>
+      <div id="findings"></div>
+    </div>
+  </div>
+
+  <div class="logpane">
+    <div class="logpane-head"><span>EVENT LOG</span><button onclick="document.getElementById('logBody').innerHTML=''">Clear</button></div>
+    <div class="logpane-body" id="logBody"></div>
+  </div>
+
+<script>
+/* =========================================================
+   Spike 030 — Deep-Link Intent
+   Mirrors the REAL plumbing:
+     • realParseHash()  — verbatim logic from app/router.js parseHash()
+     • the "today" path — router.js handleHashChange() calls navigate(path, tab)
+                          and IGNORES subpath for normal routes (intent lost)
+     • finance collectibles — same collStatusFilter mechanism + 'Overdue' value
+                              as app/views/finance.js getDisplayedCollectibles()
+   Proves: passing subpath through + finance.init honoring it = pre-filtered landing.
+   ========================================================= */
+
+let state = { mode:'today', hash:'#/' };
+
+/* ---- The Action Center tiles (Finance role, from spike 028/029) ---- */
+const TILES = [
+  { count:2, name:'PRs to review',        tone:'warning', hash:'#/finance/approvals',            note:'no filter intent needed' },
+  { count:5, name:'Overdue collectibles', tone:'danger',  hash:'#/finance/collectibles/overdue', note:'intent = overdue' },
+  { count:1, name:'TR to review',         tone:'warning', hash:'#/finance/approvals',            note:'no filter intent needed' },
+  { count:1, name:'Project at risk',      tone:'danger',  hash:'#/projects/at-risk',             note:'intent = at-risk (no filter built yet!)' },
+];
+
+/* ---- Mock collectibles (5 Overdue, 2 Pending, 1 Fully Paid → matches "5 overdue") ---- */
+const COLLECTIBLES = [
+  { id:'COLL-2026-018', name:'CLMC_044 — Tower B Fit-out', dept:'projects', amount:480000, paid:0,      due:'2026-04-15', status:'Overdue' },
+  { id:'COLL-2026-021', name:'CLMC_051 — Annex Reno',      dept:'projects', amount:220000, paid:50000,  due:'2026-04-28', status:'Overdue' },
+  { id:'COLL-2026-024', name:'SVC_009 — HVAC Retainer',    dept:'services', amount:90000,  paid:0,      due:'2026-05-02', status:'Overdue' },
+  { id:'COLL-2026-027', name:'CLMC_047 — Lobby Lighting',  dept:'projects', amount:135000, paid:0,      due:'2026-05-10', status:'Overdue' },
+  { id:'COLL-2026-030', name:'SVC_012 — Genset PM',        dept:'services', amount:60000,  paid:20000,  due:'2026-05-12', status:'Overdue' },
+  { id:'COLL-2026-033', name:'CLMC_052 — Phase 2 Mobilize',dept:'projects', amount:300000, paid:0,      due:'2026-06-20', status:'Pending' },
+  { id:'COLL-2026-035', name:'SVC_014 — Fire System',      dept:'services', amount:75000,  paid:0,      due:'2026-06-25', status:'Pending' },
+  { id:'COLL-2026-009', name:'CLMC_040 — Closeout',        dept:'projects', amount:180000, paid:180000, due:'2026-03-30', status:'Fully Paid' },
+];
+const INTENT_TO_STATUS = { overdue:'Overdue', pending:'Pending', unpaid:'Pending', partial:'Partially Paid' };
+
+/* ---- VERBATIM logic port of router.js parseHash() ---- */
+function realParseHash(hash){
+  const h = (hash || '').slice(1) || '/';
+  const parts = h.split('/').filter(Boolean);
+  if (parts.length === 0) return { path:'/', tab:null, subpath:null };
+  const path = '/' + parts[0].split('?')[0];   // <-- this is where ?query dies
+  const tab = parts[1] || null;
+  const subpath = parts[2] || null;
+  return { path, tab, subpath };
+}
+
+/* ---- The router decision: today drops subpath, fixed forwards it ---- */
+function routeTo(hash){
+  state.hash = hash;
+  document.getElementById('urlBox').innerHTML = hash.replace(/\/(overdue|at-risk)$/, '/<b>$1</b>');
+  const parsed = realParseHash(hash);
+
+  // TODAY: handleHashChange() → navigate(path, tab)  (subpath ignored)
+  // FIXED: handleHashChange() → navigate(path, tab, subpath)  (1-line change)
+  const intent = (state.mode === 'fixed') ? parsed.subpath : null;
+
+  renderTrace(parsed, intent);
+  renderDestination(parsed, intent);
+
+  if (parsed.subpath && state.mode==='today'){
+    log(`nav ${hash} → intent "${parsed.subpath}" DROPPED by today's router`, 'drop');
+  } else if (intent){
+    log(`nav ${hash} → intent "${intent}" forwarded to ${parsed.path} init()`, 'nav');
+  } else {
+    log(`nav ${hash}`, 'nav');
+  }
+}
+
+function renderTrace(parsed, intent){
+  const dropped = parsed.subpath && state.mode==='today';
+  document.getElementById('trace').innerHTML = `
+    <div class="row"><span class="k">realParseHash().path</span><span class="v">'${parsed.path}'</span></div>
+    <div class="row"><span class="k">.tab</span><span class="v">${parsed.tab?`'${parsed.tab}'`:'null'}</span></div>
+    <div class="row"><span class="k">.subpath (intent)</span><span class="v">${parsed.subpath?`'${parsed.subpath}'`:'null'}</span></div>
+    <div class="row"><span class="k">navigate() call</span><span class="v">${state.mode==='fixed'?`navigate(path, tab, <b>subpath</b>)`:`navigate(path, tab)`}</span></div>
+    <div class="row"><span class="k">intent reaches view?</span>${
+      parsed.subpath
+        ? (dropped ? `<span class="v bad">NO — dropped ✗</span>` : `<span class="v good">YES → '${intent}' ✓</span>`)
+        : `<span class="v muted">n/a</span>`
+    }</div>`;
+}
+
+/* ---- Destinations ---- */
+function renderDestination(parsed, intent){
+  const head = document.getElementById('destHead');
+  const dest = document.getElementById('dest');
+
+  if (parsed.path === '/finance' && parsed.tab === 'collectibles'){
+    head.textContent = 'Finance ▸ Collectibles';
+    renderCollectibles(intent);
+    return;
+  }
+  if (parsed.path === '/finance' && parsed.tab === 'approvals'){
+    head.textContent = 'Finance ▸ Pending Approvals';
+    dest.innerHTML = `<div class="dest-banner neutral">Landed on the Approvals tab. This tile needs no filter intent — the tab itself is the destination.</div>`;
+    return;
+  }
+  if (parsed.path === '/projects'){
+    head.textContent = 'Projects';
+    dest.innerHTML = `<div class="dest-banner ${intent?'bad':'neutral'}">Landed on Projects.${
+      intent ? ` Intent <code>'${intent}'</code> was forwarded correctly — but <b>the Projects view has no "at-risk" filter yet</b>, so it can't be honored. Routing is necessary but not sufficient: the destination must own the filter first.` : ` (Today's router dropped any intent anyway.)`
+    }</div><div style="color:var(--text-3);font-size:.82rem;">[mock projects list]</div>`;
+    return;
+  }
+  head.textContent = 'Home';
+  dest.innerHTML = `<span style="color:var(--text-3);font-size:.82rem;">Home.</span>`;
+}
+
+/* ---- finance.init() honoring intent on the collectibles tab ---- */
+function renderCollectibles(intent){
+  let status = '';
+  let appliedVia = null;
+  if (intent && INTENT_TO_STATUS[intent]){ status = INTENT_TO_STATUS[intent]; appliedVia = intent; }
+
+  const dest = document.getElementById('dest');
+  const banner = appliedVia
+    ? `<div class="dest-banner good">↳ Pre-filtered via deep link: <b>${status}</b> &nbsp;(<code>finance.init('collectibles', '${appliedVia}')</code> set <code>collStatusFilter='${status}'</code>)</div>`
+    : (intent
+        ? `<div class="dest-banner bad">Intent <code>'${intent}'</code> arrived but maps to no collectibles status — landed unfiltered.</div>`
+        : `<div class="dest-banner bad">No intent reached the view — landed on the <b>full unfiltered</b> table (all ${COLLECTIBLES.length} rows). A tile that says "5 overdue" dumping you here is worse than no link.</div>`);
+
+  dest.innerHTML = `
+    ${banner}
+    <div class="toolbar">
+      <label style="font-size:.78rem;color:var(--text-3);font-weight:700;">Status</label>
+      <select class="fc" id="collStatusFilter" onchange="manualFilter(this.value)">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Partially Paid">Partially Paid</option>
+        <option value="Fully Paid">Fully Paid</option>
+        <option value="Overdue">Overdue</option>
+      </select>
+      ${appliedVia?`<span class="filter-flag">set by route ✓</span>`:''}
+    </div>
+    <div id="collTable"></div>`;
+  const sel = document.getElementById('collStatusFilter');
+  if (sel) sel.value = status;
+  drawCollTable(status, !!appliedVia);
+}
+
+function manualFilter(status){
+  log(`manual filter → ${status||'All'}`, 'mode');
+  drawCollTable(status, false);
+  const flag = document.querySelector('.filter-flag'); if (flag) flag.remove();
+  const b = document.querySelector('#dest .dest-banner');
+  if (b){ b.className='dest-banner neutral'; b.innerHTML = `Filter now set manually to <b>${status||'All Statuses'}</b> — proves the same internal state the deep link sets.`; }
+}
+
+function drawCollTable(status, highlight){
+  const rows = COLLECTIBLES.filter(c => !status || c.status === status);
+  const body = rows.map(c=>`<tr class="${highlight && c.status==='Overdue'?'hl':''}">
+    <td style="font-family:'SF Mono',Consolas,monospace;font-size:.76rem;">${c.id}</td>
+    <td>${c.name}</td>
+    <td class="num">₱${c.amount.toLocaleString()}</td>
+    <td class="num">₱${(c.amount-c.paid).toLocaleString()}</td>
+    <td>${c.due}</td>
+    <td><span class="badge b-${c.status.replace(' ','')}">${c.status}</span></td>
+  </tr>`).join('');
+  document.getElementById('collTable').innerHTML = `
+    <table class="dt"><thead><tr>
+      <th>ID</th><th>Project / Service</th><th class="num">Amount</th><th class="num">Balance</th><th>Due</th><th>Status</th>
+    </tr></thead><tbody>${body || `<tr><td colspan="6" style="color:var(--text-3);padding:1rem;">No rows.</td></tr>`}</tbody></table>
+    <div style="margin-top:.5rem;font-size:.78rem;color:var(--text-3);">Showing <b>${rows.length}</b> of ${COLLECTIBLES.length}${status?` · filtered to <b>${status}</b>`:''}</div>`;
+}
+
+/* ---- mode ---- */
+function setMode(m){
+  state.mode = m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('active', b.dataset.m===m));
+  document.getElementById('modeHint').innerHTML = m==='today'
+    ? `Mirrors today: <code style="color:#cbd5e1">handleHashChange()</code> calls <code style="color:#cbd5e1">navigate(path, tab)</code> — subpath ignored. Click "5 Overdue collectibles" and watch it land unfiltered.`
+    : `The proposed 1-line change: <code style="color:#cbd5e1">navigate(path, tab, subpath)</code> + <code style="color:#cbd5e1">finance.init</code> reads it. Click "5 Overdue collectibles" now — it lands pre-filtered.`;
+  log(`router mode → ${m}`, 'mode');
+  routeTo(state.hash); // re-route current hash under new mode
+}
+
+/* ---- findings ---- */
+const FINDINGS = [
+  {sev:'win', html:`<b>Feasible, and small.</b> The transport already exists: <code>navigate(path, tab, param)</code> forwards <code>param</code> into <code>render()</code>/<code>init()</code>. The only gaps are (a) <code>handleHashChange()</code> must pass <code>subpath</code> through, and (b) <code>finance.init()</code> must read it. No view rewrite.`},
+  {sev:'win', html:`<b>The filter already exists.</b> Collectibles already supports <code>'Overdue'</code> via <code>collStatusFilter</code> → <code>getDisplayedCollectibles()</code>. The deep link sets the <i>same</i> internal state the dropdown sets — proven by the "manual filter" still working identically.`},
+  {sev:'watch', html:`<b>Use the path slot, not <code>?query</code>.</b> <code>parseHash()</code> does <code>parts[0].split('?')[0]</code> — query strings are structurally discarded. Intent must ride the <code>subpath</code> slot: <code>#/finance/collectibles/overdue</code>.`},
+  {sev:'watch', html:`<b>Routing is necessary but not sufficient.</b> "Project at risk" forwards its intent correctly but the Projects view has <b>no at-risk filter yet</b>. Per-destination work: a tile can only deep-link to a filter the destination actually owns. Inventory which queues have filters before wiring their tiles.`},
+  {sev:'info', html:`<b>Generalizes cleanly.</b> One intent map per view (<code>{overdue:'Overdue', pending:'Pending', …}</code>) keeps it declarative. Same pattern serves procurement (MRFs to process) and the proposal queue.`},
+];
+document.getElementById('findings').innerHTML = FINDINGS.map(f=>`<div class="finding">
+  <span class="sev sev-${f.sev}">${f.sev==='win'?'WIN':f.sev==='watch'?'WATCH':'NOTE'}</span><span>${f.html}</span></div>`).join('');
+
+/* ---- log ---- */
+function nowTs(){ try{ return new Date().toLocaleTimeString('en-US',{hour12:false}); }catch(e){ return '--:--:--'; } }
+function log(msg,kind){
+  const b=document.getElementById('logBody'); const d=document.createElement('div');
+  const c = kind==='nav'?'log-nav':kind==='drop'?'log-drop':kind==='mode'?'log-mode':'';
+  d.innerHTML=`<span class="log-ts">${nowTs()}</span> <span class="${c}">${msg}</span>`;
+  b.insertBefore(d, b.firstChild);
+}
+
+/* ---- boot ---- */
+(function(){
+  document.getElementById('tiles').innerHTML = TILES.map((t,i)=>`
+    <button class="tile tile--${t.tone}" onclick="routeTo('${t.hash}')">
+      <div class="tile-top"><span class="tile-count">${t.count}</span><span class="tile-name">${t.name}</span></div>
+      <div class="tile-hash">→ ${t.hash}</div>
+    </button>`).join('');
+  setMode('today');
+  log('spike 030 ready — in Today router mode, click "5 Overdue collectibles", then flip to Intent-aware', 'mode');
+})();
+</script>
+</body>
+</html>

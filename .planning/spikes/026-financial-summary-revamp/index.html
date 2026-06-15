@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 026 — Financial Summary Revamp</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; padding: 2rem; color: #1e293b; }
+  h1 { font-size: 1.1rem; font-weight: 700; color: #1a73e8; margin-bottom: 0.25rem; }
+  .subtitle { font-size: 0.8rem; color: #64748b; margin-bottom: 1.5rem; }
+  .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 1000px; margin-bottom: 1.5rem; }
+  .panel { background: #fff; border-radius: 10px; padding: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .panel-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block; margin-bottom: 0.75rem; }
+  .label-before { background: #fee2e2; color: #991b1b; }
+  .label-after { background: #d1fae5; color: #065f46; }
+
+  /* Financial card */
+  .fin-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem 1rem; }
+  .fin-card-header { font-size: 0.7rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.6rem; }
+  .chip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.75rem; margin-bottom: 0.4rem; }
+  .chip { border-radius: 5px; padding: 0.3rem 0.5rem; }
+  .chip-label { font-size: 0.65rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.1rem; }
+  .chip-val { font-weight: 700; font-size: 0.85rem; }
+  .divider { border-top: 1px solid #f1f5f9; margin: 0.4rem 0; }
+  .section-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.35rem; }
+  .detail-field { width: 100%; padding: 0.35rem 0.5rem; border: 2px solid #dadce0; border-radius: 4px; font-size: 0.8rem; }
+  input.detail-field { appearance: none; }
+  .btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.75rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
+  .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.72rem; }
+  .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+  .btn-primary { background: #1a73e8; color: #fff; }
+  .btn-outline { background: #fff; color: #475569; border: 1px solid #e2e8f0; }
+
+  /* ---- Modal ---- */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+    backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center;
+    z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: all; }
+  .modal-content { background: #fff; border-radius: 12px; width: 760px; max-width: 96vw; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.25); overflow: hidden; transform: translateY(-12px); transition: transform 0.2s; }
+  .modal-backdrop.open .modal-content { transform: translateY(0); }
+  .modal-header { padding: 1rem 1.5rem; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+  .modal-header h2 { font-size: 1.1rem; font-weight: 700; }
+  .modal-close { background: none; border: none; cursor: pointer; font-size: 1.4rem; color: #94a3b8; line-height: 1; padding: 0.2rem; }
+  .modal-body { overflow-y: auto; flex: 1; padding: 0; }
+
+  /* Modal scorecards */
+  .modal-scorecards { display: flex; gap: 0.75rem; padding: 1rem 1.5rem; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
+  .sc-chip { flex: 1; min-width: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.6rem 0.75rem; }
+  .sc-chip-label { font-size: 0.62rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.2rem; }
+  .sc-chip-val { font-size: 1rem; font-weight: 700; }
+  .sc-chip-sub { font-size: 0.65rem; color: #94a3b8; margin-top: 0.1rem; }
+
+  /* Modal tabs */
+  .modal-tabs { display: flex; gap: 0; border-bottom: 1px solid #e5e7eb; padding: 0 1.5rem; }
+  .tab-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 0.6rem 0.8rem; font-size: 0.8rem; font-weight: 600; color: #64748b; cursor: pointer; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
+  .tab-btn.active { color: #1a73e8; border-bottom-color: #1a73e8; }
+  .tab-content { padding: 1rem 1.5rem; }
+
+  /* Collectibles table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+  th { padding: 0.4rem 0.5rem; text-align: left; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; font-weight: 700; border-bottom: 2px solid #e5e7eb; }
+  th.r { text-align: right; }
+  td { padding: 0.5rem 0.5rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  td.r { text-align: right; }
+  tr:hover td { background: #f8fafc; }
+  .status-pill { font-size: 0.65rem; font-weight: 700; padding: 0.18rem 0.5rem; border-radius: 10px; display: inline-block; }
+  .status-pending { background: #fef3c7; color: #92400e; }
+  .status-overdue { background: #fee2e2; color: #991b1b; }
+  .status-partial { background: #dbeafe; color: #1d4ed8; }
+  .status-paid { background: #d1fae5; color: #065f46; }
+
+  /* Summary totals row at bottom of collectibles */
+  .coll-summary { display: flex; gap: 1rem; padding: 0.75rem; background: #f8fafc; border-radius: 8px; margin-top: 1rem; flex-wrap: wrap; }
+  .coll-sum-chip { flex: 1; min-width: 80px; }
+  .coll-sum-label { font-size: 0.62rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; }
+  .coll-sum-val { font-size: 0.9rem; font-weight: 700; }
+
+  .note { font-size: 0.7rem; color: #64748b; margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: #f8fafc; border-radius: 6px; border-left: 3px solid #1a73e8; }
+  .highlight-box { font-size: 0.7rem; color: #92400e; padding: 0.5rem 0.75rem; background: #fff7ed; border-radius: 6px; border-left: 3px solid #f97316; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+
+<h1>Spike 026 — Financial Breakdown Entry &amp; Scorecards Revamp</h1>
+<p class="subtitle">Left: current entry point (hidden in "Projected Expense"). Right: dedicated "Full Breakdown" button + new modal scorecards.</p>
+
+<!-- Before / After financial cards -->
+<div class="demo-grid">
+  <div class="panel">
+    <span class="panel-label label-before">BEFORE — Entry Point</span>
+    <div class="fin-card">
+      <div class="fin-card-header">Financial Summary</div>
+
+      <div class="section-label" style="color:#1a73e8;">Budget</div>
+      <div class="chip-grid" style="margin-bottom:0.4rem;">
+        <div>
+          <label style="font-size:0.72rem;font-weight:600;color:#64748b;display:block;margin-bottom:0.15rem;">Budget</label>
+          <input class="detail-field" value="8,000,000" disabled>
+        </div>
+        <div>
+          <label style="font-size:0.72rem;font-weight:600;color:#64748b;display:block;margin-bottom:0.15rem;">Contract Cost</label>
+          <input class="detail-field" value="5,000,000" disabled>
+        </div>
+        <!-- The only way in — click this number or the 🔄 button -->
+        <div class="chip" style="background:#f0f7ff;">
+          <div class="chip-label">Projected Expense</div>
+          <div style="display:flex;align-items:center;gap:0.3rem;">
+            <span style="font-weight:700;color:#1e293b;font-size:0.85rem;cursor:pointer;text-decoration:underline;text-decoration-color:#94a3b8;" title="Click to open breakdown">₱3,240,000</span>
+            <button class="btn btn-sm btn-secondary" title="Refresh + show breakdown">🔄</button>
+          </div>
+        </div>
+        <div class="chip" style="background:#f0f7ff;">
+          <div class="chip-label">Rem. Budget</div>
+          <div class="chip-val" style="color:#059669;">₱4,760,000</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-label" style="color:#ef4444;">Payables</div>
+      <div class="chip-grid" style="margin-bottom:0.4rem;">
+        <div class="chip" style="background:#fff5f5;"><div class="chip-label">Paid</div><div class="chip-val" style="color:#059669;">₱1,800,000</div></div>
+        <div class="chip" style="background:#fff5f5;"><div class="chip-label">Rem. Payable</div><div class="chip-val" style="color:#ef4444;">₱1,440,000</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-label" style="color:#059669;">Collectibles</div>
+      <div class="chip-grid">
+        <div class="chip" style="background:#f0fdf4;"><div class="chip-label">Collected</div><div class="chip-val" style="color:#059669;">₱500,000</div></div>
+        <div class="chip" style="background:#f0fdf4;"><div class="chip-label">Outstanding</div><div class="chip-val" style="color:#ef4444;">₱2,000,000</div></div>
+      </div>
+      <div style="text-align:right;margin-top:0.5rem;"><span style="color:#1a73e8;font-size:0.72rem;font-weight:700;cursor:pointer;">↑ Initiate Billing →</span></div>
+    </div>
+    <div class="note">The modal is only accessible by clicking the "Projected Expense" number or 🔄 button. This is non-obvious and conflates "refresh" with "open details".</div>
+  </div>
+
+  <div class="panel">
+    <span class="panel-label label-after">AFTER — Dedicated Entry</span>
+    <div class="fin-card">
+      <!-- Header now has "Full Breakdown →" link -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;">
+        <div class="fin-card-header" style="margin-bottom:0;">Financial Summary</div>
+        <button class="btn btn-sm btn-outline" onclick="openModal()" style="font-size:0.68rem;color:#1a73e8;border-color:#1a73e8;">Full Breakdown →</button>
+      </div>
+
+      <div class="section-label" style="color:#1a73e8;">Budget</div>
+      <div class="chip-grid" style="margin-bottom:0.4rem;">
+        <div>
+          <label style="font-size:0.72rem;font-weight:600;color:#64748b;display:block;margin-bottom:0.15rem;">Budget</label>
+          <input class="detail-field" value="8,000,000" disabled>
+        </div>
+        <div>
+          <label style="font-size:0.72rem;font-weight:600;color:#64748b;display:block;margin-bottom:0.15rem;">Contract Cost</label>
+          <input class="detail-field" value="5,000,000" disabled>
+        </div>
+        <!-- Projected Expense is now display-only, no hidden click affordance -->
+        <div class="chip" style="background:#f0f7ff;">
+          <div class="chip-label">Projected Expense</div>
+          <div class="chip-val" style="color:#1e293b;">₱3,240,000</div>
+        </div>
+        <div class="chip" style="background:#f0f7ff;">
+          <div class="chip-label">Rem. Budget</div>
+          <div class="chip-val" style="color:#059669;">₱4,760,000</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-label" style="color:#ef4444;">Payables</div>
+      <div class="chip-grid" style="margin-bottom:0.4rem;">
+        <div class="chip" style="background:#fff5f5;"><div class="chip-label">Paid</div><div class="chip-val" style="color:#059669;">₱1,800,000</div></div>
+        <div class="chip" style="background:#fff5f5;"><div class="chip-label">Rem. Payable</div><div class="chip-val" style="color:#ef4444;">₱1,440,000</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-label" style="color:#059669;">Collectibles</div>
+      <div class="chip-grid" style="margin-bottom:0.4rem;">
+        <div class="chip" style="background:#f0fdf4;"><div class="chip-label">Collected</div><div class="chip-val" style="color:#059669;">₱500,000</div></div>
+        <div class="chip" style="background:#f0fdf4;"><div class="chip-label">Outstanding</div><div class="chip-val" style="color:#ef4444;">₱2,000,000</div></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:0.5rem;border-top:1px solid #f1f5f9;padding-top:0.4rem;">
+        <span style="color:#1a73e8;font-size:0.72rem;font-weight:700;cursor:pointer;">↑ Initiate Billing →</span>
+      </div>
+    </div>
+    <div class="note">Click "Full Breakdown →" or "📊 Full Breakdown" to open the modal. The Projected Expense chip is now read-only — no hidden affordance.</div>
+  </div>
+</div>
+
+<!-- ===== MODAL — NEW DESIGN ===== -->
+<div class="modal-backdrop" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div>
+        <h2>Financial Breakdown — PROJ-001</h2>
+        <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.15rem;">Tagbilaran Road Widening Project</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+
+    <!-- NEW: Scorecard strip at top of modal -->
+    <div class="modal-scorecards">
+      <div class="sc-chip">
+        <div class="sc-chip-label">Total Expense</div>
+        <div class="sc-chip-val" style="color:#1e293b;">₱3,240,000</div>
+        <div class="sc-chip-sub">across 14 POs + 3 TRs</div>
+      </div>
+      <div class="sc-chip">
+        <div class="sc-chip-label">Rem. Payable</div>
+        <div class="sc-chip-val" style="color:#ef4444;">₱1,440,000</div>
+        <div class="sc-chip-sub">₱1,800,000 paid</div>
+      </div>
+      <div class="sc-chip" style="background:#f0fdf4;border-color:#bbf7d0;">
+        <div class="sc-chip-label" style="color:#059669;">Billed to Client</div>
+        <div class="sc-chip-val" style="color:#059669;">₱2,500,000</div>
+        <div class="sc-chip-sub">50% of ₱5,000,000 contract</div>
+      </div>
+      <div class="sc-chip" style="background:#e0f2fe;border-color:#bae6fd;">
+        <div class="sc-chip-label" style="color:#0369a1;">Invoiced (COLLs)</div>
+        <div class="sc-chip-val" style="color:#0369a1;">₱2,500,000</div>
+        <div class="sc-chip-sub">2 collectible docs</div>
+      </div>
+      <div class="sc-chip" style="background:#fef9c3;border-color:#fde68a;">
+        <div class="sc-chip-label" style="color:#92400e;">Cash Received</div>
+        <div class="sc-chip-val" style="color:#92400e;">₱500,000</div>
+        <div class="sc-chip-sub">₱2,000,000 outstanding</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="modal-tabs">
+      <button class="tab-btn" onclick="switchTab('expenses',this)">Expenses</button>
+      <button class="tab-btn" onclick="switchTab('rfps',this)">RFPs</button>
+      <button class="tab-btn" onclick="switchTab('payables',this)">Payables</button>
+      <button class="tab-btn active" onclick="switchTab('collectibles',this)">Collectibles</button>
+    </div>
+
+    <div class="tab-content" id="tabBody">
+      <!-- Collectibles tab content (default shown) -->
+      <div style="margin-bottom:0.75rem;">
+        <!-- NEW: Mini scorecard bar inside collectibles tab -->
+        <div style="display:flex;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap;">
+          <div style="flex:1;min-width:100px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:0.5rem 0.75rem;">
+            <div style="font-size:0.6rem;color:#059669;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;">Total Billed</div>
+            <div style="font-size:1rem;font-weight:700;color:#059669;">₱2,500,000</div>
+            <div style="font-size:0.65rem;color:#94a3b8;">2 of 3 tranches</div>
+          </div>
+          <div style="flex:1;min-width:100px;background:#e0f2fe;border:1px solid #bae6fd;border-radius:8px;padding:0.5rem 0.75rem;">
+            <div style="font-size:0.6rem;color:#0369a1;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;">Cash Collected</div>
+            <div style="font-size:1rem;font-weight:700;color:#0369a1;">₱500,000</div>
+            <div style="font-size:0.65rem;color:#94a3b8;">20% of billed</div>
+          </div>
+          <div style="flex:1;min-width:100px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:0.5rem 0.75rem;">
+            <div style="font-size:0.6rem;color:#c2410c;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;">Outstanding Balance</div>
+            <div style="font-size:1rem;font-weight:700;color:#c2410c;">₱2,000,000</div>
+            <div style="font-size:0.65rem;color:#94a3b8;">across 2 collectibles</div>
+          </div>
+        </div>
+
+        <!-- Balance formula explanation -->
+        <div style="font-size:0.7rem;color:#64748b;background:#f8fafc;border-radius:6px;padding:0.5rem 0.75rem;margin-bottom:0.75rem;border-left:3px solid #1a73e8;">
+          <strong>Balance formula:</strong> <code>Amount Invoiced (COLL-xxx) − Cash Received (payment_records)</code>
+          &nbsp;·&nbsp; Note: "Billed" = approved billing requests; "Invoiced" = finance-created COLL docs. They may differ if finance adjusts the amount.
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>TRANCHE</th>
+              <th>STATUS</th>
+              <th>DUE DATE</th>
+              <th class="r">INVOICED AMT</th>
+              <th class="r">CASH PAID</th>
+              <th class="r">BALANCE</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong style="font-family:monospace;font-size:0.8rem;">COLL-001</strong></td>
+              <td>Mobilization (20%)</td>
+              <td><span class="status-pill status-paid">Fully Paid</span></td>
+              <td>2026-03-01</td>
+              <td class="r">₱1,000,000</td>
+              <td class="r" style="color:#059669;">₱1,000,000</td>
+              <td class="r" style="color:#059669;font-weight:700;">₱0</td>
+            </tr>
+            <tr style="background:#fff7ed;">
+              <td><strong style="font-family:monospace;font-size:0.8rem;">COLL-002</strong></td>
+              <td>Progress Billing (50%)</td>
+              <td><span class="status-pill status-partial">Partially Paid</span></td>
+              <td style="color:#ef4444;font-weight:600;">2026-05-15 ⚠</td>
+              <td class="r">₱1,500,000</td>
+              <td class="r" style="color:#0369a1;">₱500,000</td>
+              <td class="r" style="color:#ef4444;font-weight:700;">₱1,000,000</td>
+            </tr>
+            <tr style="opacity:0.6;">
+              <td colspan="7" style="text-align:center;color:#94a3b8;font-size:0.78rem;padding:0.5rem;">
+                Final Billing (30%) — billing request approved, awaiting COLL-xxx creation by finance
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr style="background:#f8fafc;font-weight:700;">
+              <td colspan="4" style="font-size:0.72rem;color:#64748b;">TOTALS (invoiced collectibles only)</td>
+              <td class="r">₱2,500,000</td>
+              <td class="r" style="color:#059669;">₱500,000 received</td>
+              <td class="r" style="color:#ef4444;">₱2,000,000 outstanding</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="max-width:1000px;">
+  <div class="panel">
+    <span class="panel-label" style="background:#e0e7ff;color:#3730a3;">BALANCE FORMULA AUDIT</span>
+    <div style="margin-top:0.5rem;">
+      <table style="font-size:0.8rem;">
+        <thead>
+          <tr>
+            <th style="width:200px;">Source</th>
+            <th>Field</th>
+            <th class="r">Amount</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>billing_requests (approved)</td>
+            <td><code>amount_requested</code></td>
+            <td class="r" style="color:#059669;">₱2,500,000</td>
+            <td>What ops team requested to bill client</td>
+          </tr>
+          <tr style="background:#f0fdf4;">
+            <td>collectibles docs</td>
+            <td><code>amount_requested</code> (FROZEN at creation)</td>
+            <td class="r" style="color:#0369a1;">₱2,500,000</td>
+            <td>What finance actually invoiced (may differ from billing request if finance adjusts)</td>
+          </tr>
+          <tr style="background:#fff7ed;">
+            <td>collectibles.payment_records</td>
+            <td>sum of <code>amount</code> (excl. voided)</td>
+            <td class="r" style="color:#92400e;">₱500,000</td>
+            <td>Actual cash received from client</td>
+          </tr>
+          <tr style="background:#fef2f2;">
+            <td><strong>Outstanding (per COLL)</strong></td>
+            <td><code>amount_requested − cash_received</code></td>
+            <td class="r" style="color:#ef4444;font-weight:700;">₱2,000,000</td>
+            <td>Correct per-collectible balance. Use THIS for "remaining" in modal.</td>
+          </tr>
+          <tr>
+            <td><strong>Inline card (current)</strong></td>
+            <td><code>billing_request_total − cash_received</code></td>
+            <td class="r" style="color:#ef4444;font-weight:700;">₱2,000,000</td>
+            <td>✓ Same result here because finance didn't adjust the amount. ⚠ Could diverge if finance sets different amount.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="highlight-box" style="margin-top:0.75rem;">
+      <strong>Finding:</strong> The inline card uses <code>billing_request.amount_requested</code> (approved) as "Billed", and <code>collectible.payment_records</code> as "Collected". This is mostly correct, but diverges when finance creates a collectible for a different amount than requested. The modal tab uses the correct per-collectible formula. <strong>Recommendation:</strong> Source the inline "Billed" card from <em>collectible docs</em> (not billing requests) for consistency with the modal. Or: show both numbers — "Approved: ₱X" and "Invoiced: ₱Y".
+    </div>
+  </div>
+</div>
+
+<script>
+function openModal() {
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modal')) closeModal();
+}
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const tabBody = document.getElementById('tabBody');
+  if (name !== 'collectibles') {
+    tabBody.innerHTML = `<div style="text-align:center;padding:2rem;color:#94a3b8;font-size:0.9rem;">[${name.toUpperCase()} tab content — not part of this spike]</div>`;
+  } else {
+    // reload collectibles tab (reinject the full HTML)
+    location.reload(); // simple approach for a spike
+  }
+}
+</script>
+</body>
+</html>

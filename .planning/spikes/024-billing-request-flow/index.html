@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 024 — Billing Request Options</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; font-size: 0.875rem; }
+
+/* ── Nav ── */
+.top-nav { background: #1e293b; color: #fff; padding: 0.75rem 1.5rem; display: flex; align-items: center; gap: 1.5rem; position: sticky; top: 0; z-index: 50; }
+.top-nav h1 { font-size: 0.9rem; font-weight: 700; color: #e2e8f0; }
+.nav-section { font-size: 0.75rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
+.nav-btn { font-size: 0.8rem; font-weight: 600; color: #94a3b8; background: none; border: none; cursor: pointer; padding: 0.3rem 0.75rem; border-radius: 5px; }
+.nav-btn.active { background: #334155; color: #e2e8f0; }
+.nav-btn:hover { background: #334155; color: #cbd5e1; }
+.nav-sep { width: 1px; height: 20px; background: #334155; }
+
+/* ── Page sections ── */
+.section { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+.section-heading { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e2e8f0; display: flex; align-items: center; gap: 0.75rem; }
+.section-heading .label { background: #1e293b; color: #fff; border-radius: 4px; padding: 2px 8px; font-size: 0.65rem; }
+.options-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+@media (max-width: 900px) { .options-grid { grid-template-columns: 1fr; } }
+
+/* ── Option card ── */
+.option-card { background: #fff; border: 2px solid #e5e7eb; border-radius: 12px; overflow: hidden; transition: border-color 0.15s; }
+.option-card:hover { border-color: #93c5fd; }
+.option-card.winner { border-color: #1a73e8; }
+.option-label { padding: 0.6rem 1rem; background: #f8fafc; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; justify-content: space-between; }
+.option-letter { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; }
+.option-name { font-size: 0.8rem; font-weight: 700; color: #1e293b; }
+.option-body { padding: 1rem; }
+
+/* ── Simulated UI pieces ── */
+.sim-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 0.875rem; }
+.sim-card + .sim-card { margin-top: 0.75rem; }
+.sim-title { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 0.6rem; }
+.sim-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem; margin-bottom: 0.5rem; }
+.sim-chip { background: #f0fdf4; border-radius: 5px; padding: 0.25rem 0.4rem; }
+.sim-chip.blue { background: #eff6ff; }
+.sim-chip-label { font-size: 0.55rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
+.sim-chip-val { font-size: 0.78rem; font-weight: 700; color: #059669; }
+.sim-chip-val.blue { color: #2563eb; }
+.sim-chip-val.red { color: #ef4444; }
+.sim-divider { border-top: 1px solid #f1f5f9; margin: 0.5rem 0; }
+.sim-row-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #059669; }
+
+/* tranche rows */
+.tr-row { display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.4rem; border-radius: 5px; border: 1px solid #e5e7eb; margin-bottom: 0.3rem; }
+.tr-row.billed { background: #f0fdf4; border-color: #bbf7d0; }
+.tr-name { font-size: 0.72rem; font-weight: 600; }
+.tr-meta { font-size: 0.6rem; color: #64748b; }
+.tr-right { display: flex; align-items: center; gap: 0.35rem; }
+.badge { font-size: 0.6rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+.badge-billed { background: #dcfce7; color: #15803d; }
+.badge-unbilled { background: #fef9c3; color: #854d0e; }
+.badge-pending { background: #dbeafe; color: #1e40af; }
+.sim-btn { font-size: 0.68rem; font-weight: 600; border-radius: 5px; border: 1px solid #cbd5e1; background: #fff; padding: 2px 8px; cursor: pointer; color: #475569; white-space: nowrap; }
+.sim-btn.primary { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+.sim-btn.sm-primary { background: #1a73e8; color: #fff; border: none; font-size: 0.65rem; padding: 2px 7px; border-radius: 4px; }
+.sim-btn:hover { background: #f1f5f9; }
+.sim-btn.primary:hover { background: #1557b0; }
+.sim-link { font-size: 0.72rem; color: #1a73e8; text-decoration: underline; cursor: pointer; }
+
+/* ── Popover simulation ── */
+.popover-wrap { position: relative; display: inline-block; }
+.popover-box { position: absolute; left: 0; top: 100%; margin-top: 4px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); width: 240px; z-index: 10; padding: 0.6rem; display: none; }
+.popover-box.open { display: block; }
+
+/* ── Finance tab bar ── */
+.tab-bar { display: flex; border-bottom: 2px solid #e5e7eb; margin-bottom: 0.75rem; }
+.tab { padding: 0.45rem 0.75rem; font-size: 0.72rem; font-weight: 600; border: none; background: none; cursor: pointer; color: #64748b; border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; }
+.tab.active { color: #1a73e8; border-bottom-color: #1a73e8; }
+.tab-dot { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #ef4444; color: #fff; font-size: 0.55rem; font-weight: 700; margin-left: 3px; vertical-align: middle; }
+
+/* ── Pending section (inline) ── */
+.pending-block { border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; margin-bottom: 0.75rem; overflow: hidden; }
+.pending-block-head { padding: 0.5rem 0.75rem; font-size: 0.68rem; font-weight: 700; color: #1e40af; text-transform: uppercase; letter-spacing: 0.06em; }
+.pending-block-body { border-top: 1px solid #bfdbfe; background: #fff; }
+.preq-row { padding: 0.6rem 0.75rem; border-bottom: 1px solid #e5e7eb; font-size: 0.75rem; }
+.preq-row:last-child { border-bottom: none; }
+.preq-top { font-weight: 700; font-size: 0.78rem; }
+.preq-sub { font-size: 0.68rem; color: #64748b; margin: 0.1rem 0 0.35rem; }
+.preq-docs { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.35rem; }
+.doc-pill { font-size: 0.63rem; color: #1a73e8; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 4px; padding: 1px 6px; }
+.preq-actions { display: flex; gap: 0.35rem; justify-content: flex-end; }
+
+/* ── Notification bell ── */
+.notif-bell-wrap { position: relative; }
+.notif-panel { position: absolute; right: 0; top: calc(100% + 4px); width: 280px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 10; overflow: hidden; display: none; }
+.notif-panel.open { display: block; }
+.notif-panel-head { padding: 0.6rem 0.875rem; font-size: 0.72rem; font-weight: 700; border-bottom: 1px solid #e5e7eb; color: #1e293b; }
+.notif-item { padding: 0.6rem 0.875rem; border-bottom: 1px solid #f1f5f9; }
+.notif-item:last-child { border-bottom: none; }
+.notif-type { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #1a73e8; margin-bottom: 0.2rem; }
+.notif-text { font-size: 0.75rem; color: #1e293b; margin-bottom: 0.3rem; }
+.notif-action { font-size: 0.68rem; color: #1a73e8; text-decoration: underline; cursor: pointer; }
+
+/* ── Drawer simulation ── */
+.drawer-wrap { position: relative; overflow: hidden; }
+.drawer-overlay { display: flex; }
+.drawer-content { flex: 1; }
+.drawer-panel { width: 220px; border-left: 1px solid #e5e7eb; background: #fff; padding: 0.75rem; flex-shrink: 0; display: none; }
+.drawer-panel.open { display: block; }
+.drawer-panel-head { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #1e40af; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+.drawer-close { font-size: 1rem; cursor: pointer; color: #64748b; }
+
+/* ── Fake collectibles table ── */
+.mini-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
+.mini-table th { padding: 0.35rem 0.4rem; text-align: left; font-size: 0.6rem; color: #64748b; font-weight: 600; border-bottom: 2px solid #e5e7eb; background: #f8fafc; }
+.mini-table td { padding: 0.35rem 0.4rem; border-bottom: 1px solid #f1f5f9; }
+
+/* ── Dedicated tab page ── */
+.req-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; }
+.req-table th { padding: 0.35rem 0.4rem; text-align: left; font-size: 0.6rem; color: #64748b; font-weight: 600; border-bottom: 2px solid #e5e7eb; background: #f8fafc; }
+.req-table td { padding: 0.45rem 0.4rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+
+/* ── Modal ── */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.45); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal-box { background: #fff; border-radius: 12px; width: 100%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); overflow: hidden; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem 1.25rem; border-bottom: 1px solid #e5e7eb; }
+.modal-head h2 { font-size: 0.95rem; font-weight: 600; }
+.modal-body { padding: 1.25rem; }
+.modal-foot { padding: 0.75rem 1.25rem; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 0.5rem; }
+.modal-close { background: none; border: none; font-size: 1.25rem; cursor: pointer; color: #64748b; }
+.field { margin-bottom: 0.875rem; }
+.field label { display: block; margin-bottom: 0.35rem; font-weight: 600; font-size: 0.78rem; color: #475569; }
+.req { color: #ea4335; }
+.form-control { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.45rem 0.6rem; font-size: 0.875rem; color: #1e293b; background: #fff; }
+.form-control:focus { outline: none; border-color: #1a73e8; box-shadow: 0 0 0 3px rgba(26,115,232,0.15); }
+.form-hint { font-size: 0.68rem; color: #64748b; margin-top: 0.2rem; }
+.billing-type-group { display: flex; gap: 0.4rem; }
+.btype-pill { flex: 1; border: 2px solid #cbd5e1; border-radius: 7px; padding: 0.5rem 0.4rem; text-align: center; cursor: pointer; transition: all 0.15s; background: #fff; }
+.btype-pill:hover { border-color: #93c5fd; background: #eff6ff; }
+.btype-pill.sel { border-color: #1a73e8; background: #eff6ff; }
+.btype-icon { font-size: 1.1rem; margin-bottom: 0.2rem; }
+.btype-name { font-size: 0.7rem; font-weight: 700; color: #1e293b; }
+.btype-docs { font-size: 0.6rem; color: #64748b; }
+.doc-block { border: 1px solid #e2e8f0; border-radius: 7px; padding: 0.65rem; background: #f8fafc; margin-bottom: 0.6rem; }
+.doc-block-title { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #475569; margin-bottom: 0.4rem; }
+.submit-btn { background: #1a73e8; color: #fff; border: none; border-radius: 6px; padding: 0.45rem 1rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+.submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.cancel-btn { background: #fff; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0.45rem 1rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; }
+
+/* ── Toast ── */
+.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #059669; color: #fff; border-radius: 8px; padding: 0.7rem 1rem; font-size: 0.8rem; font-weight: 600; z-index: 200; display: none; box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
+.toast.show { display: block; }
+
+.note { font-size: 0.72rem; color: #64748b; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 6px; padding: 0.5rem 0.75rem; margin-top: 0.75rem; }
+</style>
+</head>
+<body>
+
+<!-- ── TOP NAV ── -->
+<div class="top-nav">
+  <h1>Spike 024 — Billing Request Options</h1>
+  <div class="nav-sep"></div>
+  <div class="nav-section">Project Detail:</div>
+  <button class="nav-btn active" onclick="scrollTo('proj-section')">A · Separate Card</button>
+  <button class="nav-btn" onclick="scrollTo('proj-section')">B · Popover</button>
+  <button class="nav-btn" onclick="scrollTo('proj-section')">C · Footer Link</button>
+  <div class="nav-sep"></div>
+  <div class="nav-section">Finance Queue:</div>
+  <button class="nav-btn" onclick="scrollTo('fin-section')">A · New Tab</button>
+  <button class="nav-btn" onclick="scrollTo('fin-section')">B · Notifications</button>
+  <button class="nav-btn" onclick="scrollTo('fin-section')">C · Sidebar Drawer</button>
+</div>
+
+<div style="padding: 1.5rem; max-width: 1400px; margin: 0 auto;">
+
+<!-- ══════════════════════════════════════════ -->
+<!-- PART 1: PROJECT DETAIL OPTIONS            -->
+<!-- ══════════════════════════════════════════ -->
+<div id="proj-section" style="margin-bottom: 2rem;">
+  <div class="section-heading">
+    <span class="label">Part 1</span>
+    Project Detail — 3 options for surfacing the billing action without bloating Financial Summary
+  </div>
+
+  <div class="options-grid">
+
+    <!-- ── Option A: Separate Billing Card ── -->
+    <div class="option-card">
+      <div class="option-label">
+        <span class="option-letter">Option A</span>
+        <span class="option-name">Separate Billing card</span>
+      </div>
+      <div class="option-body">
+        <!-- Financial Summary stays compact -->
+        <div class="sim-card">
+          <div class="sim-title">Financial Summary</div>
+          <div class="sim-stat-row">
+            <div class="sim-chip blue"><div class="sim-chip-label">Contract Cost</div><div class="sim-chip-val blue">₱600,000</div></div>
+            <div class="sim-chip blue"><div class="sim-chip-label">Expenses</div><div class="sim-chip-val blue">₱142,000</div></div>
+          </div>
+          <div class="sim-stat-row">
+            <div class="sim-chip blue"><div class="sim-chip-label">Payable</div><div class="sim-chip-val blue">₱380,000</div></div>
+            <div class="sim-chip blue"><div class="sim-chip-label">Rem. Payable</div><div class="sim-chip-val red">₱238,000</div></div>
+          </div>
+        </div>
+
+        <!-- New Billing card -->
+        <div class="sim-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+            <div class="sim-title" style="margin-bottom:0;">Billing</div>
+            <button class="sim-btn primary" onclick="openModal()">↑ Request Billing</button>
+          </div>
+          <div class="tr-row billed">
+            <div><div class="tr-name">Down Payment</div><div class="tr-meta">30% · ₱180,000</div></div>
+            <span class="badge badge-billed">✓ Billed</span>
+          </div>
+          <div class="tr-row">
+            <div><div class="tr-name">Progress Billing</div><div class="tr-meta">40% · ₱240,000</div></div>
+            <div class="tr-right"><span class="badge badge-unbilled">Unbilled</span><button class="sim-btn" onclick="openModal()">Bill</button></div>
+          </div>
+          <div class="tr-row">
+            <div><div class="tr-name">Final / Completion</div><div class="tr-meta">30% · ₱180,000</div></div>
+            <div class="tr-right"><span class="badge badge-unbilled">Unbilled</span><button class="sim-btn" onclick="openModal()">Bill</button></div>
+          </div>
+          <div style="font-size:0.68rem;color:#64748b;margin-top:0.5rem;text-align:right;">Collected: ₱180k / ₱600k</div>
+        </div>
+
+        <div class="note">Financial Summary untouched. Billing lives in its own card — like Proposal / Plan cards already do.</div>
+      </div>
+    </div>
+
+    <!-- ── Option B: Popover ── -->
+    <div class="option-card">
+      <div class="option-label">
+        <span class="option-letter">Option B</span>
+        <span class="option-name">Popover on click</span>
+      </div>
+      <div class="option-body">
+        <div class="sim-card">
+          <div class="sim-title">Financial Summary</div>
+          <div class="sim-stat-row">
+            <div class="sim-chip blue"><div class="sim-chip-label">Contract Cost</div><div class="sim-chip-val blue">₱600,000</div></div>
+            <div class="sim-chip blue"><div class="sim-chip-label">Expenses</div><div class="sim-chip-val blue">₱142,000</div></div>
+          </div>
+          <div class="sim-divider"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem;">
+            <div class="sim-row-label">Collectibles</div>
+            <div class="popover-wrap">
+              <button class="sim-btn" onclick="togglePopover('pop-b')" style="font-size:0.65rem;">↑ Billing ▾</button>
+              <div class="popover-box" id="pop-b">
+                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#64748b;margin-bottom:0.5rem;">Tranches</div>
+                <div class="tr-row billed" style="margin-bottom:0.25rem;">
+                  <div><div class="tr-name">Down Payment</div><div class="tr-meta">30% · ₱180k</div></div>
+                  <span class="badge badge-billed">✓</span>
+                </div>
+                <div class="tr-row" style="margin-bottom:0.25rem;">
+                  <div><div class="tr-name">Progress</div><div class="tr-meta">40% · ₱240k</div></div>
+                  <div class="tr-right"><span class="badge badge-unbilled">—</span><button class="sim-btn" style="font-size:0.6rem;padding:1px 5px;" onclick="openModal()">Bill</button></div>
+                </div>
+                <div class="tr-row" style="margin-bottom:0.25rem;">
+                  <div><div class="tr-name">Final</div><div class="tr-meta">30% · ₱180k</div></div>
+                  <div class="tr-right"><span class="badge badge-unbilled">—</span><button class="sim-btn" style="font-size:0.6px;padding:1px 5px;" onclick="openModal()">Bill</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sim-stat-row">
+            <div class="sim-chip"><div class="sim-chip-label">Collected</div><div class="sim-chip-val">₱180,000</div></div>
+            <div class="sim-chip"><div class="sim-chip-label">Rem. Collectible</div><div class="sim-chip-val red">₱420,000</div></div>
+          </div>
+        </div>
+
+        <div class="note">Card size unchanged. Click "↑ Billing ▾" to reveal tranche rows in a popover. Closes on outside click.</div>
+      </div>
+    </div>
+
+    <!-- ── Option C: Footer link ── -->
+    <div class="option-card">
+      <div class="option-label">
+        <span class="option-letter">Option C</span>
+        <span class="option-name">Footer link — minimal</span>
+      </div>
+      <div class="option-body">
+        <div class="sim-card">
+          <div class="sim-title">Financial Summary</div>
+          <div class="sim-stat-row">
+            <div class="sim-chip blue"><div class="sim-chip-label">Contract Cost</div><div class="sim-chip-val blue">₱600,000</div></div>
+            <div class="sim-chip blue"><div class="sim-chip-label">Expenses</div><div class="sim-chip-val blue">₱142,000</div></div>
+          </div>
+          <div class="sim-divider"></div>
+          <div class="sim-row-label" style="margin-bottom:0.4rem;">Collectibles</div>
+          <div class="sim-stat-row">
+            <div class="sim-chip"><div class="sim-chip-label">Collected</div><div class="sim-chip-val">₱180,000</div></div>
+            <div class="sim-chip"><div class="sim-chip-label">Rem. Collectible</div><div class="sim-chip-val red">₱420,000</div></div>
+          </div>
+          <div style="text-align:right;margin-top:0.4rem;">
+            <span class="sim-link" onclick="openModal()">↑ Initiate Billing →</span>
+          </div>
+        </div>
+
+        <div class="note">Absolute minimum footprint. One link opens the full request modal. No tranche visibility from the card.</div>
+      </div>
+    </div>
+
+  </div><!-- /options-grid -->
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- PART 2: FINANCE QUEUE OPTIONS             -->
+<!-- ══════════════════════════════════════════ -->
+<div id="fin-section">
+  <div class="section-heading">
+    <span class="label">Part 2</span>
+    Finance — 3 options for where billing requests surface
+  </div>
+
+  <div class="options-grid">
+
+    <!-- ── Finance Option A: Dedicated tab ── -->
+    <div class="option-card">
+      <div class="option-label">
+        <span class="option-letter">Option A</span>
+        <span class="option-name">Dedicated "Billing Requests" tab</span>
+      </div>
+      <div class="option-body">
+        <div class="sim-card" style="padding:0.75rem;">
+          <div class="tab-bar">
+            <button class="tab">Pending</button>
+            <button class="tab">POs</button>
+            <button class="tab">Collectibles</button>
+            <button class="tab active">Billing Requests <span class="tab-dot">2</span></button>
+          </div>
+
+          <table class="req-table">
+            <thead>
+              <tr><th>Project</th><th>Tranche</th><th>Amount</th><th>Docs</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div style="font-weight:600;font-size:0.75rem;">CLMC-ACME-001</div><div style="font-size:0.62rem;color:#64748b;">Juan dela Cruz</div></td>
+                <td style="font-size:0.72rem;">Progress 40%</td>
+                <td style="font-weight:600;font-size:0.75rem;">₱240k</td>
+                <td><span class="doc-pill">📄 Progress Rpt</span></td>
+                <td>
+                  <div style="display:flex;gap:0.3rem;">
+                    <button class="sim-btn" style="font-size:0.62rem;padding:2px 6px;color:#dc2626;">✕</button>
+                    <button class="sim-btn primary" style="font-size:0.62rem;padding:2px 6px;" onclick="showToast('Approve → Create Collectible modal opens pre-filled')">✓ Approve</button>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td><div style="font-weight:600;font-size:0.75rem;">CLMC-ABC-002</div><div style="font-size:0.62rem;color:#64748b;">Maria Santos</div></td>
+                <td style="font-size:0.72rem;">Final 30%</td>
+                <td style="font-weight:600;font-size:0.75rem;">₱180k</td>
+                <td>
+                  <div style="display:flex;flex-direction:column;gap:0.2rem;">
+                    <span class="doc-pill">📄 COC</span>
+                    <span class="doc-pill">📄 Completion Rpt</span>
+                  </div>
+                </td>
+                <td>
+                  <div style="display:flex;gap:0.3rem;">
+                    <button class="sim-btn" style="font-size:0.62rem;padding:2px 6px;color:#dc2626;">✕</button>
+                    <button class="sim-btn primary" style="font-size:0.62rem;padding:2px 6px;" onclick="showToast('Approve → Create Collectible modal opens pre-filled')">✓ Approve</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">Clean separation — Finance navigates to this tab when actioning requests. Badge count on tab label shows pending count.</div>
+      </div>
+    </div>
+
+    <!-- ── Finance Option B: Notifications ── -->
+    <div class="option-card">
+      <div class="option-label">
+        <span class="option-letter">Option B</span>
+        <span class="option-name">Notification bell</span>
+      </div>
+      <div class="option-body">
+        <div class="sim-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+            <div style="font-size:0.72rem;font-weight:700;color:#475569;">App Header</div>
+            <div class="notif-bell-wrap">
+              <button class="sim-btn" onclick="togglePopover('notif-panel')" style="font-size:0.9rem;border:none;background:none;position:relative;">
+                🔔
+                <span style="position:absolute;top:-3px;right:-3px;background:#ef4444;color:#fff;border-radius:50%;width:14px;height:14px;font-size:0.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;">2</span>
+              </button>
+              <div class="notif-panel" id="notif-panel">
+                <div class="notif-panel-head">🔔 Notifications</div>
+                <div class="notif-item">
+                  <div class="notif-type">Billing Request</div>
+                  <div class="notif-text">Juan: Bill Progress 40% — CLMC-ACME-001 (₱240k). Progress Report attached.</div>
+                  <span class="notif-action" onclick="openModal()">Review & Approve →</span>
+                </div>
+                <div class="notif-item">
+                  <div class="notif-type">Billing Request</div>
+                  <div class="notif-text">Maria: Bill Final 30% — CLMC-ABC-002 (₱180k). COC + Completion Rpt attached.</div>
+                  <span class="notif-action" onclick="openModal()">Review & Approve →</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-bar">
+            <button class="tab">Pending</button>
+            <button class="tab">POs</button>
+            <button class="tab active">Collectibles</button>
+          </div>
+
+          <table class="mini-table">
+            <thead><tr><th>ID</th><th>Project</th><th>Amount</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td style="color:#1a73e8;font-weight:600;">COLL-001</td><td>ACME-001</td><td>₱180k</td><td><span class="badge badge-billed">Collected</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">Zero new UI surface. Billing requests piggyback on the existing notifications system Finance already uses. Click "Review & Approve →" to open a detail modal.</div>
+      </div>
+    </div>
+
+    <!-- ── Finance Option C: Sidebar drawer ── -->
+    <div class="option-card">
+      <div class="option-label">
+        <span class="option-letter">Option C</span>
+        <span class="option-name">Sidebar drawer</span>
+      </div>
+      <div class="option-body">
+        <div class="sim-card" style="padding:0.75rem;">
+          <div class="tab-bar">
+            <button class="tab">Pending</button>
+            <button class="tab">POs</button>
+            <button class="tab active">Collectibles</button>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.6rem;">
+            <button class="sim-btn primary" style="font-size:0.68rem;">+ Create Collectible</button>
+            <button class="sim-btn" onclick="toggleDrawer()" id="drawerToggleBtn" style="font-size:0.68rem;">↩ Requests <span class="tab-dot" style="background:#ef4444;">2</span></button>
+          </div>
+
+          <div class="drawer-wrap">
+            <div class="drawer-overlay">
+              <div class="drawer-content">
+                <table class="mini-table">
+                  <thead><tr><th>ID</th><th>Project</th><th>Amount</th><th>Status</th></tr></thead>
+                  <tbody>
+                    <tr><td style="color:#1a73e8;font-weight:600;">COLL-001</td><td>ACME-001</td><td>₱180k</td><td><span class="badge badge-billed">Collected</span></td></tr>
+                    <tr><td style="color:#94a3b8;">—</td><td style="color:#94a3b8;">—</td><td style="color:#94a3b8;">—</td><td style="color:#94a3b8;font-size:0.68rem;">more rows...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="drawer-panel" id="drawer-panel">
+                <div class="drawer-panel-head">
+                  <span>Requests (2)</span>
+                  <span class="drawer-close" onclick="toggleDrawer()">×</span>
+                </div>
+                <div class="preq-row" style="padding:0.5rem 0.25rem;border-bottom:1px solid #e5e7eb;">
+                  <div class="preq-top" style="font-size:0.72rem;">ACME-001</div>
+                  <div class="preq-sub">Progress 40% · ₱240k</div>
+                  <div class="preq-docs"><span class="doc-pill">📄 Progress Rpt</span></div>
+                  <div class="preq-actions">
+                    <button class="sim-btn" style="font-size:0.6rem;padding:1px 5px;color:#dc2626;">✕</button>
+                    <button class="sim-btn primary" style="font-size:0.6rem;padding:1px 5px;" onclick="showToast('Approve → pre-filled modal opens')">✓</button>
+                  </div>
+                </div>
+                <div class="preq-row" style="padding:0.5rem 0.25rem;">
+                  <div class="preq-top" style="font-size:0.72rem;">ABC-002</div>
+                  <div class="preq-sub">Final 30% · ₱180k</div>
+                  <div class="preq-docs"><span class="doc-pill">📄 COC</span><span class="doc-pill">📄 Rpt</span></div>
+                  <div class="preq-actions">
+                    <button class="sim-btn" style="font-size:0.6rem;padding:1px 5px;color:#dc2626;">✕</button>
+                    <button class="sim-btn primary" style="font-size:0.6rem;padding:1px 5px;" onclick="showToast('Approve → pre-filled modal opens')">✓</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="note">Finance stays in the Collectibles tab. Click "↩ Requests" to slide open a side panel. Close it to return to the full table.</div>
+      </div>
+    </div>
+
+  </div><!-- /options-grid -->
+</div>
+
+</div><!-- /wrapper -->
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- BILLING REQUEST MODAL (shared across options)     -->
+<!-- ══════════════════════════════════════════════════ -->
+<div id="billingModal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Request Billing</h2>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Tranche <span class="req">*</span></label>
+        <select id="mTranche" class="form-control" onchange="onTrancheChange()">
+          <option value="">— Select —</option>
+          <option value="0" disabled>Down Payment (30%) — already billed</option>
+          <option value="1">Progress Billing (40%) · ₱240,000</option>
+          <option value="2">Final / Completion (30%) · ₱180,000</option>
+        </select>
+      </div>
+      <div id="mTypeWrap" style="display:none;">
+        <div class="field">
+          <label>Billing Type <span class="req">*</span></label>
+          <div class="billing-type-group">
+            <div class="btype-pill" id="bt-progress" onclick="selectType('progress')">
+              <div class="btype-icon">📊</div>
+              <div class="btype-name">Progress</div>
+              <div class="btype-docs">1 doc</div>
+            </div>
+            <div class="btype-pill" id="bt-completion" onclick="selectType('completion')">
+              <div class="btype-icon">🏁</div>
+              <div class="btype-name">Completion</div>
+              <div class="btype-docs">2 docs</div>
+            </div>
+            <div class="btype-pill" id="bt-other" onclick="selectType('other')">
+              <div class="btype-icon">📎</div>
+              <div class="btype-name">Other</div>
+              <div class="btype-docs">1 doc</div>
+            </div>
+          </div>
+        </div>
+        <div id="mDocFields"></div>
+        <div class="field">
+          <label>Notes (Optional)</label>
+          <textarea class="form-control" rows="2" placeholder="Context for Finance…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+      <button class="submit-btn" id="mSubmit" disabled onclick="submitReq()">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let selectedType = null;
+
+  const DOCS = {
+    progress: [{ key: 'pr', label: 'Progress Report' }],
+    completion: [{ key: 'coc', label: 'Certificate of Completion (COC)' }, { key: 'cr', label: 'Completion Report' }],
+    other: [{ key: 'doc', label: 'Supporting Document' }],
+  };
+
+  function scrollTo(id) {
+    document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function openModal() {
+    document.getElementById('mTranche').value = '';
+    document.getElementById('mTypeWrap').style.display = 'none';
+    document.getElementById('mDocFields').innerHTML = '';
+    selectedType = null;
+    document.querySelectorAll('.btype-pill').forEach(p => p.classList.remove('sel'));
+    document.getElementById('mSubmit').disabled = true;
+    document.getElementById('billingModal').style.display = 'flex';
+  }
+
+  function closeModal() {
+    document.getElementById('billingModal').style.display = 'none';
+  }
+
+  function onTrancheChange() {
+    const v = document.getElementById('mTranche').value;
+    const wrap = document.getElementById('mTypeWrap');
+    if (!v) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    // Auto-hint
+    const labels = ['', 'progress billing', 'final / completion'];
+    const lbl = labels[parseInt(v)] || '';
+    if (lbl.includes('completion') || lbl.includes('final')) setTimeout(() => selectType('completion'), 0);
+    else if (lbl.includes('progress')) setTimeout(() => selectType('progress'), 0);
+  }
+
+  function selectType(t) {
+    selectedType = t;
+    document.querySelectorAll('.btype-pill').forEach(p => p.classList.remove('sel'));
+    document.getElementById('bt-' + t).classList.add('sel');
+    const fields = document.getElementById('mDocFields');
+    fields.innerHTML = DOCS[t].map(d => `
+      <div class="doc-block">
+        <div class="doc-block-title">${d.label} <span class="req">*</span></div>
+        <input type="url" id="doc_${d.key}" class="form-control" placeholder="https://drive.google.com/…" oninput="validate()">
+        <div class="form-hint">Paste a shared link (Google Drive, SharePoint, etc.)</div>
+      </div>
+    `).join('');
+    validate();
+  }
+
+  function validate() {
+    if (!selectedType) { document.getElementById('mSubmit').disabled = true; return; }
+    const allFilled = DOCS[selectedType].every(d => document.getElementById('doc_' + d.key)?.value.trim());
+    document.getElementById('mSubmit').disabled = !allFilled;
+  }
+
+  function submitReq() {
+    closeModal();
+    showToast('Billing request submitted — Finance notified ✓');
+  }
+
+  function togglePopover(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+    document.addEventListener('click', function handler(e) {
+      if (!el.contains(e.target)) { el.classList.remove('open'); document.removeEventListener('click', handler); }
+    }, { once: false });
+  }
+
+  function toggleDrawer() {
+    const panel = document.getElementById('drawer-panel');
+    panel.classList.toggle('open');
+    document.getElementById('drawerToggleBtn').textContent = panel.classList.contains('open') ? '× Close' : '↩ Requests 2';
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // Close popovers on outside click
+  document.addEventListener('click', e => {
+    document.querySelectorAll('.popover-box.open, .notif-panel.open').forEach(el => {
+      if (!el.contains(e.target) && !e.target.closest('.popover-wrap') && !e.target.closest('.notif-bell-wrap')) {
+        el.classList.remove('open');
+      }
+    });
+  });
+</script>
+</body>
+</html>

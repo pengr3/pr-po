@@ -1016,6 +1016,17 @@
     margin-top: -0.5rem;
 }
 
+.auth-success {
+    display: none;
+    font-size: 0.8125rem;
+    color: var(--success-dark);
+    background: var(--success-light);
+    border: 1px solid var(--success);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-top: -0.5rem;
+}
+
 .auth-link {
     text-align: center;
     margin-top: 1.5rem;
@@ -1766,92 +1777,7 @@
     }
 }
 
-/* ========================================
-   MRF TAB — SUB-NAV (Phase 74-01)
-   Unified pill/tab bar, sticky, scroll-hide/show behavior.
-   Replaces .tab-btn sub-tab nav in Material Request view.
-   Scoped to .mrf-sub-nav-* class prefix — does NOT affect .tab-btn
-   or .finance-sub-nav-* or any other view's nav.
-   ======================================== */
-
-.mrf-sub-nav {
-    position: sticky;
-    top: 64px; /* stick below .top-nav (64px height), not behind it */
-    z-index: 90;
-    background: #ffffff;
-    border-bottom: 1px solid var(--gray-200);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-    transform: translateY(0);
-    opacity: 1;
-    transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease;
-    will-change: transform;
-}
-
-.mrf-sub-nav--hidden {
-    transform: translateY(-100%);
-    opacity: 0;
-    pointer-events: none;
-}
-
-.mrf-sub-nav-inner {
-    max-width: 1600px;
-    margin: 0 auto;
-    padding: 0.5rem 1rem;
-}
-
-.mrf-sub-nav-tabs {
-    display: flex;
-    gap: 0.25rem;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-}
-.mrf-sub-nav-tabs::-webkit-scrollbar { display: none; }
-
-.mrf-sub-nav-tab {
-    flex: 0 0 auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.625rem 1.125rem;
-    min-height: 44px;
-    border-radius: 999px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--gray-700);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.mrf-sub-nav-tab:hover {
-    background: var(--gray-50);
-    color: var(--gray-900);
-}
-
-.mrf-sub-nav-tab--active {
-    color: #ffffff;
-    background: var(--primary);
-    box-shadow: 0 1px 2px rgba(26, 115, 232, 0.25);
-}
-
-.mrf-sub-nav-tab--active:hover {
-    background: var(--primary-dark);
-    color: #ffffff;
-}
-
 @media (max-width: 768px) {
-    .mrf-sub-nav-inner {
-        padding: 0.5rem 0.75rem;
-    }
-    .mrf-sub-nav-tab {
-        padding: 0.5rem 0.875rem;
-        font-size: 0.8125rem;
-    }
-
     /* Stack radio options vertically on mobile (Request Type section).
        Urgency Level uses an inline style override, but Request Type relies
        on .radio-group which defaults to flex-row in components.css. */
@@ -2243,6 +2169,110 @@
 }
 
 /* ========================================
+   COLLECTIBLES REVAMP β (Phase 99.2) — scorecard chips, progress bars, urgency borders, mobile cards
+   Desktop rules are global; only the mobile rules sit in the @media block below.
+   Consumed by renderCollectiblesScorecard / renderCollectiblesTable / buildCollectibleCard (Plans 02/03).
+   ======================================== */
+
+/* 1. Scorecard chips — light bg + colored LEFT accent + dark text (spike 027a, D-02) */
+.coll-scorecard { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.coll-chip { flex: 1; min-width: 160px; border-radius: 8px; padding: 0.6rem 0.85rem; border: 1px solid #e2e8f0; background: #fff; }
+.coll-chip-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: #64748b; }
+.coll-chip-value { font-size: 1.25rem; font-weight: 700; color: #1e293b; margin-top: 0.15rem; }
+.coll-chip-sub { font-size: 0.7rem; color: #94a3b8; margin-top: 0.1rem; }
+.coll-chip-invoiced { border-left: 3px solid #059669; }
+.coll-chip-collected { border-left: 3px solid #0369a1; }
+.coll-chip-outstanding { border-left: 3px solid #c2410c; }
+.coll-chip-overdue { border-left: 3px solid #991b1b; }
+.coll-chip-overdue .coll-chip-value { color: #991b1b; }
+
+/* 2. Collection progress bar — 6px (D-05), color encodes urgency */
+.coll-progress-track { height: 6px; border-radius: 999px; background: #e5e7eb; overflow: hidden; margin-top: 0.3rem; }
+.coll-progress-fill { height: 100%; border-radius: 999px; }
+.coll-progress-fill.is-overdue { background: #ef4444; }
+.coll-progress-fill.is-paid { background: #059669; }
+.coll-progress-fill.is-normal { background: #3b82f6; }
+.coll-progress-text { font-size: 0.72rem; color: #64748b; margin-top: 0.15rem; }
+
+/* 3. 4px urgency left-borders — 6 tiers (D-05a). Applied to <tr> AND .fc-card via the same class. */
+.coll-urgency-critical { border-left: 4px solid #ef4444; background: #fef2f2; }
+.coll-urgency-overdue { border-left: 4px solid #f97316; background: #fff7ed; }
+.coll-urgency-near-due { border-left: 4px solid #f59e0b; background: #fffbeb; }
+.coll-urgency-partial { border-left: 4px solid #3b82f6; }
+.coll-urgency-healthy { border-left: 4px solid #e5e7eb; }
+.coll-urgency-paid { border-left: 4px solid #059669; opacity: 0.72; }
+
+/* 4. Relative-due / last-payment text helpers */
+.coll-due-critical { color: #991b1b; font-weight: 700; }
+.coll-due-overdue { color: #c2410c; font-weight: 600; }
+.coll-due-near { color: #b45309; font-weight: 600; }
+.coll-due-normal { color: #64748b; }
+.coll-no-payment { color: #94a3b8; font-style: italic; }
+
+/* 5. "Show N completed" toggle */
+.coll-show-completed-toggle { display: inline-flex; align-items: center; gap: 0.4rem; margin-top: 0.6rem; font-size: 0.8rem; color: #1a73e8; cursor: pointer; background: none; border: none; padding: 0.2rem 0; }
+
+/* 6. Mobile card layout (≤768px) — collectibles is the ONE Finance table 73.1 skipped */
+@media (max-width: 768px) {
+    #collectibles-section .table-scroll-container { display: none; }
+    #collectibles-section .fc-card-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .coll-card-progress { padding-top: 0.3rem; }
+}
+
+/* 7. Filter bar — Looker-style date-range popover (Phase 99.3) */
+.coll-date-picker-wrap { position: relative; }
+.coll-date-picker-btn {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.4rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 6px;
+    background: #fff; font-size: 0.875rem; color: #475569; cursor: pointer;
+    white-space: nowrap; font-family: inherit;
+    transition: border-color 0.15s, background 0.15s;
+}
+.coll-date-picker-btn:hover { border-color: #cbd5e1; }
+.coll-date-picker-btn.active { border-color: #1a73e8; color: #1a73e8; background: #eff6ff; }
+.coll-dp-chevron { font-size: 0.65rem; color: #94a3b8; }
+.coll-date-picker-btn.active .coll-dp-chevron { color: #1a73e8; }
+.coll-dp-panel {
+    position: absolute; top: calc(100% + 5px); left: 0; z-index: 300;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 9px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.13); min-width: 200px; overflow: hidden;
+}
+.coll-dp-section-label {
+    padding: 0.45rem 0.9rem 0.2rem;
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: #94a3b8;
+}
+.coll-dp-preset {
+    padding: 0.45rem 0.9rem; font-size: 0.82rem; color: #475569;
+    cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+}
+.coll-dp-preset:hover { background: #f8fafc; }
+.coll-dp-preset.on { background: #eff6ff; color: #1a73e8; font-weight: 600; }
+.coll-dp-divider { height: 1px; background: #f1f5f9; margin: 0.2rem 0; }
+.coll-dp-fixed {
+    padding: 0.55rem 0.75rem 0.65rem;
+    border-top: 1px solid #f1f5f9;
+    display: flex; flex-direction: column; gap: 0.35rem;
+}
+.coll-dp-fixed-row { display: flex; align-items: center; gap: 0.4rem; }
+.coll-dp-fixed-lbl { font-size: 0.7rem; color: #94a3b8; width: 34px; }
+.coll-dp-fixed input[type="date"] {
+    flex: 1; padding: 0.3rem 0.4rem; border: 1px solid #e2e8f0; border-radius: 5px;
+    font-size: 0.78rem; color: #475569; background: #fff; font-family: inherit;
+}
+.coll-dp-fixed input[type="date"]:focus { outline: none; border-color: #1a73e8; }
+
+/* 8. Grouped-by-project accordion view (Phase 99.3) */
+.coll-group-header { cursor: pointer; }
+.coll-group-header:hover td { background: #f0f4ff; }
+.coll-group-child td { background: #f8fafc; }
+.coll-group-child:hover td { background: #f1f5f9; }
+.coll-group-count-chip {
+    font-size: 0.6rem; font-weight: 700; background: #f1f5f9; color: #475569;
+    border-radius: 10px; padding: 0.05rem 0.45rem;
+}
+
+/* ========================================
    FINANCE MODALS — MOBILE RESPONSIVE (Phase 73.2)
    Targets Financial Breakdown Modal (#expenseBreakdownModal).
    Replaces inline grid styles on scorecard rows with classes so
@@ -2347,22 +2377,2969 @@
 }
 
 /* ========================================
-   HOME DASHBOARD — UNIFIED STATUS CHART
-   Phase 81: single chart per entity using the 10 unified status options (D-05).
+   PROJECT PLAN VIEW (Phase 86)
+   Split-pane plan surface: toolbar + task tree (left) + Gantt pane (right)
    ======================================== */
 
-/* Phase 77.2 — single stacked horizontal bar (28px) + 12px legend wraps to ~3 rows
-   on the 10 unified statuses. ~28 (bar) + ~78 (legend, 3 rows × 22px line-height + pad)
-   + ~24 (top/bottom breathing room) ≈ 130px. We round up to 180px to absorb
-   narrow-card legend wrapping (4 rows) and avoid clipping; mobile gets +40px
-   because wider per-item legend padding pushes legend into 4-5 rows at 360px-414px. */
-.hs-chart-canvas.hs-chart-status {
-    height: 180px;
-    min-height: 180px;
+.plan-view-surface {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 64px);  /* nav-height adjust if needed */
+    background: var(--gray-50, #f8f9fa);
 }
+.plan-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    height: 56px;
+    border-bottom: 1px solid var(--gray-200, #dadce0);
+    background: #ffffff;
+}
+.plan-toolbar .plan-back-link {
+    color: var(--primary, #1a73e8);
+    text-decoration: none;
+    font-size: 14px;
+}
+.plan-toolbar .plan-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 0 8px;
+}
+.plan-toolbar-spacer { flex: 1 1 auto; }
+
+.zoom-pill-group {
+    display: inline-flex;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--gray-200, #dadce0);
+}
+.zoom-pill {
+    padding: 6px 12px;
+    background: #ffffff;
+    color: var(--gray-700, #475569);
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+}
+.zoom-pill.active {
+    background: var(--primary, #1a73e8);
+    color: #ffffff;
+}
+
+.plan-split-pane {
+    /* Phase 86.9: Curtain layout — rail is floor at full width; gantt-pane overlaps as absolute */
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    border-top: 1px solid var(--gray-200, #dadce0);
+}
+
+.plan-divider {
+    /* Phase 86.9: Absolute overlay — JS sets style.left on drag; z-index:20 ensures it's always clickable above gantt-pane */
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(35% - 2px);
+    width: 4px;
+    z-index: 20;
+    cursor: col-resize;
+    user-select: none;
+    transition: background 0.15s;
+    background: var(--gray-200, #dadce0);
+}
+.plan-divider:hover,
+.plan-divider.dragging {
+    background: var(--primary, #1a73e8);
+}
+
+/* ========================================
+   PHASE 97 — ITERATION HISTORY RAIL + DIFF PANEL
+   Right rail (260px), diff panel, undo toast, toolbar iteration buttons
+   ======================================== */
+
+/* Plan body row: horizontal flex wrapper for split-pane + iter-rail */
+.plan-body-row {
+    display: flex;
+    flex-direction: row;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+.plan-body-row > .plan-split-pane {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Iteration history right rail */
+.iter-rail {
+    width: 0;
+    overflow: hidden;
+    border-left: 1px solid transparent;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.25s, border-color 0.25s;
+    flex-shrink: 0;
+}
+.iter-rail:not([hidden]) {
+    width: 260px;
+    border-left-color: var(--gray-200, #e2e8f0);
+}
+.iter-rail-head {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--gray-200, #e2e8f0);
+    font-weight: 600;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.iter-count-badge {
+    background: #e8f0fe;
+    color: #1a73e8;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 700;
+}
+.iter-rail-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: #64748b;
+    line-height: 1;
+}
+.iter-rail-save-row {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--gray-200, #e2e8f0);
+    flex-shrink: 0;
+}
+.iter-rail-save-btn {
+    width: 100%;
+    padding: 6px 0;
+    background: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.iter-rail-timeline {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Timeline item */
+.iter-timeline-item {
+    display: flex;
+    gap: 10px;
+    padding-bottom: 14px;
+    position: relative;
+}
+.iter-timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 11px;
+    top: 24px;
+    bottom: 0;
+    width: 2px;
+    background: var(--gray-200, #e2e8f0);
+}
+.iter-tl-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #e8f0fe;
+    border: 2px solid #1a73e8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #1a73e8;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.iter-tl-content {
+    flex: 1;
+    min-width: 0;
+}
+.iter-tl-name {
+    font-weight: 600;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.iter-tl-meta {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 2px;
+}
+.iter-tl-actions {
+    display: flex;
+    gap: 4px;
+    margin-top: 5px;
+    align-items: center;
+}
+.iter-tl-delete-btn {
+    padding: 3px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    border: none;
+    border-radius: 4px;
+    background: #fee2e2;
+    color: #ef4444;
+    cursor: pointer;
+    margin-left: auto;
+}
+.iter-tl-delete-btn:hover {
+    background: #ef4444;
+    color: #fff;
+}
+.iter-tl-loaded-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 3px;
+    background: #dcfce7;
+    color: #15803d;
+    vertical-align: middle;
+    margin-left: 4px;
+    letter-spacing: 0.02em;
+}
+.iter-loaded-label {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #15803d;
+    background: #f0fdf4;
+    border-bottom: 1px solid #dcfce7;
+}
+.plan-baseline-delete-btn {
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    background: #fff5f5;
+}
+.plan-baseline-delete-btn:hover {
+    background: #ef4444;
+    color: #fff;
+    border-color: #ef4444;
+}
+.iter-tl-btn {
+    padding: 3px 8px;
+    border: none;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.iter-tl-btn.diff-btn {
+    background: #f1f5f9;
+    color: #1e293b;
+}
+.iter-tl-btn.diff-btn:hover {
+    background: #e2e8f0;
+}
+.iter-tl-btn.diff-btn.active {
+    background: #fef3c7;
+    color: #92400e;
+}
+.iter-tl-btn.load-btn {
+    background: #1a73e8;
+    color: white;
+}
+.iter-tl-btn.load-btn:hover {
+    background: #1557b0;
+}
+
+/* Diff panel */
+.iter-diff-panel {
+    border-top: 2px solid #f59e0b;
+    background: white;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    max-height: 50%;
+    overflow: hidden;
+}
+.iter-diff-panel[hidden] {
+    display: none;
+}
+.iter-diff-head {
+    padding: 8px 16px;
+    background: #fffbeb;
+    border-bottom: 1px solid #fcd34d;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.iter-diff-title {
+    font-size: 12px;
+    font-weight: 700;
+    flex: 1;
+}
+.iter-diff-summary {
+    font-size: 11px;
+    color: #64748b;
+    margin-right: auto;
+}
+.iter-diff-load-btn {
+    padding: 4px 10px;
+    background: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.iter-diff-close {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: #64748b;
+}
+.iter-diff-legend {
+    display: flex;
+    gap: 12px;
+    padding: 5px 16px;
+    background: #fffbeb;
+    border-bottom: 1px solid #fcd34d;
+    font-size: 11px;
+    align-items: center;
+    flex-shrink: 0;
+}
+.iter-diff-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.iter-diff-dot-chg {
+    background: #fcd34d;
+}
+.iter-diff-dot-add {
+    background: #86efac;
+}
+.iter-diff-dot-del {
+    background: #fca5a5;
+}
+.iter-diff-dot-same {
+    background: #e2e8f0;
+}
+.iter-diff-table-wrap {
+    flex: 1;
+    overflow: auto;
+}
+.iter-diff-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.iter-diff-table th {
+    background: #f1f5f9;
+    padding: 6px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    position: sticky;
+    top: 0;
+    border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+.iter-diff-table td {
+    padding: 6px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 12px;
+}
+.iter-diff-row-same td {
+    background: #f8fafc;
+}
+.iter-diff-row-changed td {
+    background: #fef3c7;
+}
+.iter-diff-row-added td {
+    background: #dcfce7;
+}
+.iter-diff-row-removed td {
+    background: #fee2e2;
+}
+.iter-diff-badge {
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+.iter-diff-badge.changed {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+}
+.iter-diff-badge.added {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+}
+.iter-diff-badge.removed {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+}
+.iter-diff-badge.same {
+    background: #f1f5f9;
+    color: #64748b;
+}
+.iter-diff-old {
+    text-decoration: line-through;
+    color: #ef4444;
+}
+.iter-diff-new {
+    color: #059669;
+    font-weight: 600;
+}
+
+/* Undo toast (separate from shared #toast element) */
+.iter-undo-toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e293b;
+    color: white;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 9999;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    white-space: nowrap;
+}
+.iter-undo-btn {
+    color: #60a5fa;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+    text-decoration: underline;
+    font-size: 12px;
+    padding: 0;
+}
+
+/* Iteration toolbar buttons (match plan-export-btn style) */
+.plan-iter-save-btn,
+.plan-iter-history-btn {
+    /* inherits .plan-export-btn styles */
+}
+.plan-iter-history-btn.active {
+    background: #e8f0fe;
+    border-color: #1a73e8;
+    color: #1a73e8;
+}
+
+/* Phase 97.1 — Toolbar groups */
+.plan-toolbar-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.plan-toolbar-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--gray-200, #dadce0);
+    margin: 0 2px;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+/* ========================================
+   PHASE 86.1 — TASK GRID (inline spreadsheet)
+   Left rail: editable table replacing task-tree
+   ======================================== */
+
+.task-grid-rail {
+    /* Phase 86.9: Rail fills full container width as the "floor" element; gantt-pane overlaps it as an absolute overlay.
+       Phase 86.3 D-10: overflow-x:hidden kills stray horizontal scrollbar (640px .task-grid min-width on narrow rail).
+       D-SCROLL (86.4): overflow-y:auto needed for synchronized vertical scroll. */
+    position: relative;
+    flex: 0 0 100%;
+    min-width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background: #ffffff;
+    border-right: 1px solid var(--gray-200, #dadce0);
+}
+
+.task-grid {
+    border-collapse: collapse;
+    width: auto;           /* rail is now 100%-wide curtain floor; table must not stretch to fill it */
+    min-width: 640px;
+    font-size: 13px;
+}
+
+.task-grid thead tr {
+    height: 94px;                                     /* GANTT-OVERLAY-PANE-PARITY: matches #ganttHeaderOverlay AND gantt.config.header_height (forced to 94 via lower_header_height:39 in project-plan.js → 39+45+10=94). Right-pane bar slot 0 top y = config.header_height = 94, so left thead bottom = right slot 0 top → row labels and bars align by both top edge and center. */
+}
+
+.task-grid thead th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    border-bottom: 2px solid var(--gray-200, #dadce0);
+    padding: 6px 8px;
+    padding-bottom: 8px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--gray-700, #475569);
+    user-select: none;
+    white-space: nowrap;
+    z-index: 2;
+    vertical-align: bottom;
+}
+
+/* Column widths */
+.tg-rn  { width: 36px; text-align: center; }
+.tg-name { width: 200px; min-width: 140px; }
+.tg-name-inner { display: flex; align-items: center; width: 100%; }
+.tg-name-inner .tg-input { flex: 1; min-width: 0; }
+.tg-dur  { width: 72px; }
+.tg-date { width: 110px; }
+.tg-pred { width: 90px; }
+.tg-res  { width: 120px; }
+
+.tg-row {
+    height: 42px;                                     /* MUST match Frappe bar_height(24) + padding(18) = 42px */
+    border-bottom: 1px solid var(--gray-200, #dadce0);
+    box-sizing: border-box;
+}
+.tg-row:hover { background: #f8f9fa; }
+.tg-row.tg-empty-row { background: #fafafa; }
+
+.tg-rn {
+    text-align: center;
+    color: var(--gray-700, #475569);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+    padding: 4px 4px;
+}
+
+.tg-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    padding: 4px 6px;
+    outline: none;
+    box-sizing: border-box;
+}
+.tg-input:focus {
+    background: #eff6ff;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px var(--primary, #1a73e8);
+}
+.tg-date-input { min-width: 100px; }
+
+.tg-locked {
+    display: block;
+    padding: 2px 6px; /* [Phase 86.9 Plan 03] D1 — keep parent rows at 42px to match Frappe slots */
+    color: var(--gray-700, #475569);
+    font-style: italic;
+    font-size: 13px;
+    cursor: help;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tg-resource-names {
+    display: block;
+    padding: 4px 6px;
+    font-size: 12px;
+    color: var(--primary, #1a73e8);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tg-resource-names:hover { text-decoration: underline; }
+
+/* Inline delete confirm (Plan 02 D-05) */
+.tg-delete-confirm {
+    font-size: 12px;
+    color: #ef4444;
+    margin-left: 8px;
+}
+.tg-delete-confirm .tg-delete-yes,
+.tg-delete-confirm .tg-delete-no {
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid currentColor;
+    cursor: pointer;
+    margin-left: 4px;
+}
+.tg-delete-confirm .tg-delete-yes { color: #ef4444; background: transparent; }
+.tg-delete-confirm .tg-delete-no  { color: #475569; background: transparent; }
+
+/* Drag row handle (Plan 02 D-Q4) */
+.tg-drag-handle {
+    cursor: row-resize;
+    color: #94a3b8;
+    user-select: none;
+    padding: 0 4px;
+}
+.tg-row.tg-dragging { opacity: 0.5; }
+.tg-row.tg-drag-over { border-top: 2px solid var(--primary, #1a73e8); }
+
+.task-grid tbody td {
+    padding-top: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+
+/* Gantt SVG overlay — drag-to-link (Plan 04) */
+.gantt-link-handle { opacity: 0.85; transition: opacity 0.1s; }
+.gantt-link-handle:hover { opacity: 1; }
+.gantt-rubber-band { pointer-events: none; }
+
+/* Phase 86.8 Feature 1 — arrow right-click context menu */
+.gantt-arrow-menu {
+    position: fixed;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    padding: 4px 0;
+    z-index: 10000;
+    min-width: 240px;
+    font-size: 0.875rem;
+}
+.gantt-arrow-menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gantt-arrow-menu-item:hover { background: #fef2f2; color: #ef4444; }
+/* Frappe v1.2.2 layers all arrow <path> elements under a single <g class="arrow">; the
+   paths themselves have no class, so we target by tag + class on the path directly. */
+.gantt-container g.arrow path.tg-arrow-selected { stroke: #1a73e8; stroke-width: 2.5; }
+
+/* Phase 86.8 Feature 2 — collapsible parent toggle */
+.tg-collapse-toggle {
+    display: inline-block;
+    width: 14px;
+    margin-right: 4px;
+    font-size: 11px;
+    color: #64748b;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.1s ease;
+    text-align: center;
+}
+.tg-collapse-toggle[data-collapsed="1"] { transform: rotate(-90deg); }
+.tg-collapse-toggle:hover { color: #1a73e8; }
+
+/* Phase 86.8 Feature 7 — selected row highlight (left-edge accent stripe) */
+.tg-row.tg-selected { background: #eff6ff; box-shadow: inset 2px 0 0 0 #1a73e8; }
+.tg-row.tg-selected:hover { background: #dbeafe; }
+/* Phase 86.10 — multi-selected rows (shift+click range) */
+.tg-row.tg-multi-selected { background: #dbeafe; box-shadow: inset 2px 0 0 0 #1a73e8; }
+.tg-row.tg-multi-selected:hover { background: #bfdbfe; }
+
+/* Phase 86.8 Feature 5 — Progress column (between End and Predecessors). */
+/* Compact column: 80px wide, centered. Number input is narrower than full cell so the % */
+/* sign in the parent-rollup span doesn't crowd against the right border. */
+.tg-progress { width: 80px; text-align: center; }
+.tg-progress .tg-input { width: 60px; padding: 2px 4px; text-align: center; }
+.tg-progress .tg-locked { font-size: 0.8rem; }
+
+/* Phase 86.8 Feature 6 — search/filter input lives in the toolbar so it doesn't push grid
+   headers down (which broke left/right vertical alignment). Kept compact next to the
+   critical-path toggle. */
+.plan-toolbar-search {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 12px;
+    position: relative;
+}
+.plan-toolbar-search .tg-search-input {
+    width: 200px;
+    padding: 4px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    outline: none;
+}
+.plan-toolbar-search .tg-search-input:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26,115,232,0.15);
+}
+.plan-toolbar-search .tg-search-clear {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1rem;
+    color: #94a3b8;
+    padding: 0 4px;
+    line-height: 1;
+}
+.plan-toolbar-search .tg-search-clear:hover { color: #ef4444; }
+/* Three-rule visibility (D-Q6): parents kept around because a descendant matched are greyed. */
+.tg-row.tg-row-context { opacity: 0.55; }
+.tg-row.tg-row-context:hover { opacity: 0.85; }
+
+/* Phase 86.11 — row status tinting (overdue, complete, not-started) */
+.tg-row.tg-row-overdue { background: #fff5f5; box-shadow: inset 3px 0 0 0 #ef4444; }
+.tg-row.tg-row-overdue:hover { background: #fee2e2; }
+.tg-row.tg-row-complete { background: #f0fdf4; box-shadow: inset 3px 0 0 0 #059669; }
+.tg-row.tg-row-complete:hover { background: #dcfce7; }
+.tg-row.tg-row-not-started { background: #f8fafc; }
+.tg-row.tg-row-not-started:hover { background: #f1f5f9; }
+
+/* Phase 86.11 — milestone row tint (amber) + ◆ prefix */
+/* Double-class selector beats .tg-row.tg-row-overdue etc. when both appear via cascade order */
+.tg-row.tg-row-milestone { background: #fffbeb; box-shadow: inset 3px 0 0 0 #f59e0b; }
+.tg-row.tg-row-milestone:hover { background: #fef3c7; }
+.tg-row.tg-row-milestone .tg-name::before { content: "◆ "; color: #f59e0b; font-size: 0.9em; }
+
+
+.gantt-pane {
+    /* Phase 86.9: Absolute overlay — slides left/right over the task-grid-rail like a curtain.
+       JS sets style.left on drag; CSS provides the 35% default position.
+       z-index:10 paints over the covered portion of the grid; divider is z-index:20. */
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 35%;
+    z-index: 10;
+    overflow-x: auto;              /* horizontal scroll for timeline (clamp watches scrollLeft) */
+    overflow-y: hidden;            /* vertical scroll handled by .gantt-container (fixGanttContainerScroll) */
+    background: #ffffff;
+}
+/* Hide gantt-container's vertical scrollbar — it is the actual scroll element; rail is indicator */
+#ganttPane .gantt-container::-webkit-scrollbar { width: 0; }
+#ganttPane .gantt-container::-webkit-scrollbar-track { background: transparent; }
+.gantt-pane .gantt-container {
+    min-width: 100%;               /* Frappe SVG container fills available column width */
+}
+.gantt-pane #ganttPane { padding: 0 8px 8px 8px; position: relative; }
+
+/* ========================================
+   PHASE 86.4 D-03 Option B — Custom Gantt Header Overlay
+   Stable div appended inside #ganttPane, absolutely positioned over Frappe's header area.
+   Never touches Frappe's .lower-header DOM. Scroll synced via JS transform.
+   ======================================== */
+
+#ganttHeaderOverlay {
+    position: absolute;
+    top: 0;
+    left: 8px;                         /* aligns with #ganttPane padding-left */
+    right: 8px;                        /* aligns with #ganttPane padding-right */
+    z-index: 20;
+    overflow: hidden;
+    background: #f8fafc;
+    pointer-events: none;
+}
+
+.gho-inner {
+    position: absolute;
+    top: 0; left: 0; bottom: 0;
+    display: flex;
+    align-items: stretch;
+    will-change: transform;
+}
+
+/* Day view: one cell per calendar day */
+.gho-day-cell {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+.gho-day-cell.gho-wknd { background: #f1f5f9; }
+.gho-num { font-size: 12px; font-weight: 600; color: #1e293b; line-height: 1.2; }
+.gho-ltr { font-size: 10px; color: #64748b; line-height: 1; }
+.gho-day-cell.gho-wknd .gho-num,
+.gho-day-cell.gho-wknd .gho-ltr { color: #94a3b8; }
+
+/* Week view: one cell per week with date label + day sub-row */
+.gho-week-cell {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+.gho-wk-lbl {
+    flex: 0 0 40%;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid #e2e8f0;
+}
+.gho-wk-days {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+}
+.gho-sub {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: #64748b;
+    height: 100%;
+    border-right: 1px solid #f1f5f9;
+    overflow: hidden;
+}
+.gho-sub.gho-wknd { color: #94a3b8; background: #f8fafc; }
+
+/* Month view: one cell per month */
+.gho-month-cell {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+.gho-mon-lbl {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 8px;
+}
+
+/* Frappe Gantt customizations — Plan 03 will fill in milestone-marker + parent-summary-bar */
+.gantt-container { background: #ffffff; }
+
 @media (max-width: 768px) {
-    .hs-chart-canvas.hs-chart-status {
-        height: 220px;
-        min-height: 220px;
+    /* Phase 86.9: Curtain mobile — gantt-pane hidden, task-grid-rail fills screen */
+    .gantt-pane { display: none; }
+    .task-grid-rail { position: relative; flex: 1 1 auto; min-width: 0; }
+}
+
+/* ========================================
+   PHASE 86 — FRAPPE GANTT OVERLAYS
+   Milestone diamond, parent summary bar, today line, FS-violation arrow.
+   ======================================== */
+
+/* Milestone tasks: bar stays visible (inherits status color); progress fill hidden; diamond injected via JS */
+.gantt-container .bar-wrapper.milestone-marker .bar-progress {
+    display: none;
+}
+
+/* Parent summary bar: thin charcoal strip; non-draggable */
+/* height/y forced via JS SVG attributes (initGanttDragLink) — CSS height on SVG <rect> */
+/* does not reliably override the SVG presentation attribute in all browsers.           */
+.gantt-container .bar-wrapper.parent-summary-bar .bar {
+    fill: #475569;
+}
+.gantt-container .bar-wrapper.parent-summary-bar .bar-progress {
+    display: none;
+}
+.gantt-container .bar-wrapper.parent-summary-bar .handle.left,
+.gantt-container .bar-wrapper.parent-summary-bar .handle.right,
+.gantt-container .bar-wrapper.parent-summary-bar .handle.progress {
+    pointer-events: none;
+    display: none;
+}
+
+/* Today line — 2px red SVG line, full chart height */
+.gantt-today-line {
+    stroke: #ef4444;
+    stroke-width: 2;
+    pointer-events: none;
+}
+
+/* FS-violation arrow — red stroke override */
+.gantt-container .arrow.violation {
+    stroke: #ef4444;
+    stroke-width: 2;
+}
+
+/* Phase 86.8 Feature 4 — critical-path highlight (red bars + red arrows). */
+/* Leaf bars: bright red. Parent-summary bars (when their subtree contains a critical leaf): */
+/* a darker red so they read as a roll-up indicator. */
+.gantt-container .bar-wrapper.critical .bar { fill: #ef4444; }
+.gantt-container .bar-wrapper.critical.parent-summary-bar .bar { fill: #b91c1c; }
+/* Frappe v1.2.2 layers all arrow <path> elements under <g class="arrow">; .critical sits */
+/* on the path itself (not the layer group), matching how applyCriticalPathStyles tags it. */
+.gantt-container g.arrow path.critical { stroke: #ef4444; stroke-width: 2; }
+
+/* Phase 86.11 — bar status fills (leaf tasks only; milestone + parent bars untouched) */
+/* Both .bar (background) and .bar-progress (progress overlay) must be colored —
+   .bar-progress renders on top in Frappe SVG and hides .bar for high-progress tasks */
+.gantt-container .bar-wrapper.bar-status-overdue .bar,
+.gantt-container .bar-wrapper.bar-status-overdue .bar-progress { fill: #ef4444; }
+.gantt-container .bar-wrapper.bar-status-complete .bar,
+.gantt-container .bar-wrapper.bar-status-complete .bar-progress { fill: #059669; }
+.gantt-container .bar-wrapper.bar-status-not-started .bar,
+.gantt-container .bar-wrapper.bar-status-not-started .bar-progress { fill: #94a3b8; }
+
+/* Phase 86.12 — baseline overlay: dashed outline rect + slip badge pill */
+.gantt-baseline-outline {
+    fill: none;
+    stroke: #94a3b8;
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+    pointer-events: none;
+}
+.gantt-slip-badge {
+    font-size: 10px;
+    font-weight: 600;
+    pointer-events: none;
+}
+.gantt-slip-badge-bg {
+    pointer-events: none;
+}
+/* Slip summary row above the Gantt */
+.baseline-slip-summary {
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #64748b;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+.baseline-slip-summary .slip-behind { color: #ef4444; font-weight: 600; }
+.baseline-slip-summary .slip-ahead  { color: #059669; font-weight: 600; }
+.baseline-slip-summary .slip-label  { color: #64748b; }
+
+/* Toolbar checkbox for critical-path toggle (sits to the right of the zoom pill group). */
+.plan-toolbar-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: #475569;
+    cursor: pointer;
+    user-select: none;
+    margin-left: 12px;
+}
+.plan-toolbar-toggle input { cursor: pointer; }
+
+/* ========================================
+   SPIKE 021A + 022C — PROJECT PLAN CARD (project-detail.js)
+   ======================================== */
+
+.project-plan-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+.plan-heading-new {
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+
+/* Iteration label strip (023b) */
+.plan-iter-strip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 16px;
+    background: #eff6ff;
+    border-bottom: 1px solid #bfdbfe;
+    font-size: 11px;
+    color: #1e40af;
+    font-weight: 600;
+}
+.plan-iter-strip .iter-icon { font-size: 12px; opacity: 0.8; }
+.plan-iter-strip .iter-label { flex: 1; }
+.plan-iter-strip .iter-open-link {
+    font-size: 11px;
+    color: #1a73e8;
+    text-decoration: none;
+    font-weight: 500;
+}
+.plan-iter-strip .iter-open-link:hover { text-decoration: underline; }
+
+/* Progress bar */
+.plan-progress-wrap { margin-bottom: 14px; }
+.plan-progress-track { width: 100%; height: 8px; background: #f1f5f9; border-radius: 99px; overflow: hidden; margin-bottom: 6px; }
+.plan-progress-fill { height: 100%; border-radius: 99px; background: #1a73e8; transition: width 0.4s cubic-bezier(.4,0,.2,1); }
+.plan-progress-fill.complete { background: #10b981; }
+.plan-progress-text { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; }
+.plan-progress-text .plan-pct { font-weight: 700; color: #1e293b; }
+
+/* Combined top row */
+.plan-combined-top { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+
+/* Health badge */
+.plan-health-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+.plan-health-badge .phb-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.plan-health-badge.on-track { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+.plan-health-badge.on-track .phb-dot { background: #22c55e; }
+.plan-health-badge.at-risk  { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
+.plan-health-badge.at-risk  .phb-dot { background: #f59e0b; }
+.plan-health-badge.behind   { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+.plan-health-badge.behind   .phb-dot { background: #ef4444; }
+
+/* Overdue pill */
+.plan-overdue-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 20px; background: #fffbeb; border: 1px solid #fcd34d; font-size: 12px; font-weight: 700; color: #92400e; }
+.plan-overdue-pill .pod-count { font-size: 15px; }
+
+/* Overdue detail section */
+.plan-overdue-section { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.plan-section-lbl { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; }
+.plan-overdue-task-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px; }
+.plan-overdue-task-row + .plan-overdue-task-row { border-top: 1px solid #fde68a; }
+.plan-overdue-name { flex: 1; color: #78350f; }
+.plan-overdue-age  { font-size: 11px; color: #b45309; font-weight: 600; flex-shrink: 0; }
+.plan-overdue-more { font-size: 11px; color: #b45309; padding-top: 4px; }
+
+/* Upcoming section */
+.plan-upcoming-section { margin-bottom: 14px; }
+.plan-upcoming-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f8fafc; }
+.plan-upcoming-row:last-child { border-bottom: none; }
+.pup-icon { font-size: 12px; flex-shrink: 0; width: 16px; text-align: center; }
+.pup-name { flex: 1; font-size: 13px; color: #1e293b; }
+.pup-due  { font-size: 11px; color: #64748b; flex-shrink: 0; text-align: right; line-height: 1.6; }
+.pup-date { display: block; }
+.pup-rel  { color: #94a3b8; }
+.pup-rel.soon      { color: #f97316; font-weight: 600; }
+.pup-rel.very-soon { color: #ef4444; font-weight: 600; }
+
+/* No dates hint */
+.plan-no-dates-hint { padding: 10px 12px; background: #f8fafc; border-radius: 8px; border: 1px solid #f1f5f9; margin-bottom: 14px; font-size: 12px; color: #94a3b8; text-align: center; }
+
+/* Last done */
+.plan-last-done { margin-bottom: 14px; }
+.plan-last-done-lbl { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #94a3b8; margin-bottom: 3px; }
+.plan-last-done-val { font-size: 12px; color: #475569; }
+
+/* Completion block */
+.plan-completion-block { display: flex; align-items: center; gap: 10px; padding: 12px; background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; margin-bottom: 14px; }
+.plan-completion-icon { font-size: 20px; }
+.plan-completion-text { font-size: 13px; color: #166534; font-weight: 600; }
+.plan-completion-sub  { font-size: 11px; color: #4ade80; }
+
+/* Footer */
+.plan-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.plan-footer-count { font-size: 11px; color: #94a3b8; }
+
+/* Empty CTA */
+.plan-empty-cta { text-align: center; padding: 20px 0 10px; }
+.plan-empty-cta p { font-size: 13px; color: #94a3b8; margin-bottom: 14px; }
+
+.personnel-pills-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+/* ---- Phase 86.9 Plan 02: Export button + @media print ---- */
+
+.plan-export-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 14px;
+    border-radius: 16px;
+    border: 1.5px solid var(--primary, #1a73e8);
+    background: transparent;
+    color: var(--primary, #1a73e8);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+    margin-left: 8px;
+}
+.plan-export-btn:hover {
+    background: var(--primary, #1a73e8);
+    color: #ffffff;
+}
+
+/* Phase 86.12 (mbl): baseline selector — sits between Export and the toggle button. */
+.plan-baseline-select {
+    margin-left: 8px;
+    padding: 4px 8px;
+    border: 1px solid var(--gray-200, #e5e7eb);
+    border-radius: 6px;
+    background: #ffffff;
+    color: #1e293b;
+    font-size: 13px;
+    cursor: pointer;
+    max-width: 180px;
+}
+.plan-baseline-select:focus {
+    outline: none;
+    border-color: var(--primary, #1a73e8);
+    box-shadow: 0 0 0 2px rgba(26,115,232,0.15);
+}
+
+@media print {
+    /* [Phase 86.9 Plan 03] D2 — Gantt charts need landscape; default portrait collapses the timeline */
+    @page { size: landscape; margin: 0.4in; }
+    /* Hide everything except the #gantt-print-frame */
+    body > *:not(#gantt-print-frame) { display: none !important; }
+    #gantt-print-frame { display: block !important; }
+
+    /* Print frame layout */
+    #gantt-print-frame {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #1e293b;
+        padding: 24px;
+    }
+    .pdf-header h2 {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0 0 4px 0;
+    }
+    .pdf-header p {
+        font-size: 12px;
+        color: #64748b;
+        margin: 0 0 20px 0;
+    }
+    .pdf-gantt-section h3,
+    .pdf-table-section h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin: 16px 0 8px 0;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 4px;
+    }
+    /* Gantt snapshot: do NOT clip — show the full chart, page-break after */
+    .gantt-print-snapshot {
+        position: relative;         /* anchor for #ganttHeaderOverlay (position:absolute) */
+        width: 100%;
+        overflow: visible;          /* [Phase 86.9 Plan 03] D2 — was hidden; clipped chart to scroll viewport */
+        transform-origin: top left;
+        page-break-after: always;
+    }
+    /* [Phase 86.9 Plan 03] D2 — defeat inner overflow/transform set by Frappe + curtain layout */
+    .gantt-print-snapshot .gantt-container {
+        overflow: visible !important;
+        width: auto !important;
+        transform: none !important;
+    }
+    /* SVG inside snapshot: use natural width */
+    .gantt-print-snapshot svg { max-width: none; height: auto; }
+
+    /* Summary table */
+    .pdf-summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        margin-top: 8px;
+    }
+    .pdf-summary-table th {
+        background: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        padding: 6px 8px;
+        text-align: left;
+        font-weight: 600;
+    }
+    .pdf-summary-table td {
+        border: 1px solid #e2e8f0;
+        padding: 5px 8px;
+    }
+    .pdf-summary-table tr:nth-child(even) td { background: #f8fafc; }
+}
+
+/* ========================================
+   PROJECTS VIEW — Status Scorecard Strip
+   ======================================== */
+
+.project-scorecards {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.project-scorecard-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    transition: border-color 0.15s, background-color 0.15s;
+    user-select: none;
+}
+
+.project-scorecard-card:hover {
+    border-color: #93c5fd;
+    background-color: #f0f7ff;
+}
+
+.project-scorecard-card--active {
+    border-color: #1a73e8;
+    background-color: #e8f0fe;
+}
+
+.project-scorecard-card--total {
+    grid-column: span 2;
+}
+
+.scorecard-label {
+    font-size: 0.68rem;
+    line-height: 1.2;
+    color: #475569;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.scorecard-count {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e293b;
+    line-height: 1;
+}
+
+@media (max-width: 768px) {
+    .scorecard-count {
+        font-size: 1.1rem;
+    }
+    .scorecard-label {
+        font-size: 0.62rem;
     }
 }
+
+/* Per-status color coding for Phase 92.1 */
+
+.project-scorecard-card[data-status="Loss"] {
+    border-left: 3px solid #ef4444;
+    background-color: #fff5f5;
+}
+.project-scorecard-card[data-status="Loss"]:hover {
+    background-color: #fee2e2;
+    border-color: #ef4444;
+}
+.project-scorecard-card[data-status="Loss"].project-scorecard-card--active {
+    background-color: #fecaca;
+    border-color: #ef4444;
+}
+
+.project-scorecard-card[data-status="Completed"] {
+    border-left: 3px solid #1a73e8;
+    background-color: #e8f0fe;
+}
+.project-scorecard-card[data-status="Completed"]:hover {
+    background-color: #d2e3fc;
+    border-color: #1a73e8;
+}
+.project-scorecard-card[data-status="Completed"].project-scorecard-card--active {
+    background-color: #b3cef9;
+    border-color: #1a73e8;
+}
+
+.project-scorecard-card[data-status="On-going"] {
+    border-left: 3px solid #eab308;
+    background-color: #fefce8;
+}
+.project-scorecard-card[data-status="On-going"]:hover {
+    background-color: #fef9c3;
+    border-color: #eab308;
+}
+.project-scorecard-card[data-status="On-going"].project-scorecard-card--active {
+    background-color: #fef08a;
+    border-color: #eab308;
+}
+
+.project-scorecard-card[data-status="For Mobilization"] {
+    border-left: 3px solid #f97316;
+    background-color: #fff8f3;
+}
+.project-scorecard-card[data-status="For Mobilization"]:hover {
+    background-color: #ffedd5;
+    border-color: #f97316;
+}
+.project-scorecard-card[data-status="For Mobilization"].project-scorecard-card--active {
+    background-color: #fed7aa;
+    border-color: #f97316;
+}
+
+.project-scorecard-card[data-status="Client Approved"] {
+    border-left: 3px solid #16a34a;
+    background-color: #f0fdf4;
+}
+.project-scorecard-card[data-status="Client Approved"]:hover {
+    background-color: #dcfce7;
+    border-color: #16a34a;
+}
+.project-scorecard-card[data-status="Client Approved"].project-scorecard-card--active {
+    background-color: #bbf7d0;
+    border-color: #16a34a;
+}
+
+/* Phase 87.1 D-01 — Home dashboard sub-nav; content panes stretch full-width inside hero-section flex column */
+#homeProposalsContent,
+#homeEngagementsContent {
+    align-self: stretch;
+}
+.home-sub-nav {
+    background: #ffffff;
+    border-bottom: 1px solid var(--gray-200);
+    margin-bottom: 1.5rem;
+}
+.home-sub-nav-tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.5rem 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.home-sub-nav-tabs::-webkit-scrollbar { display: none; }
+.home-sub-nav-tab {
+    flex: 0 0 auto;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--gray-700);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+.home-sub-nav-tab:hover { background: var(--gray-50); color: var(--gray-900); }
+.home-sub-nav-tab--active { background: var(--primary); color: #ffffff; }
+.home-sub-nav-tab--active:hover { background: var(--primary-dark); color: #ffffff; }
+
+/* ── LIFECYCLE ACCORDION CARD (Phase 100) ────────────────────────────── */
+.lc-accordion {
+  background: white;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+.lc-accordion.lc-active   { border-color: #93c5fd; box-shadow: 0 2px 12px rgba(26,115,232,0.08); }
+.lc-accordion.lc-complete { border-color: #86efac; box-shadow: 0 2px 12px rgba(5,150,105,0.08); }
+
+.lc-card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 18px; cursor: pointer; user-select: none;
+  border-bottom: 1px solid transparent; transition: border-color 0.2s;
+}
+.lc-accordion.open > .lc-card-header { border-color: #e5e7eb; }
+.lc-card-header:hover { background: #fafbfc; }
+.lc-header-left  { display: flex; align-items: center; gap: 10px; }
+.lc-card-title   { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em; }
+.lc-cur-badge    { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+.lc-header-right { display: flex; align-items: center; gap: 10px; }
+.lc-chevron      { font-size: 11px; color: #64748b; transition: transform 0.22s; flex-shrink: 0; }
+.lc-accordion.open .lc-chevron { transform: rotate(180deg); }
+
+.lc-track-wrap { padding: 14px 18px 12px; overflow-x: auto; }
+.lc-track      { display: flex; align-items: flex-start; min-width: 580px; }
+
+.stage-node {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  flex: 1; min-width: 0;
+}
+.stage-circle {
+  width: 48px; height: 48px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+}
+.s-done     { background: #d1fae5; border: 2.5px solid #059669; }
+.s-current  { background: #eff6ff; border: 3px solid var(--primary); box-shadow: 0 0 0 4px rgba(26,115,232,0.14); transform: scale(1.1); }
+.s-future   { background: #f1f5f9; border: 2px solid #cbd5e1; opacity: 0.55; }
+.s-loss     { background: #fee2e2; border: 2px solid #ef4444; }
+.s-revision { background: #fef3c7; border: 3px solid #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,0.14); transform: scale(1.1); }
+
+.stage-check {
+  position: absolute; top: -3px; right: -3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #059669; border: 2px solid white;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 900; color: white;
+}
+.stage-label {
+  font-size: 10.5px; font-weight: 500; color: #475569;
+  text-align: center; line-height: 1.25; max-width: 62px;
+}
+.stage-node.s-current-node  .stage-label { color: var(--primary); font-weight: 700; }
+.stage-node.s-done-node     .stage-label { color: #047857; }
+.stage-node.s-revision-node .stage-label { color: #d97706; font-weight: 700; }
+
+.stage-chip    { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 8px; }
+.chip-done     { background: #d1fae5; color: #065f46; }
+.chip-here     { background: #dbeafe; color: #1d4ed8; }
+.chip-end      { background: #f1f5f9; color: #64748b; }
+.chip-gap      { background: #fee2e2; color: #991b1b; }
+.chip-revision { background: #fef3c7; color: #92400e; }
+
+.connector      { width: 22px; height: 2px; flex-shrink: 0; margin-top: 23px; background: #cbd5e1; transition: background 0.3s; }
+.connector.done { background: #059669; }
+
+.lc-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.2s; padding: 0 18px; }
+.lc-accordion.open .lc-body { max-height: 900px; padding: 14px 18px 18px; }
+
+.gate-label {
+  font-size: 10px; font-weight: 700; color: #64748b;
+  text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.gate-label::before, .gate-label::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
+.lc-desc     { font-size: 12.5px; color: #475569; line-height: 1.65; margin-bottom: 14px; }
+.action-row  { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.action-note { font-size: 11px; color: #64748b; }
+.gate-warn   { display: flex; align-items: center; gap: 7px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 6px; padding: 8px 11px; font-size: 11.5px; color: #92400e; margin-bottom: 10px; }
+
+.az          { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 11px 13px; margin-bottom: 9px; }
+.az.az-ok    { background: #f0fdf4; border-color: #86efac; }
+.az-lbl      { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 7px; }
+.az-tabs     { display: flex; gap: 6px; margin-bottom: 7px; }
+.az-tab      { padding: 3px 9px; border-radius: 5px; border: 1px solid #e5e7eb; background: white; font-size: 11px; font-weight: 500; cursor: pointer; color: #475569; transition: all 0.12s; }
+.az-tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+.az-row      { display: flex; gap: 7px; align-items: center; }
+.az-input    { flex: 1; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 12.5px; font-family: inherit; outline: none; }
+.az-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(26,115,232,0.12); }
+.az-doc      { display: flex; align-items: center; gap: 9px; background: white; border: 1px solid #86efac; border-radius: 6px; padding: 8px 11px; }
+.az-doc-icon { font-size: 17px; flex-shrink: 0; }
+.az-doc-info { flex: 1; min-width: 0; }
+.az-doc-name { font-size: 12.5px; font-weight: 600; color: #065f46; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.az-doc-kind { font-size: 10.5px; color: #64748b; }
+
+.built       { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 7px; padding: 11px 13px; margin-bottom: 12px; }
+.built-title { font-size: 12px; font-weight: 700; color: #065f46; margin-bottom: 4px; }
+.built-desc  { font-size: 11.5px; color: #047857; line-height: 1.55; margin-bottom: 10px; }
+
+.pa-track     { display: flex; align-items: center; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 9px 13px; margin-bottom: 13px; overflow-x: auto; }
+.pa-stage     { flex: 1; min-width: 56px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.pa-dot       { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; border: 2px solid #e5e7eb; background: white; }
+.pa-dot.pa-done   { background: var(--success); border-color: var(--success); color: white; }
+.pa-dot.pa-active { background: var(--primary); border-color: var(--primary); color: white; }
+.pa-dot.pa-future { background: #f1f5f9; color: #64748b; }
+.pa-line          { width: 28px; height: 2px; background: #e5e7eb; flex-shrink: 0; }
+.pa-line.pa-done  { background: var(--success); }
+.pa-lbl           { font-size: 9.5px; color: #475569; text-align: center; line-height: 1.2; }
+.pa-lbl.pa-active { color: var(--primary); font-weight: 700; }
+.pa-lbl.pa-done   { color: var(--success); font-weight: 600; }
+
+.doc-rollup       { border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; margin-top: 14px; }
+.doc-rollup-hdr   { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; background: #f8fafc; border-bottom: 1px solid #e5e7eb; }
+.doc-rollup-title { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.07em; }
+.doc-rollup-count { font-size: 10px; color: var(--primary); font-weight: 700; }
+.doc-slot         { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; }
+.doc-slot:last-child { border-bottom: none; }
+.doc-slot.ds-empty   { opacity: 0.4; }
+.ds-icon  { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.ds-info  { flex: 1; min-width: 0; }
+.ds-stage { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }
+.ds-name  { font-size: 12px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-name.none { color: #64748b; font-weight: 400; font-size: 11.5px; }
+.ds-link  { font-size: 11px; color: var(--primary); font-weight: 600; cursor: pointer; flex-shrink: 0; }
+
+.comp-grid     { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 12px; }
+.comp-cell     { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 6px; padding: 7px 10px; }
+.comp-cell-lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; margin-bottom: 2px; }
+.comp-cell-val { font-size: 11.5px; color: #1e293b; font-weight: 500; word-break: break-all; }
+
+/* ===== Phase 101 — Project Journal Panel ===== */
+
+/* Panel shell — no padding; sections handle their own */
+.project-journal-panel {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+}
+
+/* Panel header */
+.journal-ap-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.journal-ap-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.journal-days-running {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+/* Tab bar */
+.journal-ap-tabs {
+    display: flex;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.journal-tab-btn {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748b;
+    cursor: pointer;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    font-family: inherit;
+    transition: all 0.15s;
+    user-select: none;
+}
+
+.journal-tab-btn:hover {
+    color: #1e293b;
+    background: rgba(0,0,0,0.03);
+}
+
+.journal-tab-btn.active {
+    color: #1a73e8;
+    border-bottom-color: #1a73e8;
+    font-weight: 600;
+    background: white;
+}
+
+.journal-tab-badge {
+    background: #e2e8f0;
+    color: #475569;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 11px;
+    margin-left: 5px;
+}
+
+.journal-tab-btn.active .journal-tab-badge {
+    background: #dbeafe;
+    color: #1a73e8;
+}
+
+/* Tab body */
+.journal-ap-body {
+    padding: 16px;
+}
+
+.journal-tab-panel {
+    display: none;
+}
+
+.journal-tab-panel.visible {
+    display: block;
+}
+
+/* Activity Feed — composer */
+.journal-feed-composer {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    background: #fafafa;
+}
+
+.journal-feed-composer textarea {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    color: #1e293b;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.journal-composer-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    gap: 8px;
+}
+
+.journal-tag-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.journal-tag-pill {
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: all 0.12s;
+    font-family: inherit;
+    background: transparent;
+}
+
+.journal-tag-pill.update { background: #eff6ff; color: #3b82f6; border-color: #bfdbfe; }
+.journal-tag-pill.milestone { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+.journal-tag-pill.issue { background: #fef2f2; color: #ef4444; border-color: #fecaca; }
+.journal-tag-pill.client { background: #fdf4ff; color: #9333ea; border-color: #e9d5ff; }
+.journal-tag-pill.selected { box-shadow: 0 0 0 2px currentColor; }
+
+/* Activity Feed — feed list */
+.journal-feed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.journal-feed-entry {
+    display: flex;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.journal-feed-entry:last-child {
+    border-bottom: none;
+}
+
+.journal-feed-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.journal-feed-right {
+    flex: 1;
+    min-width: 0;
+}
+
+.journal-feed-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 3px;
+    flex-wrap: wrap;
+}
+
+.journal-feed-author {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.journal-feed-time {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.journal-feed-system {
+    font-size: 11px;
+    font-style: italic;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 1px 6px;
+    border-radius: 4px;
+}
+
+.journal-feed-text {
+    font-size: 13px;
+    color: #334155;
+    line-height: 1.5;
+}
+
+.journal-feed-tag-badge {
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.journal-badge-update { background: #eff6ff; color: #3b82f6; }
+.journal-badge-milestone { background: #f0fdf4; color: #16a34a; }
+.journal-badge-issue { background: #fef2f2; color: #ef4444; }
+.journal-badge-client { background: #fdf4ff; color: #9333ea; }
+.journal-badge-system { background: #f1f5f9; color: #64748b; }
+
+/* Shared form elements */
+.journal-new-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 7px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    background: #1a73e8;
+    color: white;
+    transition: background 0.12s;
+}
+
+.journal-new-btn:hover { background: #1557b0; }
+
+.journal-post-btn {
+    padding: 5px 12px;
+    border-radius: 7px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    background: #1a73e8;
+    color: white;
+    transition: background 0.12s;
+}
+
+.journal-post-btn:hover { background: #1557b0; }
+.journal-post-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+
+.journal-cancel-btn {
+    padding: 5px 12px;
+    border-radius: 7px;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    background: transparent;
+    color: #475569;
+    transition: background 0.12s;
+}
+
+.journal-cancel-btn:hover { background: #f1f5f9; }
+
+.journal-form-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.journal-form-row {
+    margin-bottom: 12px;
+}
+
+.journal-form-row label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+}
+
+.journal-form-row input[type=text],
+.journal-form-row textarea,
+.journal-form-row select {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #1e293b;
+    background: white;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.journal-form-row input[type=text]:focus,
+.journal-form-row textarea:focus,
+.journal-form-row select:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
+}
+
+.journal-form-row textarea { resize: vertical; min-height: 70px; }
+
+/* Progress Updates tab */
+.journal-pu-form {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: #fafafa;
+}
+
+.journal-pct-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.journal-pct-slider {
+    flex: 1;
+    accent-color: #1a73e8;
+}
+
+.journal-pct-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a73e8;
+    width: 48px;
+    text-align: right;
+}
+
+.journal-pu-history {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.journal-pu-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px;
+}
+
+.journal-pu-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.journal-pu-card-title {
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.journal-pu-card-meta {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.journal-pu-pct-num {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1a73e8;
+}
+
+.journal-pu-pct-bar {
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.journal-pu-pct-fill {
+    height: 100%;
+    background: #1a73e8;
+    border-radius: 3px;
+    transition: width 0.3s;
+}
+
+.journal-pu-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.journal-pu-field {
+    background: #f8fafc;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.journal-pu-field--full { grid-column: span 2; }
+
+.journal-pu-field-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #94a3b8;
+    margin-bottom: 3px;
+}
+
+.journal-pu-field-val { font-size: 12px; color: #334155; }
+.journal-pu-field-val--blockers { color: #ef4444; }
+
+/* Issues tab */
+.journal-issue-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.journal-filter-chips {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.journal-filter-chip {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid #e2e8f0;
+    color: #64748b;
+    background: white;
+    font-family: inherit;
+    transition: all 0.12s;
+}
+
+.journal-filter-chip:hover { border-color: #1a73e8; color: #1a73e8; }
+.journal-filter-chip.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+
+.journal-issue-form {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+    background: #fafafa;
+    display: none;
+}
+
+.journal-issue-form.visible { display: block; }
+
+.journal-issue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.journal-issue-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    transition: box-shadow 0.12s;
+}
+
+.journal-issue-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.journal-issue-card.resolved { opacity: 0.6; }
+
+.journal-issue-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.journal-issue-type-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.journal-dot-delay { background: #f59e0b; }
+.journal-dot-change { background: #9333ea; }
+.journal-dot-site { background: #ef4444; }
+.journal-dot-client { background: #3b82f6; }
+
+.journal-issue-right {
+    flex: 1;
+    min-width: 0;
+}
+
+.journal-issue-title {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+
+.journal-issue-desc {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+
+.journal-issue-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.journal-issue-type-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.journal-badge-delay { background: #fef3c7; color: #d97706; }
+.journal-badge-change { background: #f3e8ff; color: #7c3aed; }
+.journal-badge-site { background: #fef2f2; color: #dc2626; }
+.journal-badge-client-req { background: #eff6ff; color: #2563eb; }
+.journal-badge-resolved { background: #f0fdf4; color: #16a34a; }
+
+.journal-issue-date {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.journal-resolve-form {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 10px;
+    background: #fafafa;
+    margin-top: 8px;
+}
+
+.journal-resolve-form textarea {
+    width: 100%;
+    border: 1px solid #e2e8f0;
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    color: #1e293b;
+    resize: vertical;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.journal-resolve-form textarea:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
+}
+
+.journal-resolution-notes {
+    font-size: 12px;
+    color: #64748b;
+    font-style: italic;
+    background: #f1f5f9;
+    border-radius: 5px;
+    padding: 6px 10px;
+    margin-top: 6px;
+    border-left: 3px solid #059669;
+    word-break: break-word;
+}
+
+/* Read-only state — hide all write surfaces */
+.project-journal-panel--readonly .journal-feed-composer,
+.project-journal-panel--readonly .journal-new-btn,
+.project-journal-panel--readonly .journal-issue-form,
+.project-journal-panel--readonly .journal-resolve-form {
+    display: none;
+}
+
+/* ===== End Phase 101 — Project Journal Panel ===== */
+
+/* ── DLP & RETENTION MANAGEMENT (Phase 102) ──────────────────────────── */
+
+/* ── Tranche Editor (Spike 035 verbatim) ── */
+
+.tranche-editor {
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    background: #eff6ff;
+    padding: 16px;
+    margin-top: 12px;
+    display: none;
+}
+
+.tranche-editor.visible {
+    display: block;
+}
+
+.editor-header {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1d4ed8;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.editor-header .hint {
+    font-size: 11px;
+    color: #3b82f6;
+    font-weight: 400;
+}
+
+.editor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.editor-row {
+    background: #fff;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.editor-row.retention-row {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+.editor-row input[type="text"] {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: #1e293b;
+    width: 100%;
+}
+
+.editor-row input[type="text"]:focus {
+    outline: none;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.editor-row input[type="number"] {
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: #1e293b;
+    width: 68px;
+    text-align: right;
+}
+
+.editor-row input[type="number"]:focus {
+    outline: none;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+.pct-suffix {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-left: -4px;
+}
+
+.ret-toggle {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+    background: #f1f5f9;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+.ret-toggle.on {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.ret-toggle:hover {
+    opacity: 0.8;
+}
+
+.remove-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid #fecaca;
+    background: #fff;
+    color: #ef4444;
+    cursor: pointer;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove-btn:hover {
+    background: #fef2f2;
+}
+
+.remove-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.total-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    margin-top: 8px;
+    border-top: 1px solid #dbeafe;
+}
+
+.total-label {
+    font-size: 12px;
+    color: #475569;
+}
+
+.total-val {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.total-ok {
+    color: #059669;
+}
+
+.total-err {
+    color: #ef4444;
+}
+
+.total-progress {
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.total-progress-fill {
+    height: 100%;
+    background: #1a73e8;
+    transition: width 0.3s;
+}
+
+.add-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px dashed #93c5fd;
+    background: transparent;
+    color: #3b82f6;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.add-btn:hover {
+    background: #dbeafe;
+}
+
+.editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #dbeafe;
+}
+
+/* ── Read-only tranche display (Spike 035 verbatim) ── */
+
+.tranche-display {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tranche-display-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.tranche-display-row .td-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.tranche-display-row .td-name {
+    font-size: 13px;
+    color: #1e293b;
+    font-weight: 500;
+}
+
+.tranche-display-row .td-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.tranche-display-row .td-pct {
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+    width: 38px;
+    text-align: right;
+}
+
+.tranche-display-row .td-amount {
+    font-size: 11px;
+    color: #94a3b8;
+}
+
+.ret-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.coll-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.coll-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.coll-badge.none {
+    background: #f1f5f9;
+    color: #94a3b8;
+    border-color: #e2e8f0;
+}
+
+.no-tranches {
+    text-align: center;
+    padding: 24px;
+    color: #94a3b8;
+    font-size: 13px;
+    background: #f8fafc;
+    border: 1px dashed #e2e8f0;
+    border-radius: 8px;
+}
+
+.setup-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border: 1px dashed #e2e8f0;
+    border-radius: 8px;
+    background: #f8fafc;
+    margin-bottom: 12px;
+}
+
+.setup-cta p {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.setup-cta button {
+    padding: 6px 14px;
+    border-radius: 6px;
+    background: #1a73e8;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.setup-cta button:hover {
+    background: #1557b0;
+}
+
+.edit-tranches-btn {
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #1a73e8;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.edit-tranches-btn:hover {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+}
+
+.edit-tranches-btn.active {
+    background: #eff6ff;
+    border-color: #1a73e8;
+}
+
+/* ── Finance Bar — base + 4-state DLP wrappers (Spike 036 verbatim) ── */
+
+.finance-bar {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 18px;
+    transition: border-color 0.3s, background 0.3s;
+}
+
+.finance-bar.state-amber {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.finance-bar.state-red {
+    background: #fff5f5;
+    border-color: #fecaca;
+}
+
+.finance-bar.state-green {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+/* ── Stacked bar segments (Spike 036 verbatim) ── */
+
+.bar-seg {
+    height: 100%;
+    transition: width 0.4s, background 0.3s;
+}
+
+.bar-seg.collected {
+    background: #1a73e8;
+}
+
+.bar-seg.retention {
+    opacity: 0.85;
+}
+
+/* ── DLP status strip (Spike 036 verbatim) ── */
+
+.dlp-strip {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.3s;
+    border: 1px solid transparent;
+}
+
+.dlp-strip.amber {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+.dlp-strip.red {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+
+.dlp-strip.green {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.dlp-strip.hidden {
+    display: none;
+}
+
+.dlp-strip-right {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* ── Release buttons (Spike 036 verbatim) ── */
+
+.release-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    background: #059669;
+    color: #fff;
+}
+
+.release-btn:hover {
+    background: #047857;
+}
+
+.release-btn-outline {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid #fde68a;
+    background: transparent;
+    color: #92400e;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ── Collection rows (Spike 036 verbatim) ── */
+
+.coll-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    transition: background 0.3s, border-color 0.3s;
+}
+
+.coll-row.active {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+.coll-row.overdue {
+    background: #fff5f5;
+    border-color: #fecaca;
+}
+
+.coll-row.done {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+/* ── Collection tags (Spike 036 verbatim) ── */
+
+.coll-tag {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+}
+
+.tag-collected {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.tag-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.tag-overdue {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.tag-holding {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.tag-released {
+    background: #dcfce7;
+    color: #166534;
+}
+
+/* ── Portfolio DLP left-accent borders (Spike 036 verbatim, dual-selector for projects.js <tr> target) ── */
+/* projects.js renders <tr class="clickable-row"> — target <tr> directly;
+   .portfolio-row form kept for spike compatibility */
+
+tr.dlp-amber, .portfolio-row.dlp-amber {
+    border-left: 3px solid #f59e0b;
+}
+
+tr.dlp-red, .portfolio-row.dlp-red {
+    border-left: 3px solid #ef4444;
+}
+
+tr.dlp-green, .portfolio-row.dlp-green {
+    border-left: 3px solid #059669;
+}
+
+.portfolio-dlp-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    transition: all 0.3s;
+}
+
+/* ===== End Phase 102 — DLP & Retention ===== */
+
+/* ===== Phase 103 — Portfolio Table Redesign (Attention Feed + Browse All) ===== */
+/* Shared by app/views/projects.js AND app/views/services.js (D-01). Literal hex palette
+   ONLY — the spike blueprint's var(--blue/amber/purple/green/slate-300) do NOT exist here. */
+
+/* 1. View-mode toggle */
+.vm-toggle {
+    display: inline-flex;
+    gap: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+.vm-btn {
+    padding: 8px 16px;
+    background: #fff;
+    color: #475569;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+.vm-btn:not(:last-child) {
+    border-right: 1px solid #e2e8f0;
+}
+.vm-btn.vm-on {
+    background: #1a73e8;
+    color: #fff;
+}
+
+/* 2. Mode containers (JS owns the inline display toggle) */
+.pdb-mode {
+    margin-top: 0.5rem;
+}
+
+/* 3. Priority Feed sections (3 urgency tiers) */
+.feed-section {
+    margin-bottom: 1.5rem;
+}
+.feed-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 8px 4px;
+    border-bottom: 2px solid #e5e7eb;
+}
+.feed-section.tier-urgent .feed-section-header {
+    color: #991b1b;
+    border-bottom-color: #ef4444;
+}
+.feed-section.tier-watch .feed-section-header {
+    color: #92400e;
+    border-bottom-color: #f59e0b;
+}
+.feed-section.tier-ok .feed-section-header {
+    color: #166534;
+    border-bottom-color: #059669;
+}
+.feed-section-count {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #f1f5f9;
+    border-radius: 10px;
+    padding: 2px 8px;
+}
+.feed-empty {
+    color: #94a3b8;
+    font-style: italic;
+    font-size: 0.85rem;
+    padding: 8px 4px;
+}
+
+/* 4. Feed rows (card-like list rows, NOT a table) */
+.feed-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    background: #fff;
+    transition: background 0.15s;
+}
+.feed-row:hover {
+    background: #f8fafc;
+}
+.feed-row.tier-urgent {
+    border-left: 4px solid #ef4444;
+}
+.feed-row.tier-watch {
+    border-left: 4px solid #f59e0b;
+}
+.feed-row.tier-ok {
+    border-left: 4px solid #059669;
+}
+.feed-row-main {
+    flex: 1;
+    min-width: 0;
+}
+.feed-row-title {
+    font-weight: 600;
+    color: #1e293b;
+}
+.feed-row-sub {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+.feed-row-signal {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+.feed-row-signal.tier-urgent {
+    color: #991b1b;
+}
+.feed-row-signal.tier-watch {
+    color: #92400e;
+}
+.feed-row-signal.tier-ok {
+    color: #166534;
+}
+.feed-row-hint {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin-top: 1px;
+}
+.feed-row-fin {
+    flex-shrink: 0;
+    min-width: 140px;
+    text-align: right;
+}
+
+/* 5. Stage-aware finance cells (used in BOTH feed rows and browse rows) */
+.fin-pre {
+    text-align: right;
+}
+.fin-pre-amount {
+    color: #475569;
+    font-weight: 600;
+}
+.fin-pre-label {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.fin-ready {
+    text-align: right;
+}
+.fin-ready-amount {
+    color: #1e293b;
+    font-weight: 700;
+}
+.fin-ready-label {
+    font-size: 0.7rem;
+    color: #f59e0b;
+}
+.fin-active {
+    text-align: right;
+    min-width: 140px;
+}
+.fin-active-top {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: #1e293b;
+    font-weight: 600;
+}
+.mini-bar {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 3px 0;
+}
+.mini-fill {
+    height: 100%;
+    border-radius: 3px;
+}
+.mini-fill.fill-blue {
+    background: #1a73e8;
+}
+.mini-fill.fill-orange {
+    background: #f59e0b;
+}
+.fin-active-sub {
+    font-size: 0.7rem;
+    color: #64748b;
+}
+.fin-done {
+    text-align: right;
+}
+.fin-done-amount {
+    color: #1e293b;
+    font-weight: 700;
+}
+.fin-done-label {
+    font-size: 0.7rem;
+    color: #059669;
+    font-weight: 600;
+}
+.fin-loss {
+    text-align: right;
+}
+.fin-loss-label {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* 6. Browse All stage groups (collapsible) */
+.stage-group {
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.stage-group-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: #f8fafc;
+    cursor: pointer;
+    font-weight: 700;
+    color: #1e293b;
+    user-select: none;
+}
+.stage-group-header:hover {
+    background: #f1f5f9;
+}
+.stage-group-chevron {
+    transition: transform 0.2s;
+}
+.stage-group.collapsed .stage-group-chevron {
+    transform: rotate(-90deg);
+}
+.stage-group-count {
+    margin-left: auto;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #64748b;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 2px 10px;
+}
+.stage-group-color {
+    width: 4px;
+    align-self: stretch;
+}
+.stage-group-body {
+    padding: 8px 12px;
+}
+.stage-group.collapsed .stage-group-body {
+    display: none;
+}
+.stage-group-empty {
+    color: #94a3b8;
+    font-style: italic;
+    font-size: 0.85rem;
+    padding: 6px 0;
+}
+
+/* 7. DLP left-accent overrides for div rows (Phase 102 reuse). MUST sit AFTER the
+   .feed-row.tier-* rules so they win the equal-specificity tie: a Completed in-DLP
+   project is tier ok (green border) but must show amber. The shipped tr.dlp-* selectors
+   only match table rows, so div feed/browse rows would otherwise lose the DLP accent. */
+.feed-row.dlp-amber {
+    border-left-color: #f59e0b;
+}
+.feed-row.dlp-red {
+    border-left-color: #ef4444;
+}
+.feed-row.dlp-green {
+    border-left-color: #059669;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .feed-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .feed-row-fin {
+        text-align: left;
+        min-width: 0;
+    }
+    .vm-toggle {
+        width: 100%;
+    }
+    .vm-btn {
+        flex: 1;
+        text-align: center;
+    }
+}
+/* ===== End Phase 103 — Portfolio Table Redesign ===== */

@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 027c — Collectibles Table Redesign</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; }
+
+/* Header */
+.spike-hdr { padding: 1.1rem 1.5rem 0.5rem; }
+.spike-hdr h1 { font-size: 1.05rem; font-weight: 700; color: #1a73e8; }
+.spike-hdr p  { font-size: 0.78rem; color: #64748b; margin-top: 0.2rem; }
+
+/* Lacks analysis callout */
+.lacks-bar {
+  margin: 0.5rem 1.5rem 0;
+  background: #fff; border-radius: 8px; padding: 0.65rem 1rem;
+  border-left: 3px solid #f59e0b; font-size: 0.73rem; color: #475569;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+}
+.lacks-bar strong { color: #1e293b; display: block; margin-bottom: 0.25rem; }
+.lacks-bar ul { list-style: none; display: flex; flex-wrap: wrap; gap: 0.3rem 1.25rem; }
+.lacks-bar li::before { content: "· "; color: #f59e0b; font-weight: 700; }
+
+/* Switcher */
+.switcher { display: flex; background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 1.5rem; }
+.sw-btn { background: none; border: none; border-bottom: 2px solid transparent; padding: 0.6rem 1rem; font-size: 0.82rem; font-weight: 600; color: #64748b; cursor: pointer; margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; }
+.sw-btn.active { color: #1a73e8; border-bottom-color: #1a73e8; }
+
+/* Page wrap */
+.page { padding: 0.75rem 1.5rem 2rem; max-width: 1100px; }
+.card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; }
+
+/* Card header */
+.card-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.2rem; border-bottom: 1px solid #f1f5f9; }
+.card-title { font-size: 0.98rem; font-weight: 700; }
+.btn { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.38rem 0.75rem; border-radius: 6px; border: none; cursor: pointer; font-size: 0.78rem; font-weight: 600; }
+.btn-primary { background: #1a73e8; color: #fff; }
+.btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.btn-success { background: #059669; color: #fff; }
+.btn-ghost { background: #fff; color: #475569; border: 1px solid #e2e8f0; }
+.btn-sm { padding: 0.28rem 0.55rem; font-size: 0.72rem; }
+
+/* ============================================================
+   SCORECARD STRIP (shared)
+   ============================================================ */
+.sc-strip { display: flex; gap: 0.6rem; padding: 0.7rem 1.2rem; border-bottom: 1px solid #e5e7eb; flex-wrap: wrap; }
+.sc { flex: 1; min-width: 95px; border-radius: 7px; padding: 0.5rem 0.7rem; border: 1px solid; }
+.sc.g { background: #f0fdf4; border-color: #bbf7d0; }
+.sc.b { background: #e0f2fe; border-color: #bae6fd; }
+.sc.o { background: #fff7ed; border-color: #fed7aa; }
+.sc.r { background: #fef2f2; border-color: #fecaca; }
+.sc.i { background: #eef2ff; border-color: #c7d2fe; }
+.sc-lbl { font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.15rem; }
+.sc.g .sc-lbl { color: #059669; } .sc.b .sc-lbl { color: #0369a1; } .sc.o .sc-lbl { color: #c2410c; } .sc.r .sc-lbl { color: #991b1b; } .sc.i .sc-lbl { color: #4338ca; }
+.sc-val { font-size: 0.92rem; font-weight: 700; }
+.sc.g .sc-val { color: #059669; } .sc.b .sc-val { color: #0369a1; } .sc.o .sc-val { color: #c2410c; } .sc.r .sc-val { color: #991b1b; } .sc.i .sc-val { color: #4338ca; }
+.sc-sub { font-size: 0.59rem; color: #94a3b8; margin-top: 0.06rem; }
+
+/* ============================================================
+   UNIFIED BANNER (pending from ops + approved not yet COLL)
+   ============================================================ */
+.unified-banner { margin: 0.7rem 1.2rem; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; }
+.banner-seg { }
+.banner-seg-hdr {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.85rem;
+  cursor: pointer; user-select: none;
+}
+.banner-seg.pending  .banner-seg-hdr { background: #fffbeb; border-bottom: 1px solid #fde68a; }
+.banner-seg.approved .banner-seg-hdr { background: #eff6ff; border-top: 1px solid #bfdbfe; }
+.banner-seg-title { font-weight: 700; font-size: 0.8rem; }
+.banner-seg.pending  .banner-seg-title { color: #92400e; }
+.banner-seg.approved .banner-seg-title { color: #1e40af; }
+.banner-badge { border-radius: 999px; font-size: 0.63rem; font-weight: 700; padding: 0.06rem 0.45rem; }
+.banner-seg.pending  .banner-badge { background: #f59e0b; color: #fff; }
+.banner-seg.approved .banner-badge { background: #1a73e8; color: #fff; }
+.banner-seg-sub { font-size: 0.66rem; margin-left: auto; }
+.banner-seg.pending  .banner-seg-sub { color: #78350f; }
+.banner-seg.approved .banner-seg-sub { color: #3b5fcc; }
+.banner-body { background: #fff; }
+.banner-row {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem;
+  padding: 0.5rem 0.85rem; flex-wrap: wrap; border-top: 1px solid #f1f5f9;
+}
+.br-project { font-weight: 700; font-size: 0.78rem; color: #1e293b; }
+.br-tranche { font-size: 0.71rem; color: #475569; margin-top: 0.05rem; }
+.br-meta    { font-size: 0.64rem; color: #94a3b8; margin-top: 0.05rem; }
+.br-actions { display: flex; gap: 0.35rem; align-items: center; flex-shrink: 0; }
+
+/* status badge */
+.badge { font-size: 0.59rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 10px; display: inline-block; white-space: nowrap; }
+.b-pending  { background: #fef3c7; color: #92400e; }
+.b-approved { background: #e0e7ff; color: #3730a3; }
+.b-partial  { background: #dbeafe; color: #1d4ed8; }
+.b-paid     { background: #d1fae5; color: #065f46; }
+.b-overdue  { background: #fee2e2; color: #991b1b; }
+
+/* ============================================================
+   FILTER BAR
+   ============================================================ */
+.filter-bar { display: flex; gap: 0.5rem; padding: 0.6rem 1.2rem; flex-wrap: wrap; align-items: center; border-bottom: 1px solid #f1f5f9; }
+.filter-bar select { padding: 0.28rem 0.45rem; border: 1px solid #e2e8f0; border-radius: 5px; font-size: 0.77rem; background: #fff; color: #475569; }
+
+/* ============================================================
+   BEFORE TABLE (current 10-col design)
+   ============================================================ */
+.table-wrap { padding: 0 1.2rem 1.2rem; overflow-x: auto; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.77rem; margin-top: 0.65rem; }
+.data-table th { padding: 0.38rem 0.45rem; text-align: left; font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; font-weight: 700; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
+.data-table th.r { text-align: right; }
+.data-table td { padding: 0.45rem 0.45rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.data-table td.r { text-align: right; }
+.data-table tr:hover td { background: #f8fafc; }
+.data-table tr.row-overdue td { background: #fff8f8; }
+
+/* ============================================================
+   AFTER TABLE (redesigned)
+   ============================================================ */
+.new-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 0.65rem; }
+.new-table th { padding: 0.38rem 0.6rem; text-align: left; font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; font-weight: 700; border-bottom: 2px solid #e5e7eb; white-space: nowrap; }
+.new-table td { padding: 0.55rem 0.6rem; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.new-table tr:hover td { background: #f8fafc; }
+
+/* Urgency left-border via a thin pseudo-column td */
+.urg-bar { width: 4px; padding: 0 !important; }
+.urg-critical { background: #ef4444; } /* 30+ days overdue */
+.urg-overdue  { background: #f97316; } /* 1–29 days overdue */
+.urg-nearsoon { background: #f59e0b; } /* due within 7 days */
+.urg-active   { background: #3b82f6; } /* partially paid, not overdue */
+.urg-clean    { background: #e5e7eb; } /* pending, >7 days */
+.urg-done     { background: #059669; } /* fully paid */
+
+/* Row tints */
+.new-table tr.tint-critical td:not(.urg-bar) { background: #fff5f5; }
+.new-table tr.tint-overdue  td:not(.urg-bar) { background: #fff8f5; }
+.new-table tr.tint-nearsoon td:not(.urg-bar) { background: #fffdf0; }
+.new-table tr.tint-done     td:not(.urg-bar) { opacity: 0.6; }
+.new-table tr:hover td:not(.urg-bar) { background: #f8fafc !important; opacity: 1 !important; }
+
+/* Project + COLL cell */
+.proj-name  { font-weight: 700; font-size: 0.8rem; color: #1e293b; }
+.proj-meta  { font-size: 0.67rem; color: #94a3b8; margin-top: 0.1rem; display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+.dept-chip  { font-size: 0.57rem; font-weight: 700; padding: 0.08rem 0.35rem; border-radius: 4px; }
+.dept-proj  { background: #dbeafe; color: #1e40af; }
+.dept-svc   { background: #f0fdf4; color: #166534; }
+.tranche-line { font-size: 0.72rem; color: #475569; margin-top: 0.15rem; }
+
+/* Progress cell */
+.prog-cell { min-width: 140px; }
+.prog-bar-outer { height: 6px; border-radius: 3px; background: #e5e7eb; overflow: hidden; margin-bottom: 0.25rem; }
+.prog-bar-fill  { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.prog-numbers { font-size: 0.68rem; color: #64748b; }
+.prog-numbers strong { color: #1e293b; }
+.prog-pct-chip { display: inline-block; font-size: 0.6rem; font-weight: 700; padding: 0.07rem 0.35rem; border-radius: 4px; margin-left: 0.3rem; vertical-align: middle; }
+
+/* Due / urgency cell */
+.due-primary { font-size: 0.78rem; font-weight: 700; }
+.due-raw     { font-size: 0.64rem; color: #94a3b8; margin-top: 0.1rem; }
+
+/* Last activity cell */
+.act-amount { font-size: 0.77rem; font-weight: 600; color: #1e293b; }
+.act-date   { font-size: 0.64rem; color: #94a3b8; margin-top: 0.05rem; }
+.act-none   { font-size: 0.72rem; color: #cbd5e1; font-style: italic; }
+
+/* Payment count chip */
+.pay-count { font-size: 0.6rem; font-weight: 700; color: #64748b; background: #f1f5f9; border-radius: 10px; padding: 0.06rem 0.4rem; display: inline-block; margin-top: 0.25rem; }
+
+/* Fully paid overlay */
+.done-mark { font-size: 0.72rem; color: #059669; font-weight: 700; }
+
+/* Empty state */
+.empty-msg { text-align: center; padding: 1.5rem; color: #94a3b8; font-size: 0.8rem; }
+
+/* ============================================================
+   GROUPED VIEW
+   ============================================================ */
+.group-hdr-row { cursor: pointer; }
+.group-hdr-row:hover td:not(.urg-bar) { background: #f0f4ff !important; opacity: 1 !important; }
+.child-row td:not(.urg-bar) { background: #f8fafc; }
+.child-row:hover td:not(.urg-bar) { background: #f1f5f9 !important; }
+
+/* Hide fully-paid toggle */
+.show-done-toggle {
+  font-size: 0.72rem; color: #94a3b8; cursor: pointer; padding: 0.4rem 0.6rem;
+  display: inline-flex; align-items: center; gap: 0.3rem; user-select: none;
+  border: 1px dashed #e2e8f0; border-radius: 5px; background: #f8fafc;
+}
+.show-done-toggle:hover { color: #475569; border-color: #cbd5e1; }
+
+/* ============================================================
+   DATE RANGE PICKER
+   ============================================================ */
+.date-picker-wrap { position: relative; }
+.date-picker-btn {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  padding: 0.28rem 0.6rem; border: 1px solid #e2e8f0; border-radius: 5px;
+  background: #fff; font-size: 0.77rem; color: #475569; cursor: pointer;
+  white-space: nowrap; font-family: inherit;
+  transition: border-color 0.15s, background 0.15s;
+}
+.date-picker-btn:hover { border-color: #cbd5e1; }
+.date-picker-btn.active { border-color: #1a73e8; color: #1a73e8; background: #eff6ff; }
+.dp-chevron { font-size: 0.6rem; color: #94a3b8; transition: transform 0.15s; }
+.date-picker-btn.active .dp-chevron { color: #1a73e8; }
+.dp-panel {
+  position: absolute; top: calc(100% + 5px); left: 0; z-index: 300;
+  background: #fff; border: 1px solid #e2e8f0; border-radius: 9px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.13); min-width: 190px; overflow: hidden;
+}
+.dp-section-label {
+  padding: 0.45rem 0.9rem 0.2rem;
+  font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: #94a3b8;
+}
+.dp-preset {
+  padding: 0.42rem 0.9rem; font-size: 0.78rem; color: #475569;
+  cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+}
+.dp-preset:hover { background: #f8fafc; }
+.dp-preset.on { background: #eff6ff; color: #1a73e8; font-weight: 600; }
+.dp-divider { height: 1px; background: #f1f5f9; margin: 0.2rem 0; }
+.dp-fixed {
+  padding: 0.55rem 0.75rem 0.65rem;
+  border-top: 1px solid #f1f5f9;
+  display: flex; flex-direction: column; gap: 0.35rem;
+}
+.dp-fixed-row { display: flex; align-items: center; gap: 0.4rem; }
+.dp-fixed-lbl { font-size: 0.67rem; color: #94a3b8; width: 30px; }
+.dp-fixed input[type="date"] {
+  flex: 1; padding: 0.26rem 0.4rem; border: 1px solid #e2e8f0; border-radius: 5px;
+  font-size: 0.73rem; color: #475569; background: #fff; font-family: inherit;
+}
+.dp-fixed input[type="date"]:focus { outline: none; border-color: #1a73e8; }
+
+/* Controls */
+.ctrl {
+  position: fixed; bottom: 1.25rem; left: 1.25rem; background: #1e293b; color: #e2e8f0;
+  border-radius: 10px; padding: 0.75rem 1rem; font-size: 0.72rem; z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25); min-width: 195px;
+}
+.ctrl h3 { font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; margin-bottom: 0.4rem; }
+.ctrl h3 + h3 { margin-top: 0.65rem; }
+.c-btn { display: block; width: 100%; background: #334155; border: none; color: #e2e8f0; border-radius: 5px; padding: 0.35rem 0.6rem; font-size: 0.72rem; cursor: pointer; margin-bottom: 0.3rem; text-align: left; }
+.c-btn:hover { background: #475569; }
+.c-btn.on { background: #1a73e8; color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="spike-hdr">
+  <h1>Spike 027c — Collectibles Table Redesign</h1>
+  <p>Same data, drastically different readability. What was wrong first:</p>
+</div>
+
+<div class="lacks-bar">
+  <strong>Current table gaps (10 columns, flat design):</strong>
+  <ul>
+    <li>3 raw number columns require mental math to see collection status</li>
+    <li>Static due date strings — "2026-04-01" ≠ "65 days overdue"</li>
+    <li>Overdue rows look nearly identical to Pending (just a badge swap)</li>
+    <li>No collection velocity — when did the last payment come in?</li>
+    <li>Fully Paid rows clutter the active work view</li>
+    <li>Dept column wastes a full column — could be an inline chip</li>
+    <li>Banner only shows Ops-submitted requests, misses approved-not-filed</li>
+  </ul>
+</div>
+
+<!-- Variant switcher -->
+<div class="switcher" style="margin-top:0.65rem;">
+  <button class="sw-btn" id="sw-before" onclick="setView('before')">Before — Current (10 cols)</button>
+  <button class="sw-btn active" id="sw-after"  onclick="setView('after')">After — Redesigned (5 cols)</button>
+</div>
+
+<!-- Page content -->
+<div class="page">
+  <div class="card">
+    <div class="card-hdr">
+      <span class="card-title">Collectibles</span>
+      <button class="btn btn-primary btn-sm">+ Create Collectible</button>
+    </div>
+
+    <!-- Scorecard strip (shown only in After view) -->
+    <div class="sc-strip" id="scorecard-row">
+      <div class="sc g"><div class="sc-lbl">Total Invoiced</div><div class="sc-val" id="sc-inv">—</div><div class="sc-sub" id="sc-inv-sub"></div></div>
+      <div class="sc b"><div class="sc-lbl">Cash Collected</div><div class="sc-val" id="sc-col">—</div><div class="sc-sub" id="sc-col-sub"></div></div>
+      <div class="sc o"><div class="sc-lbl">Outstanding</div><div class="sc-val" id="sc-out">—</div><div class="sc-sub" id="sc-out-sub"></div></div>
+      <div class="sc r"><div class="sc-lbl">Overdue Balance</div><div class="sc-val" id="sc-ov">—</div><div class="sc-sub" id="sc-ov-sub"></div></div>
+      <div class="sc i"><div class="sc-lbl">Pending Pipeline</div><div class="sc-val" id="sc-pipe">—</div><div class="sc-sub" id="sc-pipe-sub"></div></div>
+    </div>
+
+    <!-- Unified banner (shown only in After view) -->
+    <div id="unified-banner-wrap"></div>
+
+    <!-- Filter bar -->
+    <div class="filter-bar" id="filter-bar">
+      <input id="fSearch" type="search" placeholder="Search project, tranche, COLL ID…"
+        style="padding:0.28rem 0.55rem;border:1px solid #e2e8f0;border-radius:5px;font-size:0.77rem;color:#1e293b;min-width:220px;background:#fff;"
+        oninput="render()">
+      <select id="fStatus" onchange="render()">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Partially Paid">Partially Paid</option>
+        <option value="Fully Paid">Fully Paid</option>
+        <option value="Overdue">Overdue</option>
+        <option value="Near Due">Near due (≤7 days)</option>
+      </select>
+      <select id="fDept" onchange="render()">
+        <option value="">All Projects / Services</option>
+        <option value="projects">Projects only</option>
+        <option value="services">Services only</option>
+      </select>
+      <div class="date-picker-wrap" id="datePickerWrap">
+        <button class="date-picker-btn" id="datePickerBtn" onclick="toggleDatePicker()">
+          <span id="datePickerLabel">Due: Any time</span>
+          <span class="dp-chevron">▾</span>
+        </button>
+        <div class="dp-panel" id="dpPanel" style="display:none;">
+          <div class="dp-section-label">Quick select</div>
+          <div class="dp-preset" data-mode="today"      onclick="selectPreset('today')">Today</div>
+          <div class="dp-preset" data-mode="yesterday"  onclick="selectPreset('yesterday')">Yesterday</div>
+          <div class="dp-preset" data-mode="this_month" onclick="selectPreset('this_month')">This month</div>
+          <div class="dp-preset" data-mode="last7"      onclick="selectPreset('last7')">Last 7 days</div>
+          <div class="dp-preset" data-mode="last30"     onclick="selectPreset('last30')">Last 30 days</div>
+          <div class="dp-divider"></div>
+          <div class="dp-preset" data-mode=""     onclick="selectPreset('')">Any time</div>
+          <div class="dp-preset" data-mode="fixed" onclick="selectPreset('fixed')">Fixed range ▸</div>
+          <div class="dp-fixed" id="dpFixed" style="display:none;">
+            <div class="dp-fixed-row">
+              <span class="dp-fixed-lbl">From</span>
+              <input type="date" id="fDueFrom" onchange="onFixedChange()">
+            </div>
+            <div class="dp-fixed-row">
+              <span class="dp-fixed-lbl">To</span>
+              <input type="date" id="fDueTo" onchange="onFixedChange()">
+            </div>
+          </div>
+        </div>
+      </div>
+      <button id="btnGroupBy" class="btn btn-ghost btn-sm" onclick="toggleGroupBy()"
+        style="display:none;">⊞ Group by Project</button>
+      <button class="btn btn-ghost btn-sm">Export CSV</button>
+      <span id="show-done-toggle-wrap"></span>
+    </div>
+
+    <!-- Table container -->
+    <div class="table-wrap" id="table-container"></div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="ctrl">
+  <h3>Scenario</h3>
+  <button class="c-btn on" id="cs-real" onclick="setScenario('real')">Real mix (6 colls)</button>
+  <button class="c-btn"    id="cs-heavy" onclick="setScenario('heavy')">Crisis — 4 overdue</button>
+  <button class="c-btn"    id="cs-clean" onclick="setScenario('clean')">Mostly collected</button>
+  <h3>Banner</h3>
+  <button class="c-btn on" id="cb-both"     onclick="setBanner('both')">Both sections</button>
+  <button class="c-btn"    id="cb-pending"  onclick="setBanner('pending')">Pending only</button>
+  <button class="c-btn"    id="cb-approved" onclick="setBanner('approved')">Approved only</button>
+  <button class="c-btn"    id="cb-none"     onclick="setBanner('none')">No banner</button>
+</div>
+
+<script>
+const TODAY = new Date('2026-06-05');
+
+/* ---- MOCK DATA ---- */
+const COLLS_REAL = [
+  { id:'c1', coll_id:'COLL-2026-001', project:'CLMC New Office',    code:'CLM-001', dept:'projects',
+    tranche:'Mobilization', pct:20, amount:800000, due:'2026-03-15',
+    payments:[{amount:500000,date:'2026-03-10',method:'Bank Transfer'},{amount:300000,date:'2026-03-20',method:'Check'}] },
+  { id:'c2', coll_id:'COLL-2026-002', project:'CLMC New Office',    code:'CLM-001', dept:'projects',
+    tranche:'Progress Billing', pct:50, amount:2000000, due:'2026-05-01',
+    payments:[{amount:500000,date:'2026-05-15',method:'Bank Transfer'}] },
+  { id:'c3', coll_id:'COLL-2026-003', project:'Renovation HQ',      code:'RHQ-003', dept:'projects',
+    tranche:'Phase 1', pct:40, amount:1200000, due:'2026-07-30',
+    payments:[] },
+  { id:'c4', coll_id:'COLL-2026-004', project:'Warehouse Expansion', code:'WHE-002', dept:'projects',
+    tranche:'Mobilization', pct:30, amount:1500000, due:'2026-04-01',
+    payments:[] },
+  { id:'c5', coll_id:'COLL-2026-005', project:'Warehouse Expansion', code:'WHE-002', dept:'projects',
+    tranche:'Progress Billing', pct:40, amount:2000000, due:'2026-07-15',
+    payments:[{amount:1000000,date:'2026-06-01',method:'Bank Transfer'}] },
+  { id:'c6', coll_id:'COLL-2026-006', project:'IT Infrastructure',   code:'SVC-IT-01', dept:'services',
+    tranche:'Monthly Retainer', pct:100, amount:250000, due:'2026-06-10',
+    payments:[] },
+];
+const COLLS_HEAVY = [
+  { id:'c1', coll_id:'COLL-2026-001', project:'CLMC New Office',    code:'CLM-001', dept:'projects',
+    tranche:'Mobilization', pct:20, amount:800000, due:'2026-03-15',
+    payments:[{amount:500000,date:'2026-03-10',method:'Bank Transfer'},{amount:300000,date:'2026-03-20',method:'Check'}] },
+  { id:'c2', coll_id:'COLL-2026-002', project:'CLMC New Office',    code:'CLM-001', dept:'projects',
+    tranche:'Progress Billing', pct:50, amount:2000000, due:'2026-05-01',
+    payments:[{amount:500000,date:'2026-05-15',method:'Bank Transfer'}] },
+  { id:'c4', coll_id:'COLL-2026-004', project:'Warehouse Expansion', code:'WHE-002', dept:'projects',
+    tranche:'Mobilization', pct:30, amount:1500000, due:'2026-04-01',
+    payments:[] },
+  { id:'c7', coll_id:'COLL-2026-007', project:'Renovation HQ',      code:'RHQ-003', dept:'projects',
+    tranche:'Phase 2', pct:60, amount:1800000, due:'2026-03-01',
+    payments:[{amount:200000,date:'2026-03-15',method:'Cash'}] },
+  { id:'c8', coll_id:'COLL-2026-008', project:'IT Infrastructure',   code:'SVC-IT-01', dept:'services',
+    tranche:'Q1 Retainer', pct:100, amount:250000, due:'2026-04-30',
+    payments:[] },
+];
+const COLLS_CLEAN = [
+  { id:'c1', coll_id:'COLL-2026-001', project:'CLMC New Office',    code:'CLM-001', dept:'projects',
+    tranche:'Mobilization', pct:20, amount:800000, due:'2026-03-15',
+    payments:[{amount:800000,date:'2026-03-15',method:'Bank Transfer'}] },
+  { id:'c9', coll_id:'COLL-2026-009', project:'Renovation HQ',      code:'RHQ-003', dept:'projects',
+    tranche:'Phase 1', pct:40, amount:1200000, due:'2026-05-20',
+    payments:[{amount:1200000,date:'2026-05-20',method:'Bank Transfer'}] },
+  { id:'c5', coll_id:'COLL-2026-005', project:'Warehouse Expansion', code:'WHE-002', dept:'projects',
+    tranche:'Progress Billing', pct:40, amount:2000000, due:'2026-07-15',
+    payments:[{amount:1000000,date:'2026-06-01',method:'Bank Transfer'}] },
+  { id:'c6', coll_id:'COLL-2026-006', project:'IT Infrastructure',   code:'SVC-IT-01', dept:'services',
+    tranche:'Monthly Retainer', pct:100, amount:250000, due:'2026-06-10',
+    payments:[] },
+];
+const PENDING_REQS = [
+  { id:'r1', project:'CLMC New Office',    tranche:'Final Billing (30%)',  amount:1200000, ago:'3 days ago',  submitter:'A. Reyes' },
+  { id:'r2', project:'Renovation HQ',      tranche:'Phase 2 (60%)',        amount:720000,  ago:'1 week ago',  submitter:'M. Santos' },
+];
+const APPROVED_REQS = [
+  // tranche_key must match the tranche label used in COLLS_* for cross-reference filtering
+  { id:'a1', project:'Warehouse Expansion', tranche:'Final (30%)',  tranche_key:'Final',           amount:1800000, ago:'2 days ago', reviewer:'Finance Admin' },
+  { id:'a2', project:'IT Infrastructure',  tranche:'Q2 Retainer',  tranche_key:'Q2 Retainer',     amount:250000,  ago:'5 days ago', reviewer:'Finance Admin' },
+];
+
+let currentColls = COLLS_REAL;
+let currentBanner = 'both';
+let currentView = 'after';
+let showDone = false;
+let groupBy = false;
+let bannerCollapsed = { pending: false, approved: false };
+
+// Date picker state
+let dpMode = '';        // '', 'today', 'yesterday', 'this_month', 'last7', 'last30', 'fixed'
+let dpFrom = '';
+let dpTo   = '';
+let dpOpen = false;
+
+/* ---- HELPERS ---- */
+function daysDiff(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return Math.round((TODAY - d) / 86400000); // positive = past, negative = future
+}
+function fmt(n) {
+  if (n >= 1000000) return '₱' + (n/1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1000)    return '₱' + Math.round(n/1000) + 'k';
+  return '₱' + n.toLocaleString();
+}
+function fmtFull(n) { return '₱' + n.toLocaleString(); }
+function fmtDate(d) {
+  const [y,m,day] = d.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[+m-1] + ' ' + day + ', ' + y;
+}
+function totalPaid(c) { return (c.payments||[]).reduce((s,r)=>s+(r.amount||0),0); }
+function status(c) {
+  const paid = totalPaid(c);
+  const diff = daysDiff(c.due);
+  if (paid >= c.amount && c.amount > 0) return 'Fully Paid';
+  if (diff > 0) return 'Overdue';
+  if (paid > 0) return 'Partially Paid';
+  return 'Pending';
+}
+function urgClass(c) {
+  const st = status(c);
+  if (st === 'Fully Paid') return { urg: 'urg-done', tint: 'tint-done' };
+  const diff = daysDiff(c.due);
+  if (diff >= 30) return { urg: 'urg-critical', tint: 'tint-critical' };
+  if (diff > 0)   return { urg: 'urg-overdue',  tint: 'tint-overdue' };
+  if (-diff <= 7) return { urg: 'urg-nearsoon', tint: 'tint-nearsoon' };
+  if (st === 'Partially Paid') return { urg: 'urg-active', tint: '' };
+  return { urg: 'urg-clean', tint: '' };
+}
+function duePrimary(c) {
+  const diff = daysDiff(c.due);
+  const st = status(c);
+  if (st === 'Fully Paid') return { text: 'Fully Paid ✓', color: '#059669' };
+  if (diff >= 30) return { text: diff + ' days overdue ‼', color: '#ef4444' };
+  if (diff > 0)   return { text: diff + ' days overdue',  color: '#f97316' };
+  if (-diff === 0) return { text: 'Due today ⚠', color: '#f59e0b' };
+  if (-diff <= 7)  return { text: 'Due in ' + (-diff) + ' days ⚠', color: '#f59e0b' };
+  return { text: 'Due in ' + (-diff) + ' days', color: '#64748b' };
+}
+function lastPayment(c) {
+  const active = (c.payments||[]).filter(r=>r.status!=='voided');
+  if (!active.length) return null;
+  const last = [...active].sort((a,b)=>b.date.localeCompare(a.date))[0];
+  return last;
+}
+/* ---- DATE PICKER ---- */
+function dpFmt(d) { return d.toISOString().slice(0, 10); }
+function computePresetRange(mode) {
+  const t = TODAY;
+  if (mode === 'today')      return { from: dpFmt(t), to: dpFmt(t) };
+  if (mode === 'yesterday')  { const y = new Date(t); y.setDate(y.getDate()-1); return { from: dpFmt(y), to: dpFmt(y) }; }
+  if (mode === 'this_month') return { from: dpFmt(new Date(t.getFullYear(), t.getMonth(), 1)), to: dpFmt(new Date(t.getFullYear(), t.getMonth()+1, 0)) };
+  if (mode === 'last7')      { const f = new Date(t); f.setDate(f.getDate()-6); return { from: dpFmt(f), to: dpFmt(t) }; }
+  if (mode === 'last30')     { const f = new Date(t); f.setDate(f.getDate()-29); return { from: dpFmt(f), to: dpFmt(t) }; }
+  return { from: '', to: '' };
+}
+function dpLabel() {
+  const labels = { '':'Due: Any time', today:'Due: Today', yesterday:'Due: Yesterday', this_month:'Due: This month', last7:'Due: Last 7 days', last30:'Due: Last 30 days' };
+  if (dpMode === 'fixed') {
+    const f = dpFrom ? fmtDate(dpFrom) : '…';
+    const t = dpTo   ? fmtDate(dpTo)   : '…';
+    return `Due: ${f} – ${t}`;
+  }
+  return labels[dpMode] || 'Due: Any time';
+}
+function refreshDatePickerUI() {
+  document.getElementById('datePickerLabel').textContent = dpLabel();
+  document.getElementById('datePickerBtn').classList.toggle('active', !!dpMode);
+  document.querySelectorAll('.dp-preset').forEach(el => el.classList.toggle('on', el.dataset.mode === dpMode));
+}
+function toggleDatePicker() {
+  dpOpen = !dpOpen;
+  document.getElementById('dpPanel').style.display = dpOpen ? '' : 'none';
+  if (dpOpen) setTimeout(() => document.addEventListener('click', dpOutsideClose, { once: true }), 0);
+}
+function dpOutsideClose(e) {
+  if (!document.getElementById('datePickerWrap').contains(e.target)) {
+    dpOpen = false;
+    document.getElementById('dpPanel').style.display = 'none';
+  } else {
+    document.addEventListener('click', dpOutsideClose, { once: true });
+  }
+}
+function selectPreset(mode) {
+  dpMode = mode;
+  document.getElementById('dpFixed').style.display = mode === 'fixed' ? '' : 'none';
+  if (mode !== 'fixed') {
+    const r = computePresetRange(mode);
+    dpFrom = r.from; dpTo = r.to;
+    dpOpen = false;
+    document.getElementById('dpPanel').style.display = 'none';
+  }
+  refreshDatePickerUI();
+  render();
+}
+function onFixedChange() {
+  dpFrom = document.getElementById('fDueFrom').value;
+  dpTo   = document.getElementById('fDueTo').value;
+  refreshDatePickerUI();
+  render();
+}
+
+/* ---- FIX #2: sort most-urgent rows first ---- */
+const URG_ORDER = { 'urg-critical':0, 'urg-overdue':1, 'urg-nearsoon':2, 'urg-active':3, 'urg-clean':4, 'urg-done':5 };
+function sortByUrgency(rows) {
+  return [...rows].sort((a, b) => {
+    const ua = URG_ORDER[urgClass(a).urg] ?? 4;
+    const ub = URG_ORDER[urgClass(b).urg] ?? 4;
+    if (ua !== ub) return ua - ub;
+    return a.due.localeCompare(b.due); // earlier due = higher priority within same tier
+  });
+}
+
+/* ---- FIX #1: only show approved requests that have no matching COLL yet ---- */
+function getApprovedNotFiled() {
+  return APPROVED_REQS.filter(req =>
+    !currentColls.some(c => c.project === req.project && c.tranche === req.tranche_key)
+  );
+}
+
+function getFiltered() {
+  const fSt   = document.getElementById('fStatus')?.value || '';
+  const fDept = document.getElementById('fDept')?.value || '';
+  const fSrc  = (document.getElementById('fSearch')?.value || '').trim().toLowerCase();
+  const rows = currentColls.filter(c => {
+    const st = status(c);
+    if (fSt === 'Near Due') {
+      const diff = daysDiff(c.due);
+      if (!(diff <= 0 && -diff <= 7 && st !== 'Fully Paid')) return false;
+    } else if (fSt && st !== fSt) return false;
+    if (fDept && c.dept !== fDept) return false;
+    if (dpFrom && c.due < dpFrom) return false;
+    if (dpTo   && c.due > dpTo)   return false;
+    if (fSrc) {
+      const haystack = [c.project, c.tranche, c.coll_id, c.code].join(' ').toLowerCase();
+      if (!haystack.includes(fSrc)) return false;
+    }
+    return true;
+  });
+  return sortByUrgency(rows);
+}
+
+/* ---- SCORECARD ---- */
+function updateScorecard(rows) {
+  const vis = rows; // filter already applied
+  const inv = vis.reduce((s,c)=>s+c.amount,0);
+  const col = vis.reduce((s,c)=>s+totalPaid(c),0);
+  const out = inv - col;
+  const ovRows = vis.filter(c=>{const d=daysDiff(c.due);return d>0&&status(c)!=='Fully Paid';});
+  const ovAmt = ovRows.reduce((s,c)=>s+(c.amount-totalPaid(c)),0);
+  const pipePending = (currentBanner==='both'||currentBanner==='pending') ? PENDING_REQS.length : 0;
+  const pipeApproved = (currentBanner==='both'||currentBanner==='approved') ? APPROVED_REQS.length : 0;
+  const pipeAmt = (currentBanner==='both'||currentBanner==='pending'?PENDING_REQS:[] ).concat(currentBanner==='both'||currentBanner==='approved'?APPROVED_REQS:[]).reduce((s,r)=>s+r.amount,0);
+  document.getElementById('sc-inv').textContent = fmt(inv);
+  document.getElementById('sc-inv-sub').textContent = vis.length + ' collectible' + (vis.length!==1?'s':'');
+  document.getElementById('sc-col').textContent = fmt(col);
+  document.getElementById('sc-col-sub').textContent = inv>0?(col/inv*100).toFixed(0)+'% of invoiced':'—';
+  document.getElementById('sc-out').textContent = fmt(out);
+  document.getElementById('sc-out-sub').textContent = vis.filter(c=>status(c)!=='Fully Paid').length + ' open';
+  document.getElementById('sc-ov').textContent = ovAmt > 0 ? fmt(ovAmt) : '₱0';
+  document.getElementById('sc-ov-sub').textContent = ovRows.length > 0 ? ovRows.length+' past due' : 'None overdue';
+  document.getElementById('sc-pipe').textContent = pipeAmt > 0 ? fmt(pipeAmt) : '₱0';
+  document.getElementById('sc-pipe-sub').textContent = (pipePending+pipeApproved) + ' request' + ((pipePending+pipeApproved)!==1?'s':'') + ' in queue';
+}
+
+/* ---- BANNER ---- */
+function renderBanner() {
+  const wrap = document.getElementById('unified-banner-wrap');
+  if (currentView !== 'after' || currentBanner === 'none') { wrap.innerHTML = ''; return; }
+  const showPending  = currentBanner === 'both' || currentBanner === 'pending';
+  const showApproved = currentBanner === 'both' || currentBanner === 'approved';
+  let html = '<div class="unified-banner">';
+  if (showPending) {
+    const chevron = bannerCollapsed.pending ? '▸' : '▾';
+    const body = bannerCollapsed.pending ? '' : PENDING_REQS.map(r=>`
+      <div class="banner-row">
+        <div><div class="br-project">${r.project}</div><div class="br-tranche">${r.tranche} · ${fmtFull(r.amount)}</div><div class="br-meta">Submitted by ${r.submitter} · ${r.ago}</div></div>
+        <div class="br-actions">
+          <span class="badge b-pending">Pending Review</span>
+          <button class="btn btn-sm" style="background:#f59e0b;color:#fff;" onclick="alert('Opens PR review modal')">Review</button>
+          <button class="btn btn-ghost btn-sm" onclick="alert('Reject with reason')">Reject</button>
+        </div>
+      </div>`).join('');
+    html += `<div class="banner-seg pending">
+      <div class="banner-seg-hdr" onclick="toggleBannerSeg('pending')">
+        <span style="color:#92400e;font-weight:700;">${chevron}</span>
+        <span class="banner-seg-title">Awaiting Your Review</span>
+        <span class="banner-badge">${PENDING_REQS.length}</span>
+        <span class="banner-seg-sub">Billing requests from Ops team — approve to create COLL-xxx</span>
+      </div>
+      ${body?`<div class="banner-body">${body}</div>`:''}
+    </div>`;
+  }
+  if (showApproved) {
+    const approvedNotFiled = getApprovedNotFiled(); // fix #1: exclude already-filed COLLs
+    if (!approvedNotFiled.length && !showPending) { wrap.innerHTML = ''; return; }
+    const chevron = bannerCollapsed.approved ? '▸' : '▾';
+    const body = bannerCollapsed.approved ? '' : approvedNotFiled.map(r=>`
+      <div class="banner-row">
+        <div><div class="br-project">${r.project}</div><div class="br-tranche">${r.tranche} · ${fmtFull(r.amount)}</div><div class="br-meta">Approved by ${r.reviewer} · ${r.ago}</div></div>
+        <div class="br-actions">
+          <span class="badge b-approved">Approved</span>
+          <button class="btn btn-success btn-sm" onclick="alert('Opens pre-filled Create Collectible modal')">File COLL-xxx</button>
+        </div>
+      </div>`).join('');
+    html += `<div class="banner-seg approved">
+      <div class="banner-seg-hdr" onclick="toggleBannerSeg('approved')">
+        <span style="color:#1e40af;font-weight:700;">${chevron}</span>
+        <span class="banner-seg-title">Approved — File as Collectible</span>
+        <span class="banner-badge">${approvedNotFiled.length}</span>
+        <span class="banner-seg-sub">Already approved — create the COLL-xxx doc to start invoicing</span>
+      </div>
+      ${body?`<div class="banner-body">${body}</div>`:''}
+    </div>`;
+  }
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+/* ---- BEFORE TABLE ---- */
+function oldRowHtml(c) {
+  const paid = totalPaid(c);
+  const bal  = c.amount - paid;
+  const st   = status(c);
+  const badgeCls = {Pending:'b-pending','Partially Paid':'b-partial','Fully Paid':'b-paid','Overdue':'b-overdue'}[st]||'';
+  return `<tr class="${st==='Overdue'?'row-overdue':''}">
+    <td style="font-family:monospace;font-size:0.77rem;"><strong>${c.coll_id}</strong></td>
+    <td><div style="font-weight:600;">${c.project}</div><div style="font-size:0.7rem;color:#94a3b8;">${c.code}</div></td>
+    <td><span class="dept-chip ${c.dept==='projects'?'dept-proj':'dept-svc'}">${c.dept==='projects'?'Projects':'Services'}</span></td>
+    <td>${c.tranche} (${c.pct}%)</td>
+    <td class="r">${fmtFull(c.amount)}</td>
+    <td class="r" style="color:#059669;">${fmtFull(paid)}</td>
+    <td class="r" style="color:${bal>0?'#ef4444':'#059669'};font-weight:600;">${fmtFull(bal)}</td>
+    <td style="font-size:0.77rem;">${c.due}</td>
+    <td><span class="badge ${badgeCls}">${st}</span></td>
+    <td><button class="btn btn-ghost btn-sm" style="white-space:nowrap;">Record Payment</button> <button class="btn btn-sm" style="background:#f1f5f9;color:#475569;font-size:0.7rem;padding:0.25rem 0.45rem;">History</button></td>
+  </tr>`;
+}
+
+/* ---- AFTER TABLE ---- */
+function newRowHtml(c) {
+  const paid = totalPaid(c);
+  const bal  = c.amount - paid;
+  const st   = status(c);
+  const pct  = c.amount>0 ? (paid/c.amount*100) : 0;
+  const {urg, tint} = urgClass(c);
+  const {text: dueText, color: dueColor} = duePrimary(c);
+  const lp = lastPayment(c);
+  const isFull = st === 'Fully Paid';
+
+  // Progress bar color
+  let barColor = '#1a73e8';
+  if (isFull) barColor = '#059669';
+  else if (st === 'Overdue') barColor = '#ef4444';
+
+  // Progress pct chip
+  let pctBg = '#dbeafe', pctClr = '#1d4ed8';
+  if (isFull)   { pctBg = '#d1fae5'; pctClr = '#065f46'; }
+  else if (st==='Overdue') { pctBg = '#fee2e2'; pctClr = '#991b1b'; }
+  else if (pct===0) { pctBg = '#f1f5f9'; pctClr = '#64748b'; }
+
+  const actionsHtml = isFull
+    ? `<button class="btn btn-ghost btn-sm" onclick="alert('View payment history')">View History</button>`
+    : `<button class="btn btn-primary btn-sm" onclick="alert('Opens Record Payment modal')">Record Payment</button>
+       ${(c.payments||[]).length > 0 ? `<div class="pay-count">${(c.payments||[]).length} payment${(c.payments||[]).length!==1?'s':''}</div>` : ''}`;
+
+  return `<tr class="${tint}">
+    <td class="urg-bar ${urg}"></td>
+    <td>
+      <div class="proj-name">${c.project}</div>
+      <div class="tranche-line">${c.tranche} (${c.pct}%)</div>
+      <div class="proj-meta">
+        <span style="font-family:monospace;font-size:0.65rem;color:#94a3b8;">${c.coll_id}</span>
+        <span class="dept-chip ${c.dept==='projects'?'dept-proj':'dept-svc'}">${c.dept==='projects'?'Proj':'Svc'}</span>
+      </div>
+    </td>
+    <td class="prog-cell">
+      <div class="prog-bar-outer">
+        <div class="prog-bar-fill" style="width:${isFull?100:pct}%;background:${barColor};"></div>
+      </div>
+      <div class="prog-numbers">
+        <strong>${fmt(paid)}</strong> collected of ${fmt(c.amount)}
+        <span class="prog-pct-chip" style="background:${pctBg};color:${pctClr};">${pct.toFixed(0)}%</span>
+      </div>
+      ${!isFull?`<div style="font-size:0.64rem;color:#94a3b8;margin-top:0.1rem;">${fmt(bal)} remaining</div>`:''}
+    </td>
+    <td>
+      <div class="due-primary" style="color:${dueColor};">${dueText}</div>
+      <div class="due-raw">${c.due}</div>
+    </td>
+    <td>
+      ${lp
+        ? `<div class="act-amount">${fmt(lp.amount)}</div><div class="act-date">${fmtDate(lp.date)} · ${lp.method}</div>`
+        : `<div class="act-none">No payments yet</div>`}
+    </td>
+    <td>${actionsHtml}</td>
+  </tr>`;
+}
+
+/* ---- GROUPED VIEW HELPERS ---- */
+let groupExpanded = {};
+
+function groupByProject(rows) {
+  const map = {};
+  rows.forEach(c => {
+    if (!map[c.project]) map[c.project] = { project: c.project, code: c.code, dept: c.dept, items: [] };
+    map[c.project].items.push(c);
+  });
+  return Object.values(map);
+}
+
+function worstUrgClass(items) {
+  const order = ['urg-critical','urg-overdue','urg-nearsoon','urg-active','urg-clean','urg-done'];
+  let worst = 'urg-done';
+  items.forEach(c => {
+    const { urg } = urgClass(c);
+    if (order.indexOf(urg) < order.indexOf(worst)) worst = urg;
+  });
+  const tintMap = { 'urg-critical':'tint-critical','urg-overdue':'tint-overdue','urg-nearsoon':'tint-nearsoon','urg-done':'tint-done' };
+  return { urg: worst, tint: tintMap[worst] || '' };
+}
+
+function urgSummaryText(items) {
+  const critical = items.filter(c => { const d = daysDiff(c.due); return d >= 30 && status(c) !== 'Fully Paid'; }).length;
+  const overdue  = items.filter(c => status(c) === 'Overdue' && daysDiff(c.due) < 30).length;
+  const nearDue  = items.filter(c => { const d = daysDiff(c.due); return d <= 0 && -d <= 7 && status(c) !== 'Fully Paid'; }).length;
+  const paid     = items.filter(c => status(c) === 'Fully Paid').length;
+  const parts = [];
+  if (critical) parts.push(`<span style="color:#ef4444;font-weight:700;">${critical} critical</span>`);
+  else if (overdue) parts.push(`<span style="color:#f97316;font-weight:700;">${overdue} overdue</span>`);
+  if (nearDue) parts.push(`<span style="color:#f59e0b;">${nearDue} near due</span>`);
+  if (paid === items.length) parts.push(`<span style="color:#059669;font-weight:700;">All collected ✓</span>`);
+  else if (paid > 0) parts.push(`<span style="color:#94a3b8;">${paid} of ${items.length} complete</span>`);
+  return parts.length ? parts.join(' · ') : '<span style="color:#64748b;">All on track</span>';
+}
+
+function mostRecentPayment(items) {
+  const all = items.flatMap(c => (c.payments||[]).map(p => ({ ...p, tranche: c.tranche })));
+  if (!all.length) return null;
+  return [...all].sort((a,b) => b.date.localeCompare(a.date))[0];
+}
+
+function groupRowHtml(g) {
+  const { project, code, dept, items } = g;
+  const totalAmt  = items.reduce((s,c) => s + c.amount, 0);
+  const totalPd   = items.reduce((s,c) => s + totalPaid(c), 0);
+  const pct       = totalAmt > 0 ? (totalPd / totalAmt * 100) : 0;
+  const { urg, tint } = worstUrgClass(items);
+  const isExpanded = !!groupExpanded[project];
+  const lp = mostRecentPayment(items);
+  const safeKey = project.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+  let barColor = '#1a73e8';
+  if (urg === 'urg-critical' || urg === 'urg-overdue') barColor = '#ef4444';
+  else if (urg === 'urg-nearsoon') barColor = '#f59e0b';
+  else if (urg === 'urg-done') barColor = '#059669';
+
+  const summaryRow = `<tr class="${tint} group-hdr-row" onclick="toggleGroup('${safeKey}')">
+    <td class="urg-bar ${urg}"></td>
+    <td>
+      <div style="display:flex;align-items:flex-start;gap:0.4rem;">
+        <span style="font-size:0.7rem;color:#94a3b8;font-weight:700;margin-top:0.1rem;">${isExpanded?'▾':'▸'}</span>
+        <div>
+          <div class="proj-name">${project}</div>
+          <div class="proj-meta">
+            <span style="font-family:monospace;font-size:0.65rem;color:#94a3b8;">${code}</span>
+            <span class="dept-chip ${dept==='projects'?'dept-proj':'dept-svc'}">${dept==='projects'?'Proj':'Svc'}</span>
+            <span style="font-size:0.6rem;font-weight:700;background:#f1f5f9;color:#475569;border-radius:10px;padding:0.05rem 0.4rem;">${items.length} tranche${items.length!==1?'s':''}</span>
+          </div>
+        </div>
+      </div>
+    </td>
+    <td class="prog-cell">
+      <div class="prog-bar-outer">
+        <div class="prog-bar-fill" style="width:${pct}%;background:${barColor};"></div>
+      </div>
+      <div class="prog-numbers">
+        <strong>${fmt(totalPd)}</strong> of ${fmt(totalAmt)}
+        <span class="prog-pct-chip" style="background:${pct>=100?'#d1fae5':'#dbeafe'};color:${pct>=100?'#065f46':'#1d4ed8'};">${pct.toFixed(0)}%</span>
+      </div>
+    </td>
+    <td><div style="font-size:0.75rem;line-height:1.5;">${urgSummaryText(items)}</div></td>
+    <td>
+      ${lp
+        ? `<div class="act-amount">${fmt(lp.amount)}</div><div class="act-date">${fmtDate(lp.date)} · ${lp.method}</div><div style="font-size:0.6rem;color:#94a3b8;margin-top:0.05rem;">on ${lp.tranche}</div>`
+        : `<div class="act-none">No payments yet</div>`}
+    </td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();toggleGroup('${safeKey}')">${isExpanded?'▴ Collapse':'▾ Expand'}</button>
+    </td>
+  </tr>`;
+
+  if (!isExpanded) return summaryRow;
+
+  const childRows = items.map(c => {
+    const pd   = totalPaid(c);
+    const pctC = c.amount > 0 ? (pd / c.amount * 100) : 0;
+    const st   = status(c);
+    const { urg: urgC, tint: tintC } = urgClass(c);
+    const { text: dueText, color: dueColor } = duePrimary(c);
+    const isFull = st === 'Fully Paid';
+    const lpc = lastPayment(c);
+    let barColorC = '#1a73e8';
+    if (isFull) barColorC = '#059669';
+    else if (st === 'Overdue') barColorC = '#ef4444';
+    const actHtml = isFull
+      ? `<button class="btn btn-ghost btn-sm" onclick="alert('View history')">View History</button>`
+      : `<button class="btn btn-primary btn-sm" onclick="alert('Record Payment — ${c.coll_id}')">Record Payment</button>`;
+    return `<tr class="child-row ${tintC}">
+      <td class="urg-bar ${urgC}"></td>
+      <td style="padding-left:2rem;">
+        <div style="font-size:0.76rem;font-weight:600;color:#1e293b;">${c.tranche} <span style="font-weight:400;color:#94a3b8;">(${c.pct}%)</span></div>
+        <div style="font-family:monospace;font-size:0.62rem;color:#94a3b8;">${c.coll_id}</div>
+      </td>
+      <td class="prog-cell">
+        <div class="prog-bar-outer" style="height:4px;">
+          <div class="prog-bar-fill" style="width:${pctC}%;background:${barColorC};height:4px;"></div>
+        </div>
+        <div class="prog-numbers" style="font-size:0.65rem;"><strong>${fmt(pd)}</strong> of ${fmt(c.amount)} <span class="prog-pct-chip" style="font-size:0.57rem;background:${pctC>=100?'#d1fae5':'#f1f5f9'};color:${pctC>=100?'#065f46':'#64748b'};">${pctC.toFixed(0)}%</span></div>
+      </td>
+      <td>
+        <div class="due-primary" style="color:${dueColor};font-size:0.73rem;">${dueText}</div>
+        <div class="due-raw">${c.due}</div>
+      </td>
+      <td>
+        ${lpc
+          ? `<div class="act-amount" style="font-size:0.72rem;">${fmt(lpc.amount)}</div><div class="act-date">${fmtDate(lpc.date)} · ${lpc.method}</div>`
+          : `<div class="act-none">No payments yet</div>`}
+      </td>
+      <td>${actHtml}</td>
+    </tr>`;
+  }).join('');
+
+  return summaryRow + childRows;
+}
+
+function toggleGroup(project) {
+  groupExpanded[project] = !groupExpanded[project];
+  render();
+}
+
+/* ---- RENDER ---- */
+function render() {
+  const rows = getFiltered();
+  const doneRows = rows.filter(c => status(c) === 'Fully Paid');
+  const activeRows = rows.filter(c => status(c) !== 'Fully Paid');
+
+  if (currentView === 'before') {
+    document.getElementById('table-container').innerHTML = `
+      <table class="data-table">
+        <thead><tr>
+          <th>ID</th><th>Project / Service</th><th>Dept</th><th>Tranche</th>
+          <th class="r">Amount</th><th class="r">Paid</th><th class="r">Balance</th>
+          <th>Due Date</th><th>Status</th><th>Actions</th>
+        </tr></thead>
+        <tbody>${rows.map(c=>oldRowHtml(c)).join('') || '<tr><td colspan="10" class="empty-msg">No collectibles.</td></tr>'}</tbody>
+      </table>`;
+    document.getElementById('show-done-toggle-wrap').innerHTML = '';
+    return;
+  }
+
+  // After view — grouped or flat
+  updateScorecard(rows);
+
+  let tableHtml;
+  if (groupBy) {
+    const groups = groupByProject(rows).sort((a, b) =>
+      (URG_ORDER[worstUrgClass(a.items).urg] ?? 4) - (URG_ORDER[worstUrgClass(b.items).urg] ?? 4)
+    );
+    tableHtml = `
+      <table class="new-table">
+        <thead><tr>
+          <th style="width:4px;padding:0;"></th>
+          <th>Project</th>
+          <th>Collection Progress</th>
+          <th>Tranche Status</th>
+          <th>Last Payment</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody>
+          ${groups.map(g => groupRowHtml(g)).join('') || '<tr><td></td><td colspan="5" class="empty-msg">No collectibles.</td></tr>'}
+        </tbody>
+      </table>`;
+  } else {
+    const displayActive = activeRows;
+    const displayDone   = showDone ? doneRows : [];
+    tableHtml = `
+      <table class="new-table">
+        <thead><tr>
+          <th style="width:4px;padding:0;"></th>
+          <th>Project · Tranche</th>
+          <th>Collection Progress</th>
+          <th>Due / Urgency</th>
+          <th>Last Payment</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody>
+          ${displayActive.map(c=>newRowHtml(c)).join('') || '<tr><td></td><td colspan="5" class="empty-msg">No active collectibles.</td></tr>'}
+          ${displayDone.map(c=>newRowHtml(c)).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  document.getElementById('table-container').innerHTML = tableHtml;
+
+  // Show/hide fully paid toggle
+  const wrap = document.getElementById('show-done-toggle-wrap');
+  if (doneRows.length > 0) {
+    wrap.innerHTML = `<span class="show-done-toggle" onclick="toggleDone()">
+      ${showDone ? '▴ Hide' : '▾ Show'} ${doneRows.length} completed
+    </span>`;
+  } else {
+    wrap.innerHTML = '';
+  }
+}
+
+/* ---- CONTROLS ---- */
+function setView(v) {
+  currentView = v;
+  document.getElementById('sw-before').classList.toggle('active', v==='before');
+  document.getElementById('sw-after').classList.toggle('active', v==='after');
+  const isAfter = v === 'after';
+  document.getElementById('scorecard-row').style.display = isAfter ? '' : 'none';
+  document.getElementById('btnGroupBy').style.display = isAfter ? '' : 'none';
+  renderBanner();
+  render();
+}
+
+function toggleGroupBy() {
+  groupBy = !groupBy;
+  groupExpanded = {};
+  const btn = document.getElementById('btnGroupBy');
+  if (groupBy) {
+    btn.textContent = '⊟ Ungroup';
+    btn.style.background = '#dbeafe';
+    btn.style.color = '#1d4ed8';
+    btn.style.borderColor = '#93c5fd';
+  } else {
+    btn.textContent = '⊞ Group by Project';
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.style.borderColor = '';
+  }
+  render();
+}
+function setScenario(k) {
+  const map = {real:COLLS_REAL, heavy:COLLS_HEAVY, clean:COLLS_CLEAN};
+  currentColls = map[k];
+  document.querySelectorAll('.c-btn[id^="cs-"]').forEach(b=>b.classList.remove('on'));
+  document.getElementById('cs-'+k).classList.add('on');
+  document.getElementById('fStatus').value = '';
+  document.getElementById('fDept').value = '';
+  document.getElementById('fSearch').value = '';
+  dpMode = ''; dpFrom = ''; dpTo = '';
+  refreshDatePickerUI();
+  render();
+}
+function setBanner(k) {
+  currentBanner = k;
+  document.querySelectorAll('.c-btn[id^="cb-"]').forEach(b=>b.classList.remove('on'));
+  document.getElementById('cb-'+k).classList.add('on');
+  renderBanner();
+  render(); // update pipeline chip
+}
+function toggleBannerSeg(seg) {
+  bannerCollapsed[seg] = !bannerCollapsed[seg];
+  renderBanner();
+}
+function toggleDone() {
+  showDone = !showDone;
+  render();
+}
+
+// Init
+setView('after');
+</script>
+</body>
+</html>

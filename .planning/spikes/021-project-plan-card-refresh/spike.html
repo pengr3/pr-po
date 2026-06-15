@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Spike 021 — Project Plan Card Refresh</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f1f5f9;
+  color: #1e293b;
+  min-height: 100vh;
+  padding-bottom: 160px;
+}
+
+/* ── Variant switcher bar ── */
+#variantBar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: #0f172a;
+  border-bottom: 2px solid #1e293b;
+  font-size: 12px;
+  color: #94a3b8;
+}
+#variantBar span { font-weight: 700; margin-right: 4px; color: #64748b; text-transform: uppercase; letter-spacing: .05em; }
+.vbtn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.vbtn:hover { background: #334155; color: #e2e8f0; }
+.vbtn.active { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+.vbtn.active-ref { background: #475569; border-color: #475569; color: #fff; }
+#variantBar .sep { width: 1px; height: 20px; background: #334155; margin: 0 6px; }
+#variantBar .label { font-size: 11px; color: #475569; }
+.sbtn {
+  padding: 4px 10px;
+  border-radius: 5px;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+.sbtn:hover { border-color: #475569; color: #94a3b8; }
+.sbtn.active { border-color: #1a73e8; color: #1a73e8; background: #0f2040; }
+
+/* ── Page mock ── */
+.page-wrap {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px 20px 0;
+}
+
+/* Header strip mock */
+.header-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+}
+.badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.badge-active { background: #dcfce7; color: #166534; }
+.mono { font-family: monospace; font-size: 12px; color: #64748b; font-weight: 700; }
+.dot { color: #cbd5e1; }
+.status-sel {
+  appearance: none; border: none; border-radius: 20px; padding: 4px 24px 4px 12px;
+  font-size: 12px; font-weight: 600; color: #fff; background: #10b981;
+  cursor: pointer;
+}
+.action-btns { margin-left: auto; display: flex; gap: 8px; }
+.btn-ghost { padding: 6px 14px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; font-size: 13px; cursor: pointer; color: #374151; }
+
+/* 2-col detail grid */
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 720px) { .detail-grid { grid-template-columns: 1fr; } }
+
+/* Card base */
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.card-header {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.card-header h3 { font-size: 14px; font-weight: 600; color: #374151; }
+.card-header .card-heading-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.card-body { padding: 16px; }
+
+/* ── INFO CARD mock ── */
+.info-section-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; }
+.info-field-label { font-size: 10px; font-weight: 600; color: #94a3b8; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 3px; }
+.info-field-value input {
+  width: 100%; padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 6px;
+  font-size: 14px; color: #1e293b; background: #f8fafc;
+}
+.info-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.info-chip-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 20px;
+  padding: 3px 10px; font-size: 12px; color: #374151;
+}
+.info-chip-tag .remove { color: #94a3b8; cursor: pointer; font-size: 10px; margin-left: 2px; }
+.info-meta { font-size: 11px; color: #94a3b8; margin-top: 10px; }
+
+/* ── PROPOSAL CARD mock (Spike 009 winner for reference) ── */
+.proposal-track {
+  display: flex; align-items: flex-start; gap: 0;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  position: relative;
+}
+.proposal-track::before {
+  content: '';
+  position: absolute;
+  top: 26px; left: calc(16px + 20px);
+  right: calc(16px + 20px);
+  height: 2px;
+  background: #e2e8f0;
+}
+.track-node {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; flex: 1; position: relative; z-index: 1;
+}
+.track-dot {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+}
+.track-dot.done { background: #1a73e8; color: #fff; }
+.track-dot.done::after { content: '✓'; }
+.track-dot.pending { background: #fff; border: 2px solid #e2e8f0; }
+.track-label { font-size: 10px; color: #64748b; text-align: center; line-height: 1.3; }
+.track-label.done { color: #1a73e8; font-weight: 600; }
+.proposal-chips { display: flex; gap: 8px; padding: 12px 16px; }
+.stat-chip {
+  flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;
+  padding: 8px 12px;
+}
+.stat-chip-label { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
+.stat-chip-value { font-size: 18px; font-weight: 700; color: #1e293b; line-height: 1; }
+.stat-chip-sub { font-size: 11px; color: #64748b; margin-top: 3px; }
+.stat-chip.chip-warn { background: #fffbeb; border-color: #fcd34d; }
+.stat-chip.chip-warn .stat-chip-label { color: #92400e; }
+.stat-chip.chip-warn .stat-chip-value { color: #b45309; }
+.proposal-info-row { display: flex; align-items: center; gap: 8px; padding: 2px 16px; font-size: 13px; color: #374151; }
+.proposal-info-row .info-label { color: #94a3b8; font-size: 11px; }
+.proposal-footer { padding: 12px 16px; border-top: 1px solid #f1f5f9; text-align: right; }
+.proposal-footer .btn-primary { padding: 7px 14px; background: #1a73e8; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.proposal-footer .btn-outline { padding: 7px 14px; background: #fff; color: #1a73e8; border: 1px solid #1a73e8; border-radius: 6px; font-size: 13px; cursor: pointer; }
+
+/* ── FINANCIAL SUMMARY mock ── */
+.financial-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: #94a3b8; padding: 10px 16px 6px; border-top: 1px solid #f1f5f9;
+}
+.financial-section-label:first-child { border-top: none; padding-top: 14px; }
+.financial-section-label.green { color: #059669; }
+.financial-section-label.red { color: #ef4444; }
+.financial-two-col { display: grid; grid-template-columns: 1fr 1fr; padding: 4px 16px 10px; gap: 8px; }
+.fin-cell-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
+.fin-cell-value { font-size: 14px; font-weight: 600; color: #1e293b; }
+.fin-cell-value.green { color: #059669; }
+.fin-cell-value.orange { color: #f97316; }
+.fin-bg-green { background: #f0fdf4; }
+.fin-bg-red { background: #fef2f2; }
+
+/* ── CURRENT PLAN CARD (recreation) ── */
+.plan-card-stats {
+  display: flex; gap: 24px; margin-bottom: 16px;
+}
+.plan-card-stat-value { font-size: 28px; font-weight: 700; color: #1e293b; line-height: 1; }
+.plan-card-stat-label { font-size: 12px; color: #64748b; margin-top: 2px; }
+.plan-card-highlights { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.plan-card-highlight-label { font-size: 11px; color: #94a3b8; margin-bottom: 2px; }
+.plan-card-highlight-value { font-size: 13px; color: #374151; }
+.plan-empty-state {
+  padding: 14px; text-align: center; border: 1px dashed #e2e8f0;
+  border-radius: 8px; margin-bottom: 14px; color: #64748b; font-size: 13px;
+}
+.plan-empty-state strong { color: #374151; display: block; margin-bottom: 4px; }
+.plan-open-btn-row { text-align: right; }
+.btn-primary {
+  display: inline-block; padding: 8px 16px; background: #1a73e8; color: #fff;
+  border: none; border-radius: 6px; font-size: 13px; cursor: pointer; text-decoration: none;
+  font-weight: 500;
+}
+.btn-outline {
+  display: inline-block; padding: 8px 16px; background: #fff; color: #1a73e8;
+  border: 1px solid #1a73e8; border-radius: 6px; font-size: 13px; cursor: pointer;
+  text-decoration: none; font-weight: 500;
+}
+
+/* ── VARIANT A: Progress Bar ── */
+.va-header {
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.va-heading { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; }
+
+.va-progress-wrap { margin-bottom: 12px; }
+.va-progress-bar-track {
+  width: 100%; height: 8px; background: #f1f5f9; border-radius: 99px; overflow: hidden;
+  margin-bottom: 6px;
+}
+.va-progress-bar-fill {
+  height: 100%; border-radius: 99px; background: #1a73e8;
+  transition: width 0.4s cubic-bezier(.4,0,.2,1);
+}
+.va-progress-bar-fill.complete { background: #10b981; }
+.va-progress-text {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: #64748b;
+}
+.va-progress-text .pct { font-weight: 700; color: #1e293b; }
+
+.va-chips { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.va-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px; font-size: 12px;
+  background: #f1f5f9; border: 1px solid #e2e8f0; color: #374151;
+  font-weight: 500;
+}
+.va-chip .chip-count { font-weight: 700; color: #1e293b; }
+.va-chip.overdue { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
+.va-chip.overdue .chip-count { color: #b45309; }
+.va-chip.complete { background: #f0fdf4; border-color: #86efac; color: #166534; }
+
+.va-milestones { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.va-milestone-row { display: flex; align-items: flex-start; gap: 8px; }
+.va-milestone-dot {
+  width: 6px; height: 6px; border-radius: 50%; margin-top: 5px; flex-shrink: 0;
+}
+.va-milestone-dot.done { background: #10b981; }
+.va-milestone-dot.upcoming { background: #1a73e8; }
+.va-milestone-dot.ongoing { background: #f97316; }
+.va-milestone-dot.empty { background: #e2e8f0; }
+.va-milestone-label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; }
+.va-milestone-value { font-size: 12px; color: #374151; margin-top: 1px; }
+.va-milestone-value.empty { color: #cbd5e1; font-style: italic; }
+.va-milestone-value.dim { color: #94a3b8; }
+
+/* Empty state for A */
+.va-empty {
+  text-align: center; padding: 24px 16px;
+}
+.va-empty p { font-size: 13px; color: #94a3b8; margin-bottom: 14px; }
+
+/* ── VARIANT B: Stat Chips (matches proposal card) ── */
+.vb-header {
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.vb-heading { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; }
+
+.vb-chips { display: flex; gap: 8px; padding: 12px 16px 10px; }
+.vb-chip {
+  flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px;
+}
+.vb-chip-label { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; margin-bottom: 4px; }
+.vb-chip-value { font-size: 20px; font-weight: 700; color: #1e293b; line-height: 1; }
+.vb-chip.complete-chip .vb-chip-value { color: #10b981; }
+.vb-chip.overdue-chip { background: #fffbeb; border-color: #fcd34d; }
+.vb-chip.overdue-chip .vb-chip-label { color: #92400e; }
+.vb-chip.overdue-chip .vb-chip-value { color: #b45309; }
+
+.vb-divider { height: 1px; background: #f1f5f9; margin: 0 16px; }
+
+.vb-milestones { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 9px; }
+.vb-milestone-row { display: grid; grid-template-columns: 110px 1fr; gap: 6px; align-items: baseline; }
+.vb-milestone-key { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #94a3b8; }
+.vb-milestone-val { font-size: 12px; color: #374151; }
+.vb-milestone-val.empty { color: #cbd5e1; }
+.vb-milestone-val a { color: #1a73e8; text-decoration: none; font-size: 11px; }
+
+/* Stat chip micro bar (inside chip) */
+.vb-chip .mini-bar-track {
+  height: 3px; background: #e2e8f0; border-radius: 99px; margin-top: 6px; overflow: hidden;
+}
+.vb-chip .mini-bar-fill { height: 100%; border-radius: 99px; background: #1a73e8; transition: width 0.4s; }
+
+/* Empty state for B */
+.vb-empty {
+  padding: 20px 16px; text-align: center;
+}
+.vb-empty p { font-size: 13px; color: #94a3b8; margin-bottom: 14px; }
+
+/* ── Log pane ── */
+#logPane {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 110px;
+  background: #0f172a;
+  border-top: 2px solid #1e293b;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: monospace;
+  font-size: 11px;
+  z-index: 200;
+}
+.log-entry { display: flex; gap: 10px; padding: 2px 0; color: #64748b; border-bottom: 1px solid #1e293b; }
+.log-entry:last-child { border-bottom: none; }
+.log-ts { color: #334155; flex-shrink: 0; }
+.log-type { flex-shrink: 0; min-width: 60px; font-weight: 700; }
+.log-type.variant { color: #60a5fa; }
+.log-type.state { color: #34d399; }
+.log-type.interaction { color: #fbbf24; }
+.log-msg { color: #94a3b8; }
+
+/* State comparison label */
+.spike-label {
+  position: fixed;
+  top: 56px; right: 16px;
+  background: #0f172a; border: 1px solid #334155;
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 11px; color: #64748b;
+  z-index: 90; line-height: 1.8;
+}
+.spike-label strong { color: #e2e8f0; display: block; font-size: 12px; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+
+<!-- Variant + State switcher bar -->
+<div id="variantBar">
+  <span>Variant:</span>
+  <button class="vbtn active-ref" id="vbtn-current" onclick="setVariant('current')">Current</button>
+  <button class="vbtn" id="vbtn-a" onclick="setVariant('a')">A: Progress Bar</button>
+  <button class="vbtn" id="vbtn-b" onclick="setVariant('b')">B: Stat Chips</button>
+  <div class="sep"></div>
+  <span class="label">Data:</span>
+  <button class="sbtn active" id="sbtn-sparse" onclick="setState('sparse')">Screenshot state</button>
+  <button class="sbtn" id="sbtn-rich" onclick="setState('rich')">Populated</button>
+  <button class="sbtn" id="sbtn-empty" onclick="setState('empty')">Empty plan</button>
+  <button class="sbtn" id="sbtn-done" onclick="setState('done')">Complete</button>
+</div>
+
+<!-- Info overlay -->
+<div class="spike-label">
+  <strong>Spike 021 — Plan Card Refresh</strong>
+  Only the plan card changes.<br>
+  Proposal card = Spike 009 winner (reference).<br>
+  Financial Summary = static mock.
+</div>
+
+<div class="page-wrap">
+
+  <!-- Header strip -->
+  <div class="header-strip">
+    <span class="badge badge-active">✓ Active</span>
+    <span class="dot">·</span>
+    <span class="mono">CLMC-SPI-2026001</span>
+    <span class="dot">·</span>
+    <select class="status-sel"><option>Client Approved</option></select>
+    <div class="action-btns">
+      <button class="btn-ghost">Edit History</button>
+      <button class="btn-ghost">Export CSV</button>
+    </div>
+  </div>
+
+  <!-- 2-col detail grid -->
+  <div class="detail-grid">
+
+    <!-- LEFT: Info card + Proposal card -->
+    <div class="left-col">
+
+      <!-- Info card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="info-section-label">Project Information</div>
+        </div>
+        <div class="card-body">
+          <div class="info-two-col">
+            <div>
+              <div class="info-field-label">Project Name *</div>
+              <div class="info-field-value"><input value="Another Sample Project" readonly></div>
+            </div>
+            <div>
+              <div class="info-field-label">Client</div>
+              <div class="info-field-value"><input value="SPI" readonly></div>
+            </div>
+          </div>
+          <div style="margin-bottom: 12px;">
+            <div class="info-field-label">Location</div>
+            <div class="info-field-value"><input value="Manila" readonly></div>
+          </div>
+          <div>
+            <div class="info-field-label" style="margin-bottom: 6px;">Assigned Personnel</div>
+            <div style="border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 10px; background: #f8fafc; min-height: 38px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+              <span class="info-chip-tag">Test <span class="remove">×</span></span>
+            </div>
+          </div>
+          <div class="info-meta">Created: May 26, 2026 · Updated: May 26, 2026</div>
+        </div>
+      </div>
+
+      <!-- Proposal card (Spike 009 winner) -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-heading-label">Proposal</div>
+        </div>
+        <!-- Stage track -->
+        <div class="proposal-track">
+          <div class="track-node">
+            <div class="track-dot done"></div>
+            <div class="track-label done">Draft</div>
+          </div>
+          <div class="track-node">
+            <div class="track-dot done"></div>
+            <div class="track-label done">Internal<br>Review</div>
+          </div>
+          <div class="track-node">
+            <div class="track-dot done"></div>
+            <div class="track-label done">Client<br>Review</div>
+          </div>
+          <div class="track-node">
+            <div class="track-dot done"></div>
+            <div class="track-label done">Approved</div>
+          </div>
+        </div>
+        <!-- Proposal title + chips -->
+        <div style="padding: 10px 16px 0; font-size: 15px; font-weight: 600; color: #1e293b;">Sample Proposal 2</div>
+        <div style="padding: 2px 16px 8px; font-size: 11px; color: #94a3b8; font-family: monospace;">PROPOSAL-SPI-2026-005</div>
+        <div class="proposal-chips">
+          <div class="stat-chip">
+            <div class="stat-chip-label">Value</div>
+            <div class="stat-chip-value" style="font-size: 14px;">—</div>
+          </div>
+          <div class="stat-chip chip-warn">
+            <div class="stat-chip-label">Stage Age</div>
+            <div class="stat-chip-value" style="font-size: 18px;">9 days</div>
+            <div class="stat-chip-sub" style="color: #92400e; font-size: 10px;">needs attention</div>
+          </div>
+        </div>
+        <div class="proposal-footer">
+          <button class="btn-outline" style="font-size: 13px;">View Proposal</button>
+        </div>
+      </div>
+
+    </div><!-- /left-col -->
+
+    <!-- RIGHT: Financial summary + Plan card -->
+    <div class="right-col">
+
+      <!-- Financial summary (static mock) -->
+      <div class="card">
+        <div style="padding: 14px 16px 8px;">
+          <div class="info-section-label">Financial Summary</div>
+        </div>
+        <div class="financial-section-label">Budget</div>
+        <div class="financial-two-col">
+          <div>
+            <div class="fin-cell-label">Budget</div>
+            <div class="fin-cell-value">(Not set)</div>
+          </div>
+          <div>
+            <div class="fin-cell-label">Contract Cost</div>
+            <div class="fin-cell-value">(Not set)</div>
+          </div>
+        </div>
+        <div class="financial-two-col" style="padding-top: 0; padding-bottom: 4px;">
+          <div>
+            <div class="fin-cell-label">Projected Expense</div>
+            <div class="fin-cell-value orange">—</div>
+          </div>
+          <div>
+            <div class="fin-cell-label">Rem. Budget</div>
+            <div class="fin-cell-value">—</div>
+          </div>
+        </div>
+        <div class="financial-section-label green">Payables</div>
+        <div class="financial-two-col fin-bg-green">
+          <div>
+            <div class="fin-cell-label">Paid</div>
+            <div class="fin-cell-value green">0.00</div>
+          </div>
+          <div>
+            <div class="fin-cell-label">Rem. Payable</div>
+            <div class="fin-cell-value green">0.00</div>
+          </div>
+        </div>
+        <div class="financial-section-label" style="color: #0891b2;">Collectibles</div>
+        <div class="financial-two-col fin-bg-red">
+          <div>
+            <div class="fin-cell-label">Collected</div>
+            <div class="fin-cell-value green">0.00</div>
+          </div>
+          <div>
+            <div class="fin-cell-label">Rem. Collectible</div>
+            <div class="fin-cell-value green">0.00</div>
+          </div>
+        </div>
+        <div style="height: 12px;"></div>
+      </div>
+
+      <!-- PLAN CARD — rendered by JS -->
+      <div id="planCardMount"></div>
+
+    </div><!-- /right-col -->
+
+  </div><!-- /detail-grid -->
+</div><!-- /page-wrap -->
+
+<!-- Log pane -->
+<div id="logPane"></div>
+
+<script>
+// ── State ──
+let variant = 'current';
+let dataState = 'sparse';
+
+const DATA = {
+  empty: {
+    taskCount: 0, percentComplete: 0, overdueCount: 0,
+    recentDone: null, nextMilestone: null, ongoingMilestone: null,
+    note: 'No tasks yet'
+  },
+  sparse: {
+    taskCount: 8, percentComplete: 7, overdueCount: 0,
+    recentDone: '1', nextMilestone: null, ongoingMilestone: null,
+    note: 'Screenshot state (8 tasks, 7%, no milestones)'
+  },
+  rich: {
+    taskCount: 12, percentComplete: 42, overdueCount: 2,
+    recentDone: 'Site survey and initial assessment',
+    nextMilestone: 'Foundation inspection — Jan 20',
+    ongoingMilestone: 'Structural design phase',
+    note: 'Populated (milestones, overdue)'
+  },
+  done: {
+    taskCount: 8, percentComplete: 100, overdueCount: 0,
+    recentDone: 'Final handover documentation',
+    nextMilestone: null, ongoingMilestone: null,
+    note: 'All complete'
+  }
+};
+
+// ── Controls ──
+function setVariant(v) {
+  variant = v;
+  document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active', 'active-ref'));
+  const btn = document.getElementById('vbtn-' + v);
+  btn.classList.add(v === 'current' ? 'active-ref' : 'active');
+  render();
+  addLog('variant', `Switched to ${v === 'current' ? 'Current (baseline)' : 'Variant ' + v.toUpperCase()}`);
+}
+
+function setState(s) {
+  dataState = s;
+  document.querySelectorAll('.sbtn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sbtn-' + s).classList.add('active');
+  render();
+  addLog('state', `Data: ${DATA[s].note}`);
+}
+
+// ── Render ──
+function render() {
+  const data = DATA[dataState];
+  const mount = document.getElementById('planCardMount');
+  if (variant === 'current') mount.innerHTML = renderCurrent(data);
+  else if (variant === 'a') mount.innerHTML = renderVariantA(data);
+  else if (variant === 'b') mount.innerHTML = renderVariantB(data);
+}
+
+// ── CURRENT (faithful recreation) ──
+function renderCurrent(d) {
+  const emptyState = d.taskCount === 0
+    ? `<div class="plan-empty-state"><strong>No tasks yet.</strong>Open the plan to get started.</div>`
+    : '';
+  const recentVal = d.recentDone || 'No completed tasks yet.';
+  const nextVal   = d.nextMilestone || 'No upcoming milestones.';
+  const ongoingVal = d.ongoingMilestone || 'No active milestones.';
+  return `
+    <div class="card">
+      <div class="card-header"><h3>Project Plan</h3></div>
+      <div class="card-body">
+        <div class="plan-card-stats">
+          <div class="plan-card-stat">
+            <div class="plan-card-stat-value">${d.taskCount}</div>
+            <div class="plan-card-stat-label">tasks</div>
+          </div>
+          <div class="plan-card-stat">
+            <div class="plan-card-stat-value">${d.percentComplete}%</div>
+            <div class="plan-card-stat-label">complete</div>
+          </div>
+        </div>
+        <div class="plan-card-highlights">
+          <div class="plan-card-highlight">
+            <div class="plan-card-highlight-label">Most recent accomplishment</div>
+            <div class="plan-card-highlight-value">${recentVal}</div>
+          </div>
+          <div class="plan-card-highlight">
+            <div class="plan-card-highlight-label">Next milestone</div>
+            <div class="plan-card-highlight-value">${nextVal}</div>
+          </div>
+          <div class="plan-card-highlight">
+            <div class="plan-card-highlight-label">Ongoing milestone</div>
+            <div class="plan-card-highlight-value">${ongoingVal}</div>
+          </div>
+        </div>
+        ${emptyState}
+        <div class="plan-open-btn-row">
+          <button class="btn-primary" onclick="logInteraction('Open Plan clicked')">Open Plan</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── VARIANT A: Progress Bar Hero ──
+function renderVariantA(d) {
+  if (d.taskCount === 0) {
+    return `
+      <div class="card">
+        <div class="va-header"><div class="va-heading">Project Plan</div></div>
+        <div class="card-body">
+          <div class="va-empty">
+            <p>No tasks yet. Open the plan to get started.</p>
+            <button class="btn-primary" onclick="logInteraction('Open Plan clicked')">Open Plan →</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  const pct = d.percentComplete;
+  const complete = pct === 100;
+  const overdueChip = d.overdueCount > 0
+    ? `<span class="va-chip overdue"><span class="chip-count">${d.overdueCount}</span> overdue</span>`
+    : '';
+  const doneCount = Math.round(d.taskCount * pct / 100);
+  const completeClass = complete ? 'complete' : '';
+
+  const recentRow = d.recentDone
+    ? `<div class="va-milestone-row">
+        <div class="va-milestone-dot done"></div>
+        <div><div class="va-milestone-label">Most recent</div><div class="va-milestone-value">${d.recentDone}</div></div>
+       </div>`
+    : '';
+
+  const nextRow = d.nextMilestone
+    ? `<div class="va-milestone-row">
+        <div class="va-milestone-dot upcoming"></div>
+        <div><div class="va-milestone-label">Next milestone</div><div class="va-milestone-value">${d.nextMilestone}</div></div>
+       </div>`
+    : `<div class="va-milestone-row">
+        <div class="va-milestone-dot empty"></div>
+        <div><div class="va-milestone-label">Next milestone</div><div class="va-milestone-value empty">—</div></div>
+       </div>`;
+
+  const ongoingRow = d.ongoingMilestone
+    ? `<div class="va-milestone-row">
+        <div class="va-milestone-dot ongoing"></div>
+        <div><div class="va-milestone-label">Ongoing milestone</div><div class="va-milestone-value">${d.ongoingMilestone}</div></div>
+       </div>`
+    : ''; // silenced when empty
+
+  return `
+    <div class="card">
+      <div class="va-header"><div class="va-heading">Project Plan</div></div>
+      <div class="card-body">
+
+        <div class="va-progress-wrap">
+          <div class="va-progress-bar-track">
+            <div class="va-progress-bar-fill ${completeClass}" style="width: ${pct}%"></div>
+          </div>
+          <div class="va-progress-text">
+            <span>${doneCount} of ${d.taskCount} tasks complete</span>
+            <span class="pct">${pct}%</span>
+          </div>
+        </div>
+
+        <div class="va-chips">
+          <span class="va-chip ${complete ? 'complete' : ''}">
+            <span class="chip-count">${d.taskCount}</span> tasks
+          </span>
+          ${overdueChip}
+        </div>
+
+        <div class="va-milestones">
+          ${recentRow}
+          ${nextRow}
+          ${ongoingRow}
+        </div>
+
+        <div class="plan-open-btn-row">
+          <button class="btn-primary" onclick="logInteraction('Open Plan clicked')">Open Plan</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── VARIANT B: Stat Chip Grid (matches proposal card) ──
+function renderVariantB(d) {
+  if (d.taskCount === 0) {
+    return `
+      <div class="card">
+        <div class="vb-header"><div class="vb-heading">Project Plan</div></div>
+        <div class="card-body">
+          <div class="vb-empty">
+            <p>No tasks yet. Open the plan to get started.</p>
+            <button class="btn-primary" onclick="logInteraction('Open Plan clicked')">Open Plan →</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  const pct = d.percentComplete;
+  const complete = pct === 100;
+
+  // Chips row
+  const overdueChip = d.overdueCount > 0
+    ? `<div class="vb-chip overdue-chip">
+        <div class="vb-chip-label">Overdue</div>
+        <div class="vb-chip-value">${d.overdueCount}</div>
+       </div>`
+    : '';
+
+  // Milestone rows (silenced when empty)
+  const recentRow = d.recentDone
+    ? `<div class="vb-milestone-row">
+        <div class="vb-milestone-key">Most recent</div>
+        <div class="vb-milestone-val">${d.recentDone}</div>
+       </div>`
+    : `<div class="vb-milestone-row">
+        <div class="vb-milestone-key">Most recent</div>
+        <div class="vb-milestone-val empty">—</div>
+       </div>`;
+
+  const nextRow = d.nextMilestone
+    ? `<div class="vb-milestone-row">
+        <div class="vb-milestone-key">Next milestone</div>
+        <div class="vb-milestone-val">${d.nextMilestone}</div>
+       </div>`
+    : ''; // silenced when empty
+
+  const ongoingRow = d.ongoingMilestone
+    ? `<div class="vb-milestone-row">
+        <div class="vb-milestone-key">Ongoing</div>
+        <div class="vb-milestone-val">${d.ongoingMilestone}</div>
+       </div>`
+    : ''; // silenced when empty
+
+  const showMilestones = d.recentDone || d.nextMilestone || d.ongoingMilestone;
+
+  return `
+    <div class="card">
+      <div class="vb-header"><div class="vb-heading">Project Plan</div></div>
+
+      <div class="vb-chips">
+        <div class="vb-chip">
+          <div class="vb-chip-label">Tasks</div>
+          <div class="vb-chip-value">${d.taskCount}</div>
+        </div>
+        <div class="vb-chip ${complete ? 'complete-chip' : ''}">
+          <div class="vb-chip-label">Complete</div>
+          <div class="vb-chip-value">${pct}%</div>
+          <div class="mini-bar-track">
+            <div class="mini-bar-fill" style="width: ${pct}%; background: ${complete ? '#10b981' : '#1a73e8'}"></div>
+          </div>
+        </div>
+        ${overdueChip}
+      </div>
+
+      ${showMilestones ? `
+        <div class="vb-divider"></div>
+        <div class="vb-milestones">
+          ${recentRow}
+          ${nextRow}
+          ${ongoingRow}
+        </div>
+      ` : `<div style="height: 8px;"></div>`}
+
+      <div style="padding: 0 16px 14px; text-align: right;">
+        <button class="btn-primary" onclick="logInteraction('Open Plan clicked')">Open Plan</button>
+      </div>
+    </div>`;
+}
+
+// ── Log ──
+function addLog(type, msg) {
+  const pane = document.getElementById('logPane');
+  const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const row = document.createElement('div');
+  row.className = 'log-entry';
+  row.innerHTML = `<span class="log-ts">${ts}</span><span class="log-type ${type}">${type}</span><span class="log-msg">${msg}</span>`;
+  pane.appendChild(row);
+  pane.scrollTop = pane.scrollHeight;
+}
+
+function logInteraction(msg) { addLog('interaction', msg); }
+
+// ── Init ──
+render();
+addLog('state', `Loaded — spike 021 plan card refresh. Variant: Current`);
+</script>
+</body>
+</html>

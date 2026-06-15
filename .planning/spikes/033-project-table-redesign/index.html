@@ -1,0 +1,2423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spike 033 — Project Portfolio View (5 Options)</title>
+  <style>
+    :root {
+      --blue:      #1a73e8;
+      --blue-dark: #1557b0;
+      --blue-bg:   #e8f0fe;
+      --green:     #059669;
+      --green-bg:  #d1fae5;
+      --amber:     #f59e0b;
+      --amber-bg:  #fef3c7;
+      --red:       #ef4444;
+      --red-bg:    #fee2e2;
+      --orange:    #f97316;
+      --orange-bg: #ffedd5;
+      --purple:    #7c3aed;
+      --purple-bg: #ede9fe;
+      --slate-900: #0f172a;
+      --slate-800: #1e293b;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-500: #64748b;
+      --slate-400: #94a3b8;
+      --slate-300: #cbd5e1;
+      --slate-200: #e2e8f0;
+      --slate-100: #f1f5f9;
+      --slate-50:  #f8fafc;
+      --border:    #e5e7eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--slate-50); color: var(--slate-800); font-size: 14px; }
+
+    /* ── Shell ── */
+    .top-bar {
+      background: #fff; border-bottom: 1px solid var(--border);
+      padding: 0 28px; display: flex; align-items: center; gap: 0;
+      height: 52px; position: sticky; top: 0; z-index: 100;
+    }
+    .top-bar h1 { font-size: 16px; font-weight: 700; color: var(--slate-900); margin-right: 12px; }
+    .spike-tag { font-size: 10px; font-weight: 700; letter-spacing: .06em;
+      background: var(--orange-bg); color: var(--orange); border-radius: 4px;
+      padding: 2px 7px; margin-right: auto; }
+    .switcher { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .sw-btn { border: none; background: #fff; cursor: pointer;
+      padding: 8px 18px; font-size: 12px; font-weight: 500; color: var(--slate-500);
+      border-right: 1px solid var(--border); transition: all .12s; white-space: nowrap; }
+    .sw-btn:last-child { border-right: none; }
+    .sw-btn.on { background: var(--blue); color: #fff; font-weight: 600; }
+
+    .main { padding: 20px 28px 40px; }
+
+    /* Panel visibility */
+    .panel { display: none; }
+    .panel.on { display: block; }
+
+    /* ── Shared: scorecard strip ── */
+    .sc-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+    .sc { background: #fff; border: 1.5px solid var(--border); border-radius: 8px;
+      padding: 10px 14px; cursor: pointer; transition: border-color .12s; }
+    .sc:hover { border-color: var(--slate-400); }
+    .sc-n { font-size: 22px; font-weight: 700; line-height: 1; }
+    .sc-l { font-size: 10px; color: var(--slate-400); margin-top: 3px; text-transform: uppercase;
+      letter-spacing: .04em; }
+    .sc.ongoing .sc-n  { color: var(--blue); }
+    .sc.mobilize .sc-n { color: var(--amber); }
+    .sc.proposal .sc-n { color: var(--purple); }
+    .sc.complete .sc-n { color: var(--green); }
+
+    /* ── Shared: toolbar ── */
+    .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+    .s-input { border: 1px solid var(--border); border-radius: 6px;
+      padding: 7px 12px; font-size: 13px; width: 210px; background: #fff; outline: none; }
+    .s-select { border: 1px solid var(--border); border-radius: 6px;
+      padding: 7px 10px; font-size: 13px; background: #fff; outline: none; }
+    .add-btn { margin-left: auto; background: var(--blue); color: #fff;
+      border: none; border-radius: 6px; padding: 7px 16px; font-size: 13px;
+      font-weight: 500; cursor: pointer; }
+
+    /* ── Stage-aware financial display helpers ── */
+    /* pre-contract */
+    .fin-pre { display: flex; flex-direction: column; gap: 2px; }
+    .fin-pre-amount { font-size: 13px; font-weight: 600; color: var(--slate-400); }
+    .fin-pre-label { font-size: 10px; color: var(--slate-300); letter-spacing: .03em; }
+    /* contracted, no billing yet */
+    .fin-ready { display: flex; flex-direction: column; gap: 2px; }
+    .fin-ready-amount { font-size: 13px; font-weight: 600; color: var(--slate-700); }
+    .fin-ready-label { font-size: 10px; color: var(--amber); }
+    /* active billing */
+    .fin-active { display: flex; flex-direction: column; gap: 4px; min-width: 100px; }
+    .fin-active-top { display: flex; justify-content: space-between; font-size: 11px; }
+    .fin-active-amount { font-weight: 600; color: var(--slate-700); }
+    .fin-active-pct { font-weight: 700; color: var(--blue); }
+    .mini-bar { height: 5px; background: var(--slate-200); border-radius: 3px; overflow: hidden; }
+    .mini-fill { height: 100%; border-radius: 3px; }
+    .fill-blue   { background: var(--blue); }
+    .fill-green  { background: var(--green); }
+    .fill-orange { background: var(--orange); }
+    .fin-active-sub { font-size: 10px; color: var(--slate-400); }
+    /* completed */
+    .fin-done { display: flex; flex-direction: column; gap: 2px; }
+    .fin-done-amount { font-size: 13px; font-weight: 700; color: var(--green); }
+    .fin-done-label { font-size: 10px; color: var(--green); }
+
+    /* avatars */
+    .av-stack { display: flex; }
+    .av { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 700; color: #fff; margin-left: -6px; }
+    .av:first-child { margin-left: 0; }
+    .av-b  { background: var(--blue); }
+    .av-g  { background: var(--green); }
+    .av-a  { background: var(--amber); }
+    .av-p  { background: var(--purple); }
+    .av-r  { background: var(--red); }
+    .av-m  { background: var(--slate-400); }
+
+    /* freshness */
+    .fresh { font-size: 11px; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+    .fresh-h { background: var(--green-bg); color: var(--green); }   /* < 12h */
+    .fresh-d { background: var(--blue-bg);  color: var(--blue); }    /* 1-3d  */
+    .fresh-w { background: var(--slate-100); color: var(--slate-500); } /* 4-7d */
+    .fresh-s { background: var(--red-bg);   color: var(--red); }     /* > 7d  */
+
+    /* status pills */
+    .s-pill { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 20px; white-space: nowrap; }
+    .sp-inspect  { background: var(--slate-100); color: var(--slate-600); }
+    .sp-proposal { background: var(--purple-bg); color: var(--purple); }
+    .sp-revision { background: var(--amber-bg);  color: #92400e; }
+    .sp-approved { background: var(--green-bg);  color: var(--green); }
+    .sp-mobilize { background: var(--amber-bg);  color: #92400e; }
+    .sp-ongoing  { background: var(--blue-bg);   color: var(--blue); }
+    .sp-complete { background: var(--green-bg);  color: var(--green); }
+    .sp-loss     { background: var(--red-bg);    color: var(--red); }
+
+    /* code badge */
+    .code { font-size: 11px; font-weight: 700; letter-spacing: .04em;
+      color: var(--blue); background: var(--blue-bg);
+      padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+
+    /* ════════════════════════════════════
+       OPTION A — Kanban Pipeline Board
+    ════════════════════════════════════ */
+    .kanban-board {
+      display: flex; gap: 12px; overflow-x: auto;
+      padding-bottom: 12px; align-items: flex-start;
+    }
+    .kol {
+      flex: 0 0 220px; background: var(--slate-100);
+      border-radius: 12px; padding: 12px;
+    }
+    .kol-head {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    }
+    .kol-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .kol-title { font-size: 12px; font-weight: 700; color: var(--slate-700); flex: 1; text-transform: uppercase; letter-spacing: .04em; }
+    .kol-count { font-size: 11px; background: var(--slate-300); color: var(--slate-600);
+      border-radius: 20px; padding: 1px 8px; font-weight: 600; }
+    .kol-sum { font-size: 10px; color: var(--slate-400); margin-top: 2px; }
+
+    .kcard {
+      background: #fff; border-radius: 8px; padding: 12px;
+      margin-bottom: 8px; border: 1px solid var(--border);
+      cursor: pointer; transition: box-shadow .12s, border-color .12s;
+    }
+    .kcard:hover { box-shadow: 0 2px 8px rgba(0,0,0,.1); border-color: var(--slate-300); }
+    .kcard:last-child { margin-bottom: 0; }
+
+    .kcard-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
+    .kcard-name { font-size: 13px; font-weight: 600; color: var(--slate-900); line-height: 1.3; }
+    .kcard-client { font-size: 11px; color: var(--slate-400); margin-bottom: 8px; }
+    .kcard-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+
+    /* day-in-stage badge */
+    .days-badge { font-size: 10px; color: var(--slate-400); }
+    .days-badge.warn { color: var(--amber); font-weight: 600; }
+    .days-badge.alert { color: var(--red); font-weight: 600; }
+
+    /* Kanban col accent colors */
+    .kol.early  { background: #f5f3ff; }
+    .kol.early .kol-dot { background: var(--purple); }
+    .kol.contract { background: #fffbeb; }
+    .kol.contract .kol-dot { background: var(--amber); }
+    .kol.active { background: #eff6ff; }
+    .kol.active .kol-dot { background: var(--blue); }
+    .kol.closed { background: #f0fdf4; }
+    .kol.closed .kol-dot { background: var(--green); }
+    .kol.lost { background: var(--slate-100); opacity: .7; }
+    .kol.lost .kol-dot { background: var(--slate-400); }
+
+    .kol-accentbar {
+      height: 3px; border-radius: 3px; margin-bottom: 12px;
+    }
+    .kol.early .kol-accentbar { background: var(--purple); }
+    .kol.contract .kol-accentbar { background: var(--amber); }
+    .kol.active .kol-accentbar { background: var(--blue); }
+    .kol.closed .kol-accentbar { background: var(--green); }
+    .kol.lost .kol-accentbar { background: var(--slate-300); }
+
+    /* ════════════════════════════════════
+       OPTION B — Stage-Grouped List
+    ════════════════════════════════════ */
+    .group-list { display: flex; flex-direction: column; gap: 16px; }
+    .grp { background: #fff; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .grp-header {
+      padding: 12px 18px; display: flex; align-items: center; gap: 12px;
+      cursor: pointer; user-select: none;
+      border-bottom: 1px solid var(--border);
+    }
+    .grp-header:hover { background: var(--slate-50); }
+    .grp-bar { width: 4px; height: 32px; border-radius: 3px; flex-shrink: 0; }
+    .grp-title { font-size: 14px; font-weight: 700; flex: 1; }
+    .grp-subtitle { font-size: 12px; color: var(--slate-400); }
+    .grp-n { font-size: 12px; font-weight: 600; background: var(--slate-100);
+      color: var(--slate-600); border-radius: 20px; padding: 2px 10px; }
+    .grp-total { font-size: 13px; font-weight: 700; color: var(--slate-700); margin-left: auto; }
+    .grp-chevron { color: var(--slate-400); font-size: 12px; transition: transform .15s; }
+    .grp.collapsed .grp-chevron { transform: rotate(-90deg); }
+    .grp.collapsed .grp-body { display: none; }
+
+    .grp-row {
+      display: grid;
+      grid-template-columns: 80px 1fr 160px 120px auto;
+      gap: 0;
+      align-items: center;
+      padding: 13px 18px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background .1s;
+    }
+    .grp-row:last-child { border-bottom: none; }
+    .grp-row:hover { background: var(--slate-50); }
+    .grp-row-name { font-size: 13px; font-weight: 600; color: var(--slate-900); }
+    .grp-row-client { font-size: 11px; color: var(--slate-400); }
+    .grp-row-fin { padding: 0 16px; }
+    .grp-row-team { display: flex; align-items: center; }
+    .grp-row-act { text-align: right; }
+
+    /* ════════════════════════════════════
+       OPTION C — Portfolio Card Grid
+    ════════════════════════════════════ */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+    }
+    .pcard {
+      background: #fff; border: 1px solid var(--border); border-radius: 12px;
+      overflow: hidden; cursor: pointer;
+      transition: box-shadow .12s, border-color .12s;
+    }
+    .pcard:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); border-color: var(--slate-300); }
+
+    .pcard-top { height: 5px; }
+    .pcard-top.early    { background: linear-gradient(90deg, var(--purple), #a78bfa); }
+    .pcard-top.contract { background: linear-gradient(90deg, var(--amber), #fcd34d); }
+    .pcard-top.active   { background: linear-gradient(90deg, var(--blue), #60a5fa); }
+    .pcard-top.complete { background: linear-gradient(90deg, var(--green), #34d399); }
+    .pcard-top.lost     { background: var(--slate-300); }
+
+    .pcard-body { padding: 14px 16px; }
+    .pcard-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; }
+    .pcard-name { font-size: 14px; font-weight: 700; color: var(--slate-900); line-height: 1.3; flex: 1; padding-right: 8px; }
+    .pcard-client { font-size: 12px; color: var(--slate-400); margin-bottom: 12px; }
+    .pcard-fin { margin-bottom: 12px; }
+    .pcard-foot { display: flex; align-items: center; justify-content: space-between; }
+
+    /* ── Option desc bar ── */
+    .opt-desc {
+      background: #fff; border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px 16px; margin-bottom: 18px;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .opt-tag { font-size: 10px; font-weight: 700; letter-spacing: .06em;
+      color: var(--blue); text-transform: uppercase; white-space: nowrap; margin-top: 1px; }
+    .opt-desc p { font-size: 13px; color: var(--slate-600); line-height: 1.5; }
+
+    /* Notes */
+    .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; }
+    .note-box { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+    .note-box h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+    .note-box.pro h4 { color: var(--green); }
+    .note-box.con h4 { color: var(--amber); }
+    .note-list { list-style: none; }
+    .note-list li { font-size: 12px; color: var(--slate-600); padding: 3px 0;
+      display: flex; gap: 6px; line-height: 1.4; }
+    .note-list li::before { content: '·'; color: var(--slate-300); flex-shrink: 0; }
+
+    /* ── Option D: Attention Feed ── */
+    .attn-section { margin-bottom: 16px; }
+    .attn-hdr {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; border-radius: 8px 8px 0 0;
+      border: 1px solid var(--border); border-bottom: none;
+    }
+    .attn-hdr-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .attn-hdr-title { font-size: 13px; font-weight: 700; flex: 1; }
+    .attn-hdr-n { font-size: 11px; font-weight: 600; padding: 2px 10px; border-radius: 20px; }
+    .attn-hdr.urgent { background: #fff5f5; }
+    .attn-hdr.urgent .attn-hdr-title { color: var(--red); }
+    .attn-hdr.urgent .attn-hdr-n { background: var(--red-bg); color: var(--red); }
+    .attn-hdr.watch { background: #fffbeb; }
+    .attn-hdr.watch .attn-hdr-title { color: #92400e; }
+    .attn-hdr.watch .attn-hdr-n { background: var(--amber-bg); color: #92400e; }
+    .attn-hdr.ok { background: #f0fdf4; }
+    .attn-hdr.ok .attn-hdr-title { color: var(--green); }
+    .attn-hdr.ok .attn-hdr-n { background: var(--green-bg); color: var(--green); }
+
+    .attn-list { border: 1px solid var(--border); border-radius: 0 0 8px 8px; background: #fff; overflow: hidden; }
+    .attn-row {
+      display: grid;
+      grid-template-columns: 200px 1fr 160px 130px;
+      align-items: center;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background .1s;
+      border-left: 4px solid transparent;
+    }
+    .attn-row:last-child { border-bottom: none; }
+    .attn-row:hover { background: var(--slate-50); }
+    .attn-row.urgent { border-left-color: var(--red); }
+    .attn-row.watch  { border-left-color: var(--amber); }
+    .attn-row.ok     { border-left-color: var(--green); }
+
+    .attn-signal-text { font-size: 12px; font-weight: 700; margin-bottom: 3px; }
+    .attn-signal-text.urgent { color: var(--red); }
+    .attn-signal-text.watch  { color: #b45309; }
+    .attn-signal-text.ok     { color: var(--green); }
+    .attn-hint { font-size: 11px; color: var(--slate-400); font-style: italic; }
+    .attn-name { font-size: 13px; font-weight: 600; color: var(--slate-900); margin-bottom: 3px; }
+    .attn-meta { display: flex; align-items: center; gap: 8px; }
+    .attn-client-sm { font-size: 11px; color: var(--slate-400); }
+    .attn-fin { padding: 0 12px; }
+    .attn-team { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+
+    /* ── Option E: Swimlane Timeline ── */
+    .swim-outer { background: #fff; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .swim-head {
+      display: flex; align-items: stretch;
+      border-bottom: 2px solid var(--border);
+      background: var(--slate-50);
+    }
+    .swim-label-head {
+      width: 230px; flex-shrink: 0; padding: 10px 16px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--slate-400);
+      border-right: 1px solid var(--border);
+      display: flex; align-items: center;
+    }
+    .swim-months-head { flex: 1; display: flex; }
+    .swim-mo {
+      flex: 1; text-align: center; padding: 10px 0;
+      font-size: 10px; font-weight: 700; color: var(--slate-400);
+      letter-spacing: .04em; text-transform: uppercase;
+      border-right: 1px solid var(--border);
+    }
+    .swim-mo:last-child { border-right: none; }
+
+    .swim-row {
+      display: flex; align-items: center;
+      border-bottom: 1px solid var(--border); min-height: 56px;
+    }
+    .swim-row:last-child { border-bottom: none; }
+    .swim-row:hover .swim-bar-area { background: #f8faff; }
+
+    .swim-label {
+      width: 230px; flex-shrink: 0; padding: 10px 16px;
+      border-right: 1px solid var(--border);
+    }
+    .swim-pname { font-size: 13px; font-weight: 600; color: var(--slate-900); }
+    .swim-pclient { font-size: 11px; color: var(--slate-400); }
+
+    .swim-bar-area {
+      flex: 1; position: relative; height: 56px;
+      transition: background .1s;
+      /* 6 vertical month guides: 6 equal divisions */
+      background-image: repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent calc(100%/6 - 1px),
+        var(--border) calc(100%/6 - 1px),
+        var(--border) calc(100%/6)
+      );
+    }
+
+    .swim-band {
+      position: absolute; height: 26px; border-radius: 4px;
+      top: 50%; transform: translateY(-50%); z-index: 2;
+      transition: opacity .1s;
+    }
+    .swim-row:hover .swim-band { opacity: .9; }
+    .b-inspect  { background: #d1d5db; }
+    .b-proposal { background: #a78bfa; }
+    .b-review   { background: #7c3aed; }
+    .b-revision { background: var(--amber); }
+    .b-approved { background: #34d399; }
+    .b-mobilize { background: var(--orange); }
+    .b-ongoing  { background: var(--blue); }
+    .b-complete { background: var(--green); }
+
+    /* "Today" vertical hairline — positioned at 88.33% of bar area */
+    .today-marker {
+      position: absolute; top: 4px; bottom: 4px; width: 2px;
+      left: 88.33%; background: var(--red); border-radius: 2px; z-index: 10;
+    }
+    .today-marker::before {
+      content: 'Today'; position: absolute; bottom: 100%; left: 50%;
+      transform: translateX(-50%); margin-bottom: 3px;
+      font-size: 9px; font-weight: 700; color: var(--red); white-space: nowrap;
+    }
+
+    .swim-status-col { width: 150px; flex-shrink: 0; padding: 0 14px; }
+
+    .swim-legend {
+      padding: 12px 16px; background: var(--slate-50);
+      border-top: 1px solid var(--border);
+      display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+    }
+    .swim-legend-title { font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .05em; color: var(--slate-400); margin-right: 4px; }
+    .leg-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--slate-500); }
+    .leg-swatch { width: 14px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+    /* ── Completed with retention pending ── */
+    .fin-ret { display: flex; flex-direction: column; gap: 4px; min-width: 110px; }
+    .fin-ret-top { display: flex; justify-content: space-between; font-size: 11px; }
+    .fin-ret-amount { font-weight: 600; color: var(--slate-700); }
+    .fin-ret-pct { font-weight: 700; color: var(--green); }
+    .fin-ret-bar { height: 5px; border-radius: 3px; overflow: hidden; display: flex; }
+    .fin-ret-billed { height: 100%; background: var(--green); }
+    .fin-ret-held { height: 100%; background: var(--amber); }
+    .fin-ret-held.overdue { background: var(--red); }
+    .fin-ret-sub { font-size: 10px; font-weight: 600; color: var(--amber); }
+    .fin-ret-sub.overdue { color: var(--red); }
+    /* retention badge inline chip */
+    .ret-chip { display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 700; border-radius: 4px;
+      padding: 2px 7px; white-space: nowrap; }
+    .ret-chip.dlp { background: var(--amber-bg); color: #92400e; }
+    .ret-chip.overdue { background: var(--red-bg); color: var(--red); }
+    .ret-chip.released { background: var(--green-bg); color: var(--green); }
+
+    /* ── D+B Combo: view-mode toggle ── */
+    .vm-toggle { display: flex; border: 1.5px solid var(--green); border-radius: 8px; overflow: hidden; }
+    .vm-btn { border: none; background: #fff; cursor: pointer;
+      padding: 6px 14px; font-size: 12px; font-weight: 600; color: var(--green);
+      border-right: 1.5px solid var(--green); transition: all .12s; white-space: nowrap; }
+    .vm-btn:last-child { border-right: none; }
+    .vm-btn.vm-on { background: var(--green); color: #fff; }
+    .vm-label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--green); padding: 0 4px; align-self: center; }
+
+    /* combo recommendation banner */
+    .combo-banner {
+      background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);
+      border: 1.5px solid var(--green); border-radius: 10px;
+      padding: 14px 18px; margin-bottom: 18px;
+      display: flex; align-items: flex-start; gap: 14px;
+    }
+    .combo-star { font-size: 22px; flex-shrink: 0; line-height: 1; }
+    .combo-banner h3 { font-size: 14px; font-weight: 700; color: var(--slate-900); margin-bottom: 4px; }
+    .combo-banner p { font-size: 13px; color: var(--slate-600); line-height: 1.5; }
+    .combo-mode-hint {
+      display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap;
+    }
+    .mode-chip {
+      display: flex; align-items: center; gap: 6px; font-size: 12px;
+      background: #fff; border-radius: 20px; padding: 4px 12px;
+      border: 1px solid var(--border); color: var(--slate-700);
+    }
+    .mode-chip-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  </style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>Projects</h1>
+  <span class="spike-tag" style="margin-right:16px">SPIKE 033 v2</span>
+  <div class="switcher">
+    <button class="sw-btn on" onclick="sw('a',this)">A · Kanban</button>
+    <button class="sw-btn"    onclick="sw('b',this)">B · Grouped List</button>
+    <button class="sw-btn"    onclick="sw('c',this)">C · Card Grid</button>
+    <button class="sw-btn"    onclick="sw('d',this)">D · Attention Feed</button>
+    <button class="sw-btn"    onclick="sw('e',this)">E · Swimlane</button>
+    <button class="sw-btn"    onclick="sw('db',this)" style="background:#f0fdf4;color:var(--green);font-weight:700">D+B · Combo ★</button>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- ══════════════════════════════════════ OPTION A ══ -->
+<div id="pa" class="panel on">
+  <div class="opt-desc">
+    <span class="opt-tag">Option A</span>
+    <p><strong>Kanban Pipeline Board</strong> — Projects flow left to right across lifecycle columns. Management sees the distribution in seconds: how many are stuck in proposals, what's mobilizing, what's active. Each card shows the project, client, team, days in stage (turns amber/red when stale), and a stage-aware financial indicator. No contract value shown until one actually exists.</p>
+  </div>
+
+  <div class="sc-strip">
+    <div class="sc ongoing"><div class="sc-n">3</div><div class="sc-l">On-going</div></div>
+    <div class="sc mobilize"><div class="sc-n">1</div><div class="sc-l">Mobilizing</div></div>
+    <div class="sc proposal"><div class="sc-n">3</div><div class="sc-l">Proposal Stage</div></div>
+    <div class="sc"><div class="sc-n">1</div><div class="sc-l">Inspection</div></div>
+    <div class="sc complete"><div class="sc-n">1</div><div class="sc-l">Completed</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input class="s-input" placeholder="Search projects…" />
+    <select class="s-select"><option>All Clients</option><option>DPWH</option><option>JG Summit</option></select>
+    <button class="add-btn">+ New Project</button>
+  </div>
+
+  <div class="kanban-board">
+
+    <!-- Col 1: Inspection & Proposal -->
+    <div class="kol early" style="flex: 0 0 230px">
+      <div class="kol-accentbar"></div>
+      <div class="kol-head">
+        <div class="kol-dot"></div>
+        <div>
+          <div class="kol-title">Inspection & Proposal</div>
+          <div class="kol-sum">For Inspection · For Proposal · Internal Approval</div>
+        </div>
+        <span class="kol-count">3</span>
+      </div>
+
+      <!-- P-005: For Inspection, no value -->
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">Clark Logistics Terminal</div>
+            <div class="kcard-client">Clark Dev Corp</div>
+          </div>
+          <span class="code">P-005</span>
+        </div>
+        <span class="s-pill sp-inspect">For Inspection</span>
+        <div class="kcard-foot">
+          <div class="fin-pre">
+            <div class="fin-pre-amount">—</div>
+            <div class="fin-pre-label">Pre-contract</div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px">
+            <div class="av-stack">
+              <div class="av av-a">NR</div>
+            </div>
+            <span class="days-badge warn">12d in stage</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- P-007: For Proposal -->
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">Batangas Cold Storage Facility</div>
+            <div class="kcard-client">Del Monte PH</div>
+          </div>
+          <span class="code">P-007</span>
+        </div>
+        <span class="s-pill sp-proposal">For Proposal</span>
+        <div class="kcard-foot">
+          <div class="fin-pre">
+            <div class="fin-pre-amount">Est. ₱5.8M</div>
+            <div class="fin-pre-label">Estimated budget</div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px">
+            <div class="av-stack">
+              <div class="av av-b">KM</div>
+              <div class="av av-g">LR</div>
+            </div>
+            <span class="days-badge">5d in stage</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- P-008: Internal Approval -->
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">Pampanga Processing Plant</div>
+            <div class="kcard-client">San Miguel Corp</div>
+          </div>
+          <span class="code">P-008</span>
+        </div>
+        <span class="s-pill sp-proposal">Internal Approval</span>
+        <div class="kcard-foot">
+          <div class="fin-pre">
+            <div class="fin-pre-amount">Est. ₱11.2M</div>
+            <div class="fin-pre-label">Proposal draft</div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px">
+            <div class="av-stack">
+              <div class="av av-p">TG</div>
+            </div>
+            <span class="days-badge">2d in stage</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Col 2: Client Review & Revision -->
+    <div class="kol early" style="flex: 0 0 230px">
+      <div class="kol-accentbar"></div>
+      <div class="kol-head">
+        <div class="kol-dot"></div>
+        <div>
+          <div class="kol-title">Client Review</div>
+          <div class="kol-sum">Client Review · For Revision</div>
+        </div>
+        <span class="kol-count">2</span>
+      </div>
+
+      <!-- P-003: Client Review -->
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">Metro Davao Distribution Hub</div>
+            <div class="kcard-client">SM Group</div>
+          </div>
+          <span class="code">P-003</span>
+        </div>
+        <span class="s-pill sp-proposal">Client Review</span>
+        <div class="kcard-foot">
+          <div class="fin-pre">
+            <div class="fin-pre-amount">Proposed ₱8.2M</div>
+            <div class="fin-pre-label">Awaiting client decision</div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px">
+            <div class="av-stack">
+              <div class="av av-b">AG</div>
+            </div>
+            <span class="days-badge alert">18d in stage</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- P-009: For Revision -->
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">Leyte Substation Upgrade</div>
+            <div class="kcard-client">Meralco</div>
+          </div>
+          <span class="code">P-009</span>
+        </div>
+        <span class="s-pill sp-revision">For Revision</span>
+        <div class="kcard-foot">
+          <div class="fin-pre">
+            <div class="fin-pre-amount">Proposed ₱3.1M</div>
+            <div class="fin-pre-label">Revision requested</div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px">
+            <div class="av-stack">
+              <div class="av av-g">RV</div>
+              <div class="av av-b">DP</div>
+            </div>
+            <span class="days-badge warn">7d in stage</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Col 3: Approved / Mobilizing -->
+    <div class="kol contract">
+      <div class="kol-accentbar"></div>
+      <div class="kol-head">
+        <div class="kol-dot"></div>
+        <div>
+          <div class="kol-title">Contracted</div>
+          <div class="kol-sum">Client Approved · For Mobilization</div>
+        </div>
+        <span class="kol-count">2</span>
+      </div>
+
+      <!-- P-002: For Mobilization, contract signed -->
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">Mandaue Warehouse Fitout</div>
+            <div class="kcard-client">JG Summit</div>
+          </div>
+          <span class="code">P-002</span>
+        </div>
+        <span class="s-pill sp-mobilize">For Mobilization</span>
+        <div class="kcard-foot">
+          <div class="fin-ready">
+            <div class="fin-ready-amount">₱4,500,000</div>
+            <div class="fin-ready-label">Contract signed · billing pending</div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px">
+            <div class="av-stack">
+              <div class="av av-p">CL</div>
+              <div class="av av-a">BC</div>
+            </div>
+            <span class="days-badge">3d in stage</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- P-010: Client Approved, not yet mobilized -->
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">GenSan Fish Port Renovation</div>
+            <div class="kcard-client">PFDA</div>
+          </div>
+          <span class="code">P-010</span>
+        </div>
+        <span class="s-pill sp-approved">Client Approved</span>
+        <div class="kcard-foot">
+          <div class="fin-ready">
+            <div class="fin-ready-amount">₱9,750,000</div>
+            <div class="fin-ready-label">Contract signed · mobilizing soon</div>
+          </div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px">
+            <div class="av-stack">
+              <div class="av av-b">SR</div>
+            </div>
+            <span class="days-badge">1d in stage</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Col 4: On-going -->
+    <div class="kol active">
+      <div class="kol-accentbar"></div>
+      <div class="kol-head">
+        <div class="kol-dot"></div>
+        <div>
+          <div class="kol-title">On-going</div>
+          <div class="kol-sum">Active execution</div>
+        </div>
+        <span class="kol-count">3</span>
+      </div>
+
+      <!-- P-001: On-going, 80% -->
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">Cebu Port Expansion</div>
+            <div class="kcard-client">DPWH</div>
+          </div>
+          <span class="code">P-001</span>
+        </div>
+        <div class="fin-active" style="margin:8px 0">
+          <div class="fin-active-top">
+            <span class="fin-active-amount">₱15,000,000</span>
+            <span class="fin-active-pct">80%</span>
+          </div>
+          <div class="mini-bar"><div class="mini-fill fill-blue" style="width:80%"></div></div>
+          <div class="fin-active-sub">₱12M billed of contract</div>
+        </div>
+        <div class="kcard-foot">
+          <span class="fresh fresh-h">2h ago</span>
+          <div class="av-stack">
+            <div class="av av-b">JR</div>
+            <div class="av av-g">MS</div>
+            <div class="av av-m">+1</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P-004: On-going, 86% -->
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">Iloilo Retail Renovation</div>
+            <div class="kcard-client">Ayala Corp</div>
+          </div>
+          <span class="code">P-004</span>
+        </div>
+        <div class="fin-active" style="margin:8px 0">
+          <div class="fin-active-top">
+            <span class="fin-active-amount">₱7,000,000</span>
+            <span class="fin-active-pct">86%</span>
+          </div>
+          <div class="mini-bar"><div class="mini-fill fill-blue" style="width:86%"></div></div>
+          <div class="fin-active-sub">₱6M billed of contract</div>
+        </div>
+        <div class="kcard-foot">
+          <span class="fresh fresh-h">5h ago</span>
+          <div class="av-stack">
+            <div class="av av-g">RT</div>
+            <div class="av av-b">EF</div>
+            <div class="av av-m">+2</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P-011: On-going, 40% -->
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">Quezon City Admin Building</div>
+            <div class="kcard-client">QCGOV</div>
+          </div>
+          <span class="code">P-011</span>
+        </div>
+        <div class="fin-active" style="margin:8px 0">
+          <div class="fin-active-top">
+            <span class="fin-active-amount">₱31,000,000</span>
+            <span class="fin-active-pct" style="color:var(--orange)">40%</span>
+          </div>
+          <div class="mini-bar"><div class="mini-fill fill-orange" style="width:40%"></div></div>
+          <div class="fin-active-sub">₱12.4M billed of contract</div>
+        </div>
+        <div class="kcard-foot">
+          <span class="fresh fresh-s">9d ago</span>
+          <div class="av-stack">
+            <div class="av av-r">PL</div>
+            <div class="av av-b">VC</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Col 5: Completed -->
+    <div class="kol closed">
+      <div class="kol-accentbar"></div>
+      <div class="kol-head">
+        <div class="kol-dot"></div>
+        <div>
+          <div class="kol-title">Completed</div>
+          <div class="kol-sum">Closed out</div>
+        </div>
+        <span class="kol-count">1</span>
+      </div>
+      <div class="kcard">
+        <div class="kcard-top">
+          <div>
+            <div class="kcard-name">Panay Commercial Complex</div>
+            <div class="kcard-client">Megaworld</div>
+          </div>
+          <span class="code">P-006</span>
+        </div>
+        <div class="fin-done" style="margin:8px 0">
+          <div class="fin-done-amount">₱18,500,000</div>
+          <div class="fin-done-label">Fully billed · 100% ✓</div>
+        </div>
+        <div class="kcard-foot">
+          <span class="fresh fresh-s">12d ago</span>
+          <div class="av-stack">
+            <div class="av av-p">JD</div>
+            <div class="av av-g">PB</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /kanban-board -->
+
+  <div class="notes">
+    <div class="note-box pro">
+      <h4>Strengths</h4>
+      <ul class="note-list">
+        <li>Pipeline distribution visible instantly — management sees at a glance if too many projects are stuck in proposals</li>
+        <li>Days-in-stage turns amber/red — stale proposals surface without anyone having to look for them</li>
+        <li>Stage-aware finance is natural here: early columns show "Pre-contract" / "Proposed ₱X", active columns show billing bars. No awkward empty value.</li>
+        <li>Scales well — 15-20 projects across 5 columns feels intentional, not cramped</li>
+      </ul>
+    </div>
+    <div class="note-box con">
+      <h4>Trade-offs</h4>
+      <ul class="note-list">
+        <li>Requires horizontal scroll on smaller screens — board patterns are desktop-native</li>
+        <li>Sorting within columns is implicit (recency) — no column headers to click for multi-field sort</li>
+        <li>Replaces the current flat table entirely — bigger migration than adding columns</li>
+      </ul>
+    </div>
+  </div>
+</div><!-- /pa -->
+
+
+<!-- ══════════════════════════════════════ OPTION B ══ -->
+<div id="pb" class="panel">
+  <div class="opt-desc">
+    <span class="opt-tag">Option B</span>
+    <p><strong>Stage-Grouped List</strong> — Projects are grouped under collapsible stage sections, each with a count and aggregate contract value. Management can collapse "Completed" and focus on what's live. Within each group, rows are richer than the current table but still fast to scan. Stage-aware finance is clean because every row is already within its stage context — pre-contract groups don't pretend to have a contract value.</p>
+  </div>
+
+  <div class="sc-strip">
+    <div class="sc ongoing"><div class="sc-n">3</div><div class="sc-l">On-going</div></div>
+    <div class="sc mobilize"><div class="sc-n">1</div><div class="sc-l">Mobilizing</div></div>
+    <div class="sc proposal"><div class="sc-n">3</div><div class="sc-l">Proposal Stage</div></div>
+    <div class="sc"><div class="sc-n">1</div><div class="sc-l">Inspection</div></div>
+    <div class="sc complete"><div class="sc-n">1</div><div class="sc-l">Completed</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input class="s-input" placeholder="Search projects…" />
+    <select class="s-select"><option>All Clients</option></select>
+    <button class="add-btn">+ New Project</button>
+  </div>
+
+  <div class="group-list">
+
+    <!-- Group: On-going -->
+    <div class="grp">
+      <div class="grp-header">
+        <div class="grp-bar" style="background:var(--blue)"></div>
+        <div>
+          <div class="grp-title">On-going</div>
+          <div class="grp-subtitle">Active execution · billing in progress</div>
+        </div>
+        <span class="grp-n">3</span>
+        <span class="grp-total">₱53M active</span>
+        <span class="grp-chevron">▾</span>
+      </div>
+      <div class="grp-body">
+        <!-- headers -->
+        <div style="display:grid; grid-template-columns:80px 1fr 160px 120px auto;
+          gap:0; padding:7px 18px; border-bottom:1px solid var(--border); background:var(--slate-50)">
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase">Code</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase">Project · Client</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase; padding-left:16px">Contract · Billed</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase">Team</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase; text-align:right">Updated</span>
+        </div>
+        <div class="grp-row">
+          <span class="code">P-001</span>
+          <div class="grp-row-name">Cebu Port Expansion<div class="grp-row-client">DPWH</div></div>
+          <div class="grp-row-fin">
+            <div class="fin-active">
+              <div class="fin-active-top"><span class="fin-active-amount">₱15,000,000</span><span class="fin-active-pct">80%</span></div>
+              <div class="mini-bar"><div class="mini-fill fill-blue" style="width:80%"></div></div>
+              <div class="fin-active-sub">₱12M billed</div>
+            </div>
+          </div>
+          <div class="grp-row-team">
+            <div class="av-stack"><div class="av av-b">JR</div><div class="av av-g">MS</div><div class="av av-m">+1</div></div>
+          </div>
+          <div class="grp-row-act"><span class="fresh fresh-h">2h ago</span></div>
+        </div>
+        <div class="grp-row">
+          <span class="code">P-004</span>
+          <div class="grp-row-name">Iloilo Retail Renovation<div class="grp-row-client">Ayala Corp</div></div>
+          <div class="grp-row-fin">
+            <div class="fin-active">
+              <div class="fin-active-top"><span class="fin-active-amount">₱7,000,000</span><span class="fin-active-pct">86%</span></div>
+              <div class="mini-bar"><div class="mini-fill fill-blue" style="width:86%"></div></div>
+              <div class="fin-active-sub">₱6M billed</div>
+            </div>
+          </div>
+          <div class="grp-row-team">
+            <div class="av-stack"><div class="av av-g">RT</div><div class="av av-b">EF</div><div class="av av-m">+2</div></div>
+          </div>
+          <div class="grp-row-act"><span class="fresh fresh-h">5h ago</span></div>
+        </div>
+        <div class="grp-row">
+          <span class="code">P-011</span>
+          <div class="grp-row-name">Quezon City Admin Building<div class="grp-row-client">QCGOV</div></div>
+          <div class="grp-row-fin">
+            <div class="fin-active">
+              <div class="fin-active-top"><span class="fin-active-amount">₱31,000,000</span><span class="fin-active-pct" style="color:var(--orange)">40%</span></div>
+              <div class="mini-bar"><div class="mini-fill fill-orange" style="width:40%"></div></div>
+              <div class="fin-active-sub">₱12.4M billed</div>
+            </div>
+          </div>
+          <div class="grp-row-team">
+            <div class="av-stack"><div class="av av-r">PL</div><div class="av av-b">VC</div></div>
+          </div>
+          <div class="grp-row-act"><span class="fresh fresh-s">9d ago</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group: Contracted / Mobilizing -->
+    <div class="grp">
+      <div class="grp-header">
+        <div class="grp-bar" style="background:var(--amber)"></div>
+        <div>
+          <div class="grp-title">Contracted & Mobilizing</div>
+          <div class="grp-subtitle">Client Approved · For Mobilization</div>
+        </div>
+        <span class="grp-n">2</span>
+        <span class="grp-total">₱14.25M contracted</span>
+        <span class="grp-chevron">▾</span>
+      </div>
+      <div class="grp-body">
+        <div style="display:grid; grid-template-columns:80px 1fr 160px 120px auto;
+          gap:0; padding:7px 18px; border-bottom:1px solid var(--border); background:var(--slate-50)">
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase">Code</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase">Project · Client</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase; padding-left:16px">Contract Value</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase">Team</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase; text-align:right">Updated</span>
+        </div>
+        <div class="grp-row">
+          <span class="code">P-002</span>
+          <div class="grp-row-name">Mandaue Warehouse Fitout<div class="grp-row-client">JG Summit</div></div>
+          <div class="grp-row-fin"><div class="fin-ready"><div class="fin-ready-amount">₱4,500,000</div><div class="fin-ready-label">Billing not yet started</div></div></div>
+          <div class="grp-row-team"><div class="av-stack"><div class="av av-p">CL</div><div class="av av-a">BC</div></div></div>
+          <div class="grp-row-act"><span class="fresh fresh-d">1d ago</span></div>
+        </div>
+        <div class="grp-row">
+          <span class="code">P-010</span>
+          <div class="grp-row-name">GenSan Fish Port Renovation<div class="grp-row-client">PFDA</div></div>
+          <div class="grp-row-fin"><div class="fin-ready"><div class="fin-ready-amount">₱9,750,000</div><div class="fin-ready-label">Billing not yet started</div></div></div>
+          <div class="grp-row-team"><div class="av-stack"><div class="av av-b">SR</div></div></div>
+          <div class="grp-row-act"><span class="fresh fresh-h">3h ago</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group: Proposal / Client Review -->
+    <div class="grp">
+      <div class="grp-header">
+        <div class="grp-bar" style="background:var(--purple)"></div>
+        <div>
+          <div class="grp-title">Proposal Stage</div>
+          <div class="grp-subtitle">For Proposal · Internal Approval · Client Review · For Revision</div>
+        </div>
+        <span class="grp-n">4</span>
+        <span class="grp-total">₱28.3M proposed</span>
+        <span class="grp-chevron">▾</span>
+      </div>
+      <div class="grp-body">
+        <div style="display:grid; grid-template-columns:80px 1fr 160px 120px auto;
+          gap:0; padding:7px 18px; border-bottom:1px solid var(--border); background:var(--slate-50)">
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase">Code</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase">Project · Client</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase; padding-left:16px">Proposed Value</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase">Owner</span>
+          <span style="font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--slate-400); text-transform:uppercase; text-align:right">Days in stage</span>
+        </div>
+        <div class="grp-row">
+          <span class="code">P-003</span>
+          <div><div class="grp-row-name">Metro Davao Distribution Hub<div class="grp-row-client">SM Group</div></div></div>
+          <div class="grp-row-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--slate-600)">₱8,200,000</div><div class="fin-pre-label">Proposed — not signed</div></div></div>
+          <div class="grp-row-team"><div class="av-stack"><div class="av av-b">AG</div></div></div>
+          <div class="grp-row-act"><span class="fresh fresh-s" style="font-size:12px; font-weight:700">18d ⚠</span></div>
+        </div>
+        <div class="grp-row">
+          <span class="code">P-007</span>
+          <div><div class="grp-row-name">Batangas Cold Storage Facility<div class="grp-row-client">Del Monte PH</div></div></div>
+          <div class="grp-row-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--slate-600)">₱5,800,000</div><div class="fin-pre-label">Estimated budget</div></div></div>
+          <div class="grp-row-team"><div class="av-stack"><div class="av av-b">KM</div><div class="av av-g">LR</div></div></div>
+          <div class="grp-row-act"><span class="fresh fresh-d">5d</span></div>
+        </div>
+        <div class="grp-row">
+          <span class="code">P-008</span>
+          <div><div class="grp-row-name">Pampanga Processing Plant<div class="grp-row-client">San Miguel Corp</div></div></div>
+          <div class="grp-row-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--slate-600)">₱11,200,000</div><div class="fin-pre-label">Proposed — pending internal review</div></div></div>
+          <div class="grp-row-team"><div class="av-stack"><div class="av av-p">TG</div></div></div>
+          <div class="grp-row-act"><span class="fresh fresh-d">2d</span></div>
+        </div>
+        <div class="grp-row">
+          <span class="code">P-009</span>
+          <div><div class="grp-row-name">Leyte Substation Upgrade<div class="grp-row-client">Meralco</div></div></div>
+          <div class="grp-row-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--amber)">₱3,100,000</div><div class="fin-pre-label">For revision</div></div></div>
+          <div class="grp-row-team"><div class="av-stack"><div class="av av-g">RV</div><div class="av av-b">DP</div></div></div>
+          <div class="grp-row-act"><span class="fresh fresh-w">7d</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Group: Inspection (collapsed by default) -->
+    <div class="grp collapsed">
+      <div class="grp-header">
+        <div class="grp-bar" style="background:var(--slate-300)"></div>
+        <div>
+          <div class="grp-title">For Inspection</div>
+          <div class="grp-subtitle">Site visits not yet completed</div>
+        </div>
+        <span class="grp-n">1</span>
+        <span class="grp-total" style="color:var(--slate-400)">No contract value</span>
+        <span class="grp-chevron">▾</span>
+      </div>
+      <div class="grp-body"></div>
+    </div>
+
+    <!-- Group: Completed (collapsed) -->
+    <div class="grp collapsed">
+      <div class="grp-header">
+        <div class="grp-bar" style="background:var(--green)"></div>
+        <div>
+          <div class="grp-title">Completed</div>
+          <div class="grp-subtitle">Closed · fully billed</div>
+        </div>
+        <span class="grp-n">1</span>
+        <span class="grp-total" style="color:var(--green)">₱18.5M collected</span>
+        <span class="grp-chevron">▾</span>
+      </div>
+      <div class="grp-body"></div>
+    </div>
+
+  </div><!-- /group-list -->
+
+  <div class="notes">
+    <div class="note-box pro">
+      <h4>Strengths</h4>
+      <ul class="note-list">
+        <li>Stage context is built into the grouping — so the finance column label changes per group ("Contract · Billed" vs "Proposed Value" vs "No contract value") naturally</li>
+        <li>Collapsible sections let management focus — keep Completed collapsed, see only live work</li>
+        <li>Group header shows aggregate value — "₱53M active" at a glance before even opening the rows</li>
+        <li>Familiar table feel within each group — no relearning required</li>
+        <li>Days-in-stage replaces the "Active" column in early-stage groups — more actionable signal</li>
+      </ul>
+    </div>
+    <div class="note-box con">
+      <h4>Trade-offs</h4>
+      <ul class="note-list">
+        <li>Cross-group sorting (e.g. sort all projects by contract value) not easily doable</li>
+        <li>More vertical space than the current flat table — longer page</li>
+        <li>Collapse state needs to persist (localStorage) or management will expand/collapse every session</li>
+      </ul>
+    </div>
+  </div>
+</div><!-- /pb -->
+
+
+<!-- ══════════════════════════════════════ OPTION C ══ -->
+<div id="pc" class="panel">
+  <div class="opt-desc">
+    <span class="opt-tag">Option C</span>
+    <p><strong>Portfolio Card Grid</strong> — A responsive 3-column grid of project cards. Each card has a color-coded top strip (purple = proposal, amber = mobilizing, blue = active, green = done), the project identity, a stage-aware financial block, team avatars, and a freshness badge. Management sees the full portfolio simultaneously — no scrolling through a long table. Best when the portfolio is ≤ 20 projects.</p>
+  </div>
+
+  <div class="sc-strip">
+    <div class="sc ongoing"><div class="sc-n">3</div><div class="sc-l">On-going</div></div>
+    <div class="sc mobilize"><div class="sc-n">1</div><div class="sc-l">Mobilizing</div></div>
+    <div class="sc proposal"><div class="sc-n">3</div><div class="sc-l">Proposal Stage</div></div>
+    <div class="sc"><div class="sc-n">1</div><div class="sc-l">Inspection</div></div>
+    <div class="sc complete"><div class="sc-n">1</div><div class="sc-l">Completed</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input class="s-input" placeholder="Search projects…" />
+    <select class="s-select"><option>All Clients</option></select>
+    <button class="add-btn">+ New Project</button>
+  </div>
+
+  <div class="card-grid">
+
+    <!-- P-001: On-going 80% -->
+    <div class="pcard">
+      <div class="pcard-top active"></div>
+      <div class="pcard-body">
+        <div class="pcard-head">
+          <div class="pcard-name">Cebu Port Expansion</div>
+          <span class="code">P-001</span>
+        </div>
+        <div class="pcard-client">DPWH · <span class="s-pill sp-ongoing">On-going</span></div>
+        <div class="pcard-fin">
+          <div class="fin-active">
+            <div class="fin-active-top"><span class="fin-active-amount">₱15,000,000</span><span class="fin-active-pct">80%</span></div>
+            <div class="mini-bar"><div class="mini-fill fill-blue" style="width:80%"></div></div>
+            <div class="fin-active-sub">₱12M billed of contract</div>
+          </div>
+        </div>
+        <div class="pcard-foot">
+          <div class="av-stack"><div class="av av-b">JR</div><div class="av av-g">MS</div><div class="av av-m">+1</div></div>
+          <span class="fresh fresh-h">2h ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P-011: On-going 40% -->
+    <div class="pcard">
+      <div class="pcard-top active"></div>
+      <div class="pcard-body">
+        <div class="pcard-head">
+          <div class="pcard-name">Quezon City Admin Building</div>
+          <span class="code">P-011</span>
+        </div>
+        <div class="pcard-client">QCGOV · <span class="s-pill sp-ongoing">On-going</span></div>
+        <div class="pcard-fin">
+          <div class="fin-active">
+            <div class="fin-active-top"><span class="fin-active-amount">₱31,000,000</span><span class="fin-active-pct" style="color:var(--orange)">40%</span></div>
+            <div class="mini-bar"><div class="mini-fill fill-orange" style="width:40%"></div></div>
+            <div class="fin-active-sub">₱12.4M billed of contract</div>
+          </div>
+        </div>
+        <div class="pcard-foot">
+          <div class="av-stack"><div class="av av-r">PL</div><div class="av av-b">VC</div></div>
+          <span class="fresh fresh-s">9d ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P-004: On-going 86% -->
+    <div class="pcard">
+      <div class="pcard-top active"></div>
+      <div class="pcard-body">
+        <div class="pcard-head">
+          <div class="pcard-name">Iloilo Retail Renovation</div>
+          <span class="code">P-004</span>
+        </div>
+        <div class="pcard-client">Ayala Corp · <span class="s-pill sp-ongoing">On-going</span></div>
+        <div class="pcard-fin">
+          <div class="fin-active">
+            <div class="fin-active-top"><span class="fin-active-amount">₱7,000,000</span><span class="fin-active-pct">86%</span></div>
+            <div class="mini-bar"><div class="mini-fill fill-blue" style="width:86%"></div></div>
+            <div class="fin-active-sub">₱6M billed of contract</div>
+          </div>
+        </div>
+        <div class="pcard-foot">
+          <div class="av-stack"><div class="av av-g">RT</div><div class="av av-b">EF</div><div class="av av-m">+2</div></div>
+          <span class="fresh fresh-h">5h ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P-002: For Mobilization -->
+    <div class="pcard">
+      <div class="pcard-top contract"></div>
+      <div class="pcard-body">
+        <div class="pcard-head">
+          <div class="pcard-name">Mandaue Warehouse Fitout</div>
+          <span class="code">P-002</span>
+        </div>
+        <div class="pcard-client">JG Summit · <span class="s-pill sp-mobilize">For Mobilization</span></div>
+        <div class="pcard-fin">
+          <div class="fin-ready">
+            <div class="fin-ready-amount">₱4,500,000</div>
+            <div class="fin-ready-label">Contract signed · billing not started</div>
+          </div>
+        </div>
+        <div class="pcard-foot">
+          <div class="av-stack"><div class="av av-p">CL</div><div class="av av-a">BC</div></div>
+          <span class="fresh fresh-d">1d ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P-010: Client Approved -->
+    <div class="pcard">
+      <div class="pcard-top contract"></div>
+      <div class="pcard-body">
+        <div class="pcard-head">
+          <div class="pcard-name">GenSan Fish Port Renovation</div>
+          <span class="code">P-010</span>
+        </div>
+        <div class="pcard-client">PFDA · <span class="s-pill sp-approved">Client Approved</span></div>
+        <div class="pcard-fin">
+          <div class="fin-ready">
+            <div class="fin-ready-amount">₱9,750,000</div>
+            <div class="fin-ready-label">Contract signed · mobilizing soon</div>
+          </div>
+        </div>
+        <div class="pcard-foot">
+          <div class="av-stack"><div class="av av-b">SR</div></div>
+          <span class="fresh fresh-h">3h ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P-003: Client Review -->
+    <div class="pcard">
+      <div class="pcard-top early"></div>
+      <div class="pcard-body">
+        <div class="pcard-head">
+          <div class="pcard-name">Metro Davao Distribution Hub</div>
+          <span class="code">P-003</span>
+        </div>
+        <div class="pcard-client">SM Group · <span class="s-pill sp-proposal">Client Review</span></div>
+        <div class="pcard-fin">
+          <div class="fin-pre">
+            <div class="fin-pre-amount" style="color:var(--slate-600); font-size:14px; font-weight:600">Proposed ₱8,200,000</div>
+            <div class="fin-pre-label" style="color:var(--red); font-weight:600">⚠ 18 days awaiting client decision</div>
+          </div>
+        </div>
+        <div class="pcard-foot">
+          <div class="av-stack"><div class="av av-b">AG</div></div>
+          <span class="fresh fresh-s">18d ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P-009: For Revision -->
+    <div class="pcard">
+      <div class="pcard-top early"></div>
+      <div class="pcard-body">
+        <div class="pcard-head">
+          <div class="pcard-name">Leyte Substation Upgrade</div>
+          <span class="code">P-009</span>
+        </div>
+        <div class="pcard-client">Meralco · <span class="s-pill sp-revision">For Revision</span></div>
+        <div class="pcard-fin">
+          <div class="fin-pre">
+            <div class="fin-pre-amount" style="color:var(--amber); font-size:14px; font-weight:600">Proposed ₱3,100,000</div>
+            <div class="fin-pre-label">Client requested revisions</div>
+          </div>
+        </div>
+        <div class="pcard-foot">
+          <div class="av-stack"><div class="av av-g">RV</div><div class="av av-b">DP</div></div>
+          <span class="fresh fresh-w">7d ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P-005: For Inspection -->
+    <div class="pcard">
+      <div class="pcard-top" style="background:var(--slate-200)"></div>
+      <div class="pcard-body">
+        <div class="pcard-head">
+          <div class="pcard-name">Clark Logistics Terminal</div>
+          <span class="code">P-005</span>
+        </div>
+        <div class="pcard-client">Clark Dev Corp · <span class="s-pill sp-inspect">For Inspection</span></div>
+        <div class="pcard-fin">
+          <div class="fin-pre">
+            <div class="fin-pre-amount" style="font-size:13px">Pre-contract</div>
+            <div class="fin-pre-label">No value until proposal drafted</div>
+          </div>
+        </div>
+        <div class="pcard-foot">
+          <div class="av-stack"><div class="av av-a">NR</div></div>
+          <span class="fresh fresh-w">12d ago</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P-006: Completed -->
+    <div class="pcard" style="opacity:.75">
+      <div class="pcard-top complete"></div>
+      <div class="pcard-body">
+        <div class="pcard-head">
+          <div class="pcard-name">Panay Commercial Complex</div>
+          <span class="code">P-006</span>
+        </div>
+        <div class="pcard-client">Megaworld · <span class="s-pill sp-complete">Completed</span></div>
+        <div class="pcard-fin">
+          <div class="fin-done">
+            <div class="fin-done-amount">₱18,500,000</div>
+            <div class="fin-done-label">Fully billed · 100% collected ✓</div>
+          </div>
+        </div>
+        <div class="pcard-foot">
+          <div class="av-stack"><div class="av av-p">JD</div><div class="av av-g">PB</div></div>
+          <span class="fresh fresh-s">12d ago</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /card-grid -->
+
+  <div class="notes">
+    <div class="note-box pro">
+      <h4>Strengths</h4>
+      <ul class="note-list">
+        <li>Full portfolio visible simultaneously — no long table scroll, spatial layout aids memory</li>
+        <li>Color-coded top strip gives instant stage recognition before reading any text</li>
+        <li>Pre-contract cards look and feel distinctly different — no misleading empty bars</li>
+        <li>Stale proposals surface hard: "18d awaiting client decision" in red is impossible to miss</li>
+        <li>Naturally responsive — reflows from 3-col to 2-col to 1-col on smaller screens</li>
+      </ul>
+    </div>
+    <div class="note-box con">
+      <h4>Trade-offs</h4>
+      <ul class="note-list">
+        <li>Less dense than a table — fewer projects fit on screen vs compact rows</li>
+        <li>Sorting and filtering UX needs rethinking — no sortable column headers</li>
+        <li>Beyond ~25 projects the grid gets long; may want a "show active only" toggle</li>
+      </ul>
+    </div>
+  </div>
+</div><!-- /pc -->
+
+
+<!-- ══════════════════════════════════════ OPTION D ══ -->
+<div id="pd" class="panel">
+  <div class="opt-desc">
+    <span class="opt-tag">Option D</span>
+    <p><strong>Attention-Priority Feed</strong> — Projects sorted by urgency signals the app computes automatically, not by status or date. Management opens this view and sees what needs their eyes first: stale proposals, stalled on-going projects, contracts not yet billing. Nothing is hidden — "On Track" items are still shown, just below the fold. The app does the thinking so management doesn't have to hunt.</p>
+  </div>
+
+  <div class="sc-strip">
+    <div class="sc ongoing"><div class="sc-n">3</div><div class="sc-l">On-going</div></div>
+    <div class="sc mobilize"><div class="sc-n">1</div><div class="sc-l">Mobilizing</div></div>
+    <div class="sc proposal"><div class="sc-n">3</div><div class="sc-l">Proposal Stage</div></div>
+    <div class="sc"><div class="sc-n">1</div><div class="sc-l">Inspection</div></div>
+    <div class="sc complete"><div class="sc-n">1</div><div class="sc-l">Completed</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input class="s-input" placeholder="Search projects…" />
+    <select class="s-select"><option>All Clients</option></select>
+    <button class="add-btn">+ New Project</button>
+  </div>
+
+  <!-- ── Needs Attention ── -->
+  <div class="attn-section">
+    <div class="attn-hdr urgent">
+      <div class="attn-hdr-dot" style="background:var(--red)"></div>
+      <span class="attn-hdr-title">Needs Attention</span>
+      <span class="attn-hdr-n">3 projects</span>
+    </div>
+    <div class="attn-list">
+
+      <!-- header row -->
+      <div style="display:grid; grid-template-columns:200px 1fr 160px 130px;
+        padding:7px 16px; background:var(--slate-50); border-bottom:1px solid var(--border)">
+        <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Signal</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Project · Status</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;padding-left:12px">Financial</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;text-align:right">Team · Since</span>
+      </div>
+
+      <!-- P-003: proposal stale 47 days in client review -->
+      <div class="attn-row urgent">
+        <div>
+          <div class="attn-signal-text urgent">Proposal stale — 47 days</div>
+          <div class="attn-hint">Client hasn't responded since Apr 23</div>
+        </div>
+        <div>
+          <div class="attn-name">Metro Davao Distribution Hub</div>
+          <div class="attn-meta">
+            <span class="attn-client-sm">SM Group</span>
+            <span class="s-pill sp-proposal">Client Review</span>
+          </div>
+        </div>
+        <div class="attn-fin">
+          <div class="fin-pre">
+            <div class="fin-pre-amount" style="color:var(--slate-600);font-size:13px;font-weight:600">Proposed ₱8,200,000</div>
+            <div class="fin-pre-label">Not signed until client approves</div>
+          </div>
+        </div>
+        <div class="attn-team">
+          <div class="av-stack"><div class="av av-b">AG</div></div>
+          <span class="fresh fresh-s">47d</span>
+        </div>
+      </div>
+
+      <!-- P-005: stuck in inspection 58 days -->
+      <div class="attn-row urgent">
+        <div>
+          <div class="attn-signal-text urgent">Inspection overdue — 58 days</div>
+          <div class="attn-hint">No progress since site visit assigned</div>
+        </div>
+        <div>
+          <div class="attn-name">Clark Logistics Terminal</div>
+          <div class="attn-meta">
+            <span class="attn-client-sm">Clark Dev Corp</span>
+            <span class="s-pill sp-inspect">For Inspection</span>
+          </div>
+        </div>
+        <div class="attn-fin">
+          <div class="fin-pre">
+            <div class="fin-pre-amount">—</div>
+            <div class="fin-pre-label">Pre-contract</div>
+          </div>
+        </div>
+        <div class="attn-team">
+          <div class="av-stack"><div class="av av-a">NR</div></div>
+          <span class="fresh fresh-s">58d</span>
+        </div>
+      </div>
+
+      <!-- P-011: on-going but no activity 9 days -->
+      <div class="attn-row urgent">
+        <div>
+          <div class="attn-signal-text urgent">No activity in 9 days</div>
+          <div class="attn-hint">On-going project has gone quiet</div>
+        </div>
+        <div>
+          <div class="attn-name">Quezon City Admin Building</div>
+          <div class="attn-meta">
+            <span class="attn-client-sm">QCGOV</span>
+            <span class="s-pill sp-ongoing">On-going</span>
+          </div>
+        </div>
+        <div class="attn-fin">
+          <div class="fin-active" style="min-width:120px">
+            <div class="fin-active-top"><span class="fin-active-amount">₱31,000,000</span><span class="fin-active-pct" style="color:var(--orange)">40%</span></div>
+            <div class="mini-bar"><div class="mini-fill fill-orange" style="width:40%"></div></div>
+            <div class="fin-active-sub">₱12.4M billed</div>
+          </div>
+        </div>
+        <div class="attn-team">
+          <div class="av-stack"><div class="av av-r">PL</div><div class="av av-b">VC</div></div>
+          <span class="fresh fresh-s">9d</span>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /urgent -->
+
+  <!-- ── Worth Watching ── -->
+  <div class="attn-section">
+    <div class="attn-hdr watch">
+      <div class="attn-hdr-dot" style="background:var(--amber)"></div>
+      <span class="attn-hdr-title">Worth Watching</span>
+      <span class="attn-hdr-n">3 projects</span>
+    </div>
+    <div class="attn-list">
+      <div style="display:grid; grid-template-columns:200px 1fr 160px 130px;
+        padding:7px 16px; background:var(--slate-50); border-bottom:1px solid var(--border)">
+        <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Signal</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Project · Status</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;padding-left:12px">Financial</span>
+        <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;text-align:right">Team · Since</span>
+      </div>
+
+      <!-- P-009: revision 7 days no response -->
+      <div class="attn-row watch">
+        <div>
+          <div class="attn-signal-text watch">Revision requested — 7 days</div>
+          <div class="attn-hint">Expected turnaround 3–5 days</div>
+        </div>
+        <div>
+          <div class="attn-name">Leyte Substation Upgrade</div>
+          <div class="attn-meta">
+            <span class="attn-client-sm">Meralco</span>
+            <span class="s-pill sp-revision">For Revision</span>
+          </div>
+        </div>
+        <div class="attn-fin">
+          <div class="fin-pre">
+            <div class="fin-pre-amount" style="color:var(--amber);font-size:13px;font-weight:600">Proposed ₱3,100,000</div>
+            <div class="fin-pre-label">Revision may change scope</div>
+          </div>
+        </div>
+        <div class="attn-team">
+          <div class="av-stack"><div class="av av-g">RV</div><div class="av av-b">DP</div></div>
+          <span class="fresh fresh-w">7d</span>
+        </div>
+      </div>
+
+      <!-- P-004: 86% billed, near close -->
+      <div class="attn-row watch">
+        <div>
+          <div class="attn-signal-text watch">86% billed — final billing due</div>
+          <div class="attn-hint">Last tranche not yet requested</div>
+        </div>
+        <div>
+          <div class="attn-name">Iloilo Retail Renovation</div>
+          <div class="attn-meta">
+            <span class="attn-client-sm">Ayala Corp</span>
+            <span class="s-pill sp-ongoing">On-going</span>
+          </div>
+        </div>
+        <div class="attn-fin">
+          <div class="fin-active" style="min-width:120px">
+            <div class="fin-active-top"><span class="fin-active-amount">₱7,000,000</span><span class="fin-active-pct">86%</span></div>
+            <div class="mini-bar"><div class="mini-fill fill-blue" style="width:86%"></div></div>
+            <div class="fin-active-sub">₱1M remaining to bill</div>
+          </div>
+        </div>
+        <div class="attn-team">
+          <div class="av-stack"><div class="av av-g">RT</div><div class="av av-b">EF</div><div class="av av-m">+2</div></div>
+          <span class="fresh fresh-h">5h</span>
+        </div>
+      </div>
+
+      <!-- P-002: contract signed, mobilization not started -->
+      <div class="attn-row watch">
+        <div>
+          <div class="attn-signal-text watch">Contract signed, not mobilized</div>
+          <div class="attn-hint">3 days since For Mobilization — no site start</div>
+        </div>
+        <div>
+          <div class="attn-name">Mandaue Warehouse Fitout</div>
+          <div class="attn-meta">
+            <span class="attn-client-sm">JG Summit</span>
+            <span class="s-pill sp-mobilize">For Mobilization</span>
+          </div>
+        </div>
+        <div class="attn-fin">
+          <div class="fin-ready">
+            <div class="fin-ready-amount">₱4,500,000</div>
+            <div class="fin-ready-label">Contract signed · billing not started</div>
+          </div>
+        </div>
+        <div class="attn-team">
+          <div class="av-stack"><div class="av av-p">CL</div><div class="av av-a">BC</div></div>
+          <span class="fresh fresh-d">1d</span>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /watch -->
+
+  <!-- ── On Track ── -->
+  <div class="attn-section">
+    <div class="attn-hdr ok">
+      <div class="attn-hdr-dot" style="background:var(--green)"></div>
+      <span class="attn-hdr-title">On Track — no action needed</span>
+      <span class="attn-hdr-n">5 projects</span>
+    </div>
+    <div class="attn-list">
+
+      <div class="attn-row ok">
+        <div><div class="attn-signal-text ok">Active & progressing</div><div class="attn-hint">Updated 2h ago</div></div>
+        <div><div class="attn-name">Cebu Port Expansion</div><div class="attn-meta"><span class="attn-client-sm">DPWH</span><span class="s-pill sp-ongoing">On-going</span></div></div>
+        <div class="attn-fin"><div class="fin-active" style="min-width:120px"><div class="fin-active-top"><span class="fin-active-amount">₱15,000,000</span><span class="fin-active-pct">80%</span></div><div class="mini-bar"><div class="mini-fill fill-blue" style="width:80%"></div></div><div class="fin-active-sub">₱12M billed</div></div></div>
+        <div class="attn-team"><div class="av-stack"><div class="av av-b">JR</div><div class="av av-g">MS</div><div class="av av-m">+1</div></div><span class="fresh fresh-h">2h</span></div>
+      </div>
+
+      <div class="attn-row ok">
+        <div><div class="attn-signal-text ok">Proposal in progress</div><div class="attn-hint">Updated 5d ago — normal pace</div></div>
+        <div><div class="attn-name">Batangas Cold Storage Facility</div><div class="attn-meta"><span class="attn-client-sm">Del Monte PH</span><span class="s-pill sp-proposal">For Proposal</span></div></div>
+        <div class="attn-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--slate-500);font-size:13px">Est. ₱5,800,000</div><div class="fin-pre-label">Budget estimate</div></div></div>
+        <div class="attn-team"><div class="av-stack"><div class="av av-b">KM</div><div class="av av-g">LR</div></div><span class="fresh fresh-d">5d</span></div>
+      </div>
+
+      <div class="attn-row ok">
+        <div><div class="attn-signal-text ok">Internal review moving</div><div class="attn-hint">2d — typical turnaround</div></div>
+        <div><div class="attn-name">Pampanga Processing Plant</div><div class="attn-meta"><span class="attn-client-sm">San Miguel Corp</span><span class="s-pill sp-proposal">Internal Approval</span></div></div>
+        <div class="attn-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--slate-500);font-size:13px">Est. ₱11,200,000</div><div class="fin-pre-label">Proposal draft</div></div></div>
+        <div class="attn-team"><div class="av-stack"><div class="av av-p">TG</div></div><span class="fresh fresh-d">2d</span></div>
+      </div>
+
+      <div class="attn-row ok">
+        <div><div class="attn-signal-text ok">Newly contracted</div><div class="attn-hint">Mobilization planning in progress</div></div>
+        <div><div class="attn-name">GenSan Fish Port Renovation</div><div class="attn-meta"><span class="attn-client-sm">PFDA</span><span class="s-pill sp-approved">Client Approved</span></div></div>
+        <div class="attn-fin"><div class="fin-ready"><div class="fin-ready-amount">₱9,750,000</div><div class="fin-ready-label">Contract signed · mobilizing</div></div></div>
+        <div class="attn-team"><div class="av-stack"><div class="av av-b">SR</div></div><span class="fresh fresh-h">3h</span></div>
+      </div>
+
+      <div class="attn-row ok">
+        <div><div class="attn-signal-text ok">Fully completed</div><div class="attn-hint">Closed · 100% billed</div></div>
+        <div><div class="attn-name">Panay Commercial Complex</div><div class="attn-meta"><span class="attn-client-sm">Megaworld</span><span class="s-pill sp-complete">Completed</span></div></div>
+        <div class="attn-fin"><div class="fin-done"><div class="fin-done-amount">₱18,500,000</div><div class="fin-done-label">Fully billed ✓</div></div></div>
+        <div class="attn-team"><div class="av-stack"><div class="av av-p">JD</div><div class="av av-g">PB</div></div><span class="fresh fresh-s">12d</span></div>
+      </div>
+
+    </div>
+  </div><!-- /ok -->
+
+  <div class="notes">
+    <div class="note-box pro">
+      <h4>Strengths</h4>
+      <ul class="note-list">
+        <li>Management reads top-to-bottom and acts — no scanning needed to find problems</li>
+        <li>Signal text is specific ("Proposal stale — 47 days") not vague ("status: Client Review")</li>
+        <li>Stage-aware finance is invisible as a design problem — context is always clear from the signal text</li>
+        <li>On Track section is present but doesn't compete — you can scan it or ignore it</li>
+        <li>Urgency thresholds can be tuned per stage type (e.g., 14d = watch for Client Review, 5d for Revision)</li>
+      </ul>
+    </div>
+    <div class="note-box con">
+      <h4>Trade-offs</h4>
+      <ul class="note-list">
+        <li>Requires computing urgency signals from live data — needs updated_at + stage duration tracking</li>
+        <li>Thresholds are opinionated — "14 days in Client Review = urgent" may need tuning per project type</li>
+        <li>Not great for browsing all projects neutrally — you lose the alphabetical/code-order mental model</li>
+      </ul>
+    </div>
+  </div>
+</div><!-- /pd -->
+
+
+<!-- ══════════════════════════════════════ OPTION E ══ -->
+<div id="pe" class="panel">
+  <div class="opt-desc">
+    <span class="opt-tag">Option E</span>
+    <p><strong>Portfolio Swimlane</strong> — Each project is a horizontal band showing how time was spent in each lifecycle stage, plotted against a shared Jan–Jun calendar. Stalled projects are immediately visible: a wide single-color band means nothing moved. Pre-contract stages are muted. Projects that are progressing quickly have many small bands. The "Today" line anchors everything to the present.</p>
+  </div>
+
+  <div class="sc-strip">
+    <div class="sc ongoing"><div class="sc-n">3</div><div class="sc-l">On-going</div></div>
+    <div class="sc mobilize"><div class="sc-n">1</div><div class="sc-l">Mobilizing</div></div>
+    <div class="sc proposal"><div class="sc-n">3</div><div class="sc-l">Proposal Stage</div></div>
+    <div class="sc"><div class="sc-n">1</div><div class="sc-l">Inspection</div></div>
+    <div class="sc complete"><div class="sc-n">1</div><div class="sc-l">Completed</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input class="s-input" placeholder="Search projects…" />
+    <select class="s-select"><option>All Clients</option></select>
+    <button class="add-btn">+ New Project</button>
+  </div>
+
+  <div class="swim-outer">
+    <!-- Month header -->
+    <div class="swim-head">
+      <div class="swim-label-head">Project · Client</div>
+      <div class="swim-months-head">
+        <div class="swim-mo">Jan</div>
+        <div class="swim-mo">Feb</div>
+        <div class="swim-mo">Mar</div>
+        <div class="swim-mo">Apr</div>
+        <div class="swim-mo">May</div>
+        <div class="swim-mo">Jun → Jul</div>
+      </div>
+      <div style="width:150px; flex-shrink:0; padding:10px 14px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--slate-400); border-left:1px solid var(--border)">Status</div>
+    </div>
+
+    <!--
+      Timeline: Jan 1 → Jul 1 = 6 months, each month = 16.67% of bar width
+      Today (Jun 9) = 83.33% + (9/30 × 16.67%) = 88.33%
+
+      Month starts (as % of bar):
+        Jan 1  =  0.00%    Feb 1  = 16.67%    Mar 1  = 33.33%
+        Apr 1  = 50.00%    May 1  = 66.67%    Jun 1  = 83.33%    Jul 1 = 100%
+    -->
+
+    <!-- P-001: Cebu Port — On-going since before Jan, 80% billed -->
+    <div class="swim-row">
+      <div class="swim-label">
+        <div class="swim-pname">Cebu Port Expansion</div>
+        <div class="swim-pclient"><span class="code" style="font-size:10px">P-001</span> · DPWH</div>
+      </div>
+      <div class="swim-bar-area">
+        <div class="today-marker"></div>
+        <!-- On-going the entire visible window -->
+        <div class="swim-band b-ongoing" style="left:0%;width:88.33%" title="On-going since before Jan 2026"></div>
+        <!-- Billing progress overlay as a faint bar inside -->
+        <div style="position:absolute;left:0;width:88.33%;height:6px;bottom:8px;z-index:3;border-radius:0 3px 3px 0;background:rgba(255,255,255,.35)">
+          <div style="width:80%;height:100%;background:rgba(255,255,255,.6);border-radius:3px"></div>
+        </div>
+      </div>
+      <div class="swim-status-col"><span class="s-pill sp-ongoing">On-going · 80%</span></div>
+    </div>
+
+    <!-- P-011: QC Admin — started Jan 22, proposal→contracted→ongoing -->
+    <div class="swim-row">
+      <div class="swim-label">
+        <div class="swim-pname">Quezon City Admin Bldg</div>
+        <div class="swim-pclient"><span class="code" style="font-size:10px">P-011</span> · QCGOV</div>
+      </div>
+      <div class="swim-bar-area">
+        <div class="today-marker"></div>
+        <!-- Proposal stages: Jan 22 (11.8%) → Mar 3 (34.9%) -->
+        <div class="swim-band b-proposal" style="left:11.8%;width:23.1%" title="Proposal stages (Jan 22 – Mar 3): 40 days"></div>
+        <!-- Contracted/Mobilize: Mar 3 → Mar 22 -->
+        <div class="swim-band b-mobilize" style="left:34.9%;width:10.2%" title="Contracted & Mobilizing (Mar 3 – Mar 22): 19 days"></div>
+        <!-- On-going: Mar 22 → today -->
+        <div class="swim-band b-ongoing" style="left:45.1%;width:43.2%" title="On-going (Mar 22 – Jun 9): 79 days · 40% billed"></div>
+      </div>
+      <div class="swim-status-col"><span class="s-pill sp-ongoing">On-going · 40%</span></div>
+    </div>
+
+    <!-- P-004: Iloilo — started Feb 8 -->
+    <div class="swim-row">
+      <div class="swim-label">
+        <div class="swim-pname">Iloilo Retail Renovation</div>
+        <div class="swim-pclient"><span class="code" style="font-size:10px">P-004</span> · Ayala Corp</div>
+      </div>
+      <div class="swim-bar-area">
+        <div class="today-marker"></div>
+        <!-- Proposal: Feb 8 (21.4%) → Mar 7 (37.1%) -->
+        <div class="swim-band b-proposal" style="left:21.4%;width:15.7%" title="Proposal stages (Feb 8 – Mar 7): 27 days"></div>
+        <!-- Contracted: Mar 7 → Mar 22 -->
+        <div class="swim-band b-mobilize" style="left:37.1%;width:8%" title="Contracted & Mobilizing (Mar 7 – Mar 22): 15 days"></div>
+        <!-- On-going: Mar 22 → today -->
+        <div class="swim-band b-ongoing" style="left:45.1%;width:43.2%" title="On-going (Mar 22 – Jun 9): 79 days · 86% billed"></div>
+      </div>
+      <div class="swim-status-col"><span class="s-pill sp-ongoing">On-going · 86%</span></div>
+    </div>
+
+    <!-- P-006: Panay — completed, started before Jan -->
+    <div class="swim-row" style="opacity:.75">
+      <div class="swim-label">
+        <div class="swim-pname">Panay Commercial Complex</div>
+        <div class="swim-pclient"><span class="code" style="font-size:10px">P-006</span> · Megaworld</div>
+      </div>
+      <div class="swim-bar-area">
+        <div class="today-marker"></div>
+        <!-- On-going: Jan → Apr 15 (58.3%) -->
+        <div class="swim-band b-ongoing" style="left:0%;width:58.3%" title="On-going (before Jan – Apr 15)"></div>
+        <!-- Completed: Apr 15 → today -->
+        <div class="swim-band b-complete" style="left:58.3%;width:30%" title="Completed (Apr 15 onwards) · 100% billed"></div>
+      </div>
+      <div class="swim-status-col"><span class="s-pill sp-complete">Completed · 100%</span></div>
+    </div>
+
+    <!-- P-002: Mandaue — started May 6, fast through proposal, now mobilizing -->
+    <div class="swim-row">
+      <div class="swim-label">
+        <div class="swim-pname">Mandaue Warehouse Fitout</div>
+        <div class="swim-pclient"><span class="code" style="font-size:10px">P-002</span> · JG Summit</div>
+      </div>
+      <div class="swim-bar-area">
+        <div class="today-marker"></div>
+        <!-- Proposal stages: May 6 (69.9%) → Jun 1 (83.33%) -->
+        <div class="swim-band b-proposal" style="left:69.9%;width:13.4%" title="Proposal through Review (May 6 – Jun 1): 26 days"></div>
+        <!-- Mobilization: Jun 1 → today (88.33%) -->
+        <div class="swim-band b-mobilize" style="left:83.33%;width:5%" title="For Mobilization (Jun 1 – Jun 9): 8 days"></div>
+      </div>
+      <div class="swim-status-col"><span class="s-pill sp-mobilize">For Mobilization</span></div>
+    </div>
+
+    <!-- P-010: GenSan — started May 20, quick proposal, just approved -->
+    <div class="swim-row">
+      <div class="swim-label">
+        <div class="swim-pname">GenSan Fish Port Renovation</div>
+        <div class="swim-pclient"><span class="code" style="font-size:10px">P-010</span> · PFDA</div>
+      </div>
+      <div class="swim-bar-area">
+        <div class="today-marker"></div>
+        <!-- Proposal stages: May 20 (77.4%) → Jun 3 (85%) -->
+        <div class="swim-band b-proposal" style="left:77.4%;width:7.6%" title="Proposal through Review (May 20 – Jun 3): 14 days"></div>
+        <!-- Client Approved: Jun 3 → today -->
+        <div class="swim-band b-approved" style="left:85%;width:3.33%" title="Client Approved (Jun 3 – Jun 9): 6 days"></div>
+      </div>
+      <div class="swim-status-col"><span class="s-pill sp-approved">Client Approved</span></div>
+    </div>
+
+    <!-- P-003: Metro Davao — STUCK in client review since Apr 21 — very visible wide purple band -->
+    <div class="swim-row">
+      <div class="swim-label">
+        <div class="swim-pname">Metro Davao Dist. Hub</div>
+        <div class="swim-pclient"><span class="code" style="font-size:10px">P-003</span> · SM Group</div>
+      </div>
+      <div class="swim-bar-area">
+        <div class="today-marker"></div>
+        <!-- Inspection: Mar 25 (46.7%) → Apr 7 (53.9%) -->
+        <div class="swim-band b-inspect" style="left:46.7%;width:7.2%" title="For Inspection (Mar 25 – Apr 7): 13 days"></div>
+        <!-- Proposal/Internal: Apr 7 → Apr 21 -->
+        <div class="swim-band b-proposal" style="left:53.9%;width:7.8%" title="Proposal & Internal Approval (Apr 7 – Apr 21): 14 days"></div>
+        <!-- Client Review STUCK: Apr 21 (61.7%) → today (88.33%) = 47 days wide -->
+        <div class="swim-band b-review" style="left:61.7%;width:26.63%" title="⚠ Client Review — STUCK 47 days (Apr 21 – Jun 9)">
+          <!-- Stale indicator -->
+          <div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:#fff;opacity:.9">47d ⚠</div>
+        </div>
+      </div>
+      <div class="swim-status-col"><span class="s-pill sp-proposal" style="background:var(--red-bg);color:var(--red)">Client Review ⚠</span></div>
+    </div>
+
+    <!-- P-005: Clark — STUCK in inspection, entire bar is gray -->
+    <div class="swim-row">
+      <div class="swim-label">
+        <div class="swim-pname">Clark Logistics Terminal</div>
+        <div class="swim-pclient"><span class="code" style="font-size:10px">P-005</span> · Clark Dev Corp</div>
+      </div>
+      <div class="swim-bar-area">
+        <div class="today-marker"></div>
+        <!-- Inspection from Apr 12 (56.7%) → today — full remaining bar is gray = stuck -->
+        <div class="swim-band b-inspect" style="left:56.7%;width:31.63%" title="⚠ For Inspection — STUCK 58 days (Apr 12 – Jun 9)">
+          <div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:var(--slate-600);opacity:.9">58d ⚠</div>
+        </div>
+      </div>
+      <div class="swim-status-col"><span class="s-pill sp-inspect" style="background:var(--red-bg);color:var(--red)">Inspection ⚠</span></div>
+    </div>
+
+    <!-- P-007: Batangas — started ~May 1, still in proposal -->
+    <div class="swim-row">
+      <div class="swim-label">
+        <div class="swim-pname">Batangas Cold Storage</div>
+        <div class="swim-pclient"><span class="code" style="font-size:10px">P-007</span> · Del Monte PH</div>
+      </div>
+      <div class="swim-bar-area">
+        <div class="today-marker"></div>
+        <!-- Inspection: May 1 (66.67%) → May 10 (71.5%) -->
+        <div class="swim-band b-inspect" style="left:66.67%;width:4.83%" title="For Inspection (May 1 – May 10): 9 days"></div>
+        <!-- For Proposal: May 10 → today -->
+        <div class="swim-band b-proposal" style="left:71.5%;width:16.83%" title="For Proposal (May 10 – Jun 9): 30 days"></div>
+      </div>
+      <div class="swim-status-col"><span class="s-pill sp-proposal">For Proposal</span></div>
+    </div>
+
+    <!-- Legend -->
+    <div class="swim-legend">
+      <span class="swim-legend-title">Stage key:</span>
+      <span class="leg-item"><span class="leg-swatch" style="background:#d1d5db"></span>Inspection</span>
+      <span class="leg-item"><span class="leg-swatch" style="background:#a78bfa"></span>Proposal stages</span>
+      <span class="leg-item"><span class="leg-swatch" style="background:#7c3aed"></span>Client Review</span>
+      <span class="leg-item"><span class="leg-swatch" style="background:var(--amber)"></span>Contracted / Mobilizing</span>
+      <span class="leg-item"><span class="leg-swatch" style="background:var(--blue)"></span>On-going</span>
+      <span class="leg-item"><span class="leg-swatch" style="background:var(--green)"></span>Completed</span>
+      <span class="leg-item" style="margin-left:8px;color:var(--red);font-weight:600">⚠ Wide band = stalled in stage</span>
+    </div>
+  </div><!-- /swim-outer -->
+
+  <div class="notes">
+    <div class="note-box pro">
+      <h4>Strengths</h4>
+      <ul class="note-list">
+        <li>Stalled projects are visually unmistakable — a fat band in one color shouts "nothing moved here"</li>
+        <li>P-003 and P-005 stand out immediately without any special highlighting — pure visual encoding</li>
+        <li>Fast projects (P-002, P-010) have many small bands = clear "this team moves quickly" signal</li>
+        <li>Shared timeline makes comparisons natural — "P-004 and P-011 started roughly the same time, P-004 is further along"</li>
+        <li>No stage-aware finance problem — financial data lives in the status column, not the bar</li>
+      </ul>
+    </div>
+    <div class="note-box con">
+      <h4>Trade-offs</h4>
+      <ul class="note-list">
+        <li>Requires tracking stage transition dates (when did this project move from Inspection → Proposal?) — not stored today</li>
+        <li>Projects older than the 6-month window lose their early history — Cebu Port shows "always On-going"</li>
+        <li>Widest option in the set — horizontal scroll on smaller screens unless labels are collapsed</li>
+      </ul>
+    </div>
+  </div>
+</div><!-- /pe -->
+
+
+
+<!-- ══════════════════════════════════════ D+B COMBO ══ -->
+<div id="pdb" class="panel">
+
+  <div class="combo-banner">
+    <div class="combo-star">★</div>
+    <div>
+      <h3>Recommended: D+B Hybrid</h3>
+      <p>Option D as the default — management opens this and immediately sees what needs their attention, sorted by urgency. Option B as an on-demand browse mode — when someone wants to scan the full portfolio by stage rather than by priority, one click flips to a familiar grouped list. Same data, two reading modes. No separate views, no navigation change.</p>
+      <div class="combo-mode-hint">
+        <div class="mode-chip"><div class="mode-chip-dot" style="background:var(--red)"></div> <strong>Priority Feed</strong> — default. App sorts by urgency. Top = act now.</div>
+        <div class="mode-chip"><div class="mode-chip-dot" style="background:var(--blue)"></div> <strong>Browse All</strong> — on demand. Stage-grouped, collapsible, aggregate totals.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sc-strip">
+    <div class="sc ongoing"><div class="sc-n">3</div><div class="sc-l">On-going</div></div>
+    <div class="sc mobilize"><div class="sc-n">1</div><div class="sc-l">Mobilizing</div></div>
+    <div class="sc proposal"><div class="sc-n">3</div><div class="sc-l">Proposal Stage</div></div>
+    <div class="sc"><div class="sc-n">1</div><div class="sc-l">Inspection</div></div>
+    <div class="sc complete"><div class="sc-n">1</div><div class="sc-l">Completed</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input class="s-input" placeholder="Search projects…" />
+    <select class="s-select"><option>All Clients</option><option>DPWH</option><option>JG Summit</option></select>
+    <div class="vm-toggle">
+      <button class="vm-btn vm-on" id="vm-feed" onclick="vmSwitch('feed')">🔥 Priority Feed</button>
+      <button class="vm-btn" id="vm-browse" onclick="vmSwitch('browse')">≡ Browse All</button>
+    </div>
+    <div style="font-size:11px;color:var(--slate-400);align-self:center;margin-left:4px">
+      <span style="color:var(--red);font-weight:700">1 retention overdue</span> · 1 in DLP
+    </div>
+    <button class="add-btn">+ New Project</button>
+  </div>
+
+  <!-- ────────────────────────────────────────
+       MODE: Priority Feed  (Option D layout)
+  ──────────────────────────────────────────── -->
+  <div id="pdb-feed">
+
+    <div class="attn-section">
+      <div class="attn-hdr urgent">
+        <div class="attn-hdr-dot" style="background:var(--red)"></div>
+        <span class="attn-hdr-title">Needs Attention</span>
+        <span class="attn-hdr-n">4 projects</span>
+      </div>
+      <div class="attn-list">
+        <div style="display:grid; grid-template-columns:200px 1fr 160px 130px;
+          padding:7px 16px; background:var(--slate-50); border-bottom:1px solid var(--border)">
+          <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Signal</span>
+          <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Project · Status</span>
+          <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;padding-left:12px">Financial</span>
+          <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;text-align:right">Team · Since</span>
+        </div>
+        <div class="attn-row urgent">
+          <div>
+            <div class="attn-signal-text urgent">Proposal stale — 47 days</div>
+            <div class="attn-hint">Client hasn't responded since Apr 23</div>
+          </div>
+          <div>
+            <div class="attn-name">Metro Davao Distribution Hub</div>
+            <div class="attn-meta"><span class="attn-client-sm">SM Group</span><span class="s-pill sp-proposal">Client Review</span></div>
+          </div>
+          <div class="attn-fin">
+            <div class="fin-pre">
+              <div class="fin-pre-amount" style="color:var(--slate-600);font-size:13px;font-weight:600">Proposed ₱8,200,000</div>
+              <div class="fin-pre-label">Not signed until client approves</div>
+            </div>
+          </div>
+          <div class="attn-team">
+            <div class="av-stack"><div class="av av-b">AG</div></div>
+            <span class="fresh fresh-s">47d</span>
+          </div>
+        </div>
+        <div class="attn-row urgent">
+          <div>
+            <div class="attn-signal-text urgent">Inspection overdue — 58 days</div>
+            <div class="attn-hint">No progress since site visit assigned</div>
+          </div>
+          <div>
+            <div class="attn-name">Clark Logistics Terminal</div>
+            <div class="attn-meta"><span class="attn-client-sm">Clark Dev Corp</span><span class="s-pill sp-inspect">For Inspection</span></div>
+          </div>
+          <div class="attn-fin">
+            <div class="fin-pre"><div class="fin-pre-amount">—</div><div class="fin-pre-label">Pre-contract</div></div>
+          </div>
+          <div class="attn-team">
+            <div class="av-stack"><div class="av av-a">NR</div></div>
+            <span class="fresh fresh-s">58d</span>
+          </div>
+        </div>
+        <div class="attn-row urgent">
+          <div>
+            <div class="attn-signal-text urgent">No activity in 9 days</div>
+            <div class="attn-hint">On-going project has gone quiet</div>
+          </div>
+          <div>
+            <div class="attn-name">Quezon City Admin Building</div>
+            <div class="attn-meta"><span class="attn-client-sm">QCGOV</span><span class="s-pill sp-ongoing">On-going</span></div>
+          </div>
+          <div class="attn-fin">
+            <div class="fin-active" style="min-width:120px">
+              <div class="fin-active-top"><span class="fin-active-amount">₱31,000,000</span><span class="fin-active-pct" style="color:var(--orange)">40%</span></div>
+              <div class="mini-bar"><div class="mini-fill fill-orange" style="width:40%"></div></div>
+              <div class="fin-active-sub">₱12.4M billed</div>
+            </div>
+          </div>
+          <div class="attn-team">
+            <div class="av-stack"><div class="av av-r">PL</div><div class="av av-b">VC</div></div>
+            <span class="fresh fresh-s">9d</span>
+          </div>
+        </div>
+
+        <!-- P-012: completed but retention overdue — DLP expired, client hasn't released -->
+        <div class="attn-row urgent">
+          <div>
+            <div class="attn-signal-text urgent">Retention release overdue</div>
+            <div class="attn-hint">DLP expired 120d ago · ₱2.1M not yet released by client</div>
+          </div>
+          <div>
+            <div class="attn-name">Pasay Cold Storage Expansion</div>
+            <div class="attn-meta">
+              <span class="attn-client-sm">Manila Bay Dev Corp</span>
+              <span class="s-pill sp-complete">Completed</span>
+              <span class="ret-chip overdue">DLP expired</span>
+            </div>
+          </div>
+          <div class="attn-fin">
+            <div class="fin-ret">
+              <div class="fin-ret-top">
+                <span class="fin-ret-amount">₱21,000,000</span>
+                <span class="fin-ret-pct">90%</span>
+              </div>
+              <div class="fin-ret-bar">
+                <div class="fin-ret-billed" style="width:90%"></div>
+                <div class="fin-ret-held overdue" style="width:10%"></div>
+              </div>
+              <div class="fin-ret-sub overdue">₱2.1M retention · DLP expired, overdue</div>
+            </div>
+          </div>
+          <div class="attn-team">
+            <div class="av-stack"><div class="av av-p">LP</div><div class="av av-g">JC</div></div>
+            <span class="fresh fresh-s">120d</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="attn-section">
+      <div class="attn-hdr watch">
+        <div class="attn-hdr-dot" style="background:var(--amber)"></div>
+        <span class="attn-hdr-title">Worth Watching</span>
+        <span class="attn-hdr-n">3 projects</span>
+      </div>
+      <div class="attn-list">
+        <div style="display:grid; grid-template-columns:200px 1fr 160px 130px;
+          padding:7px 16px; background:var(--slate-50); border-bottom:1px solid var(--border)">
+          <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Signal</span>
+          <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Project · Status</span>
+          <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;padding-left:12px">Financial</span>
+          <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;text-align:right">Team · Since</span>
+        </div>
+        <div class="attn-row watch">
+          <div>
+            <div class="attn-signal-text watch">Revision requested — 7 days</div>
+            <div class="attn-hint">Expected turnaround 3–5 days</div>
+          </div>
+          <div>
+            <div class="attn-name">Leyte Substation Upgrade</div>
+            <div class="attn-meta"><span class="attn-client-sm">Meralco</span><span class="s-pill sp-revision">For Revision</span></div>
+          </div>
+          <div class="attn-fin">
+            <div class="fin-pre"><div class="fin-pre-amount" style="color:var(--amber);font-size:13px;font-weight:600">Proposed ₱3,100,000</div><div class="fin-pre-label">Revision may change scope</div></div>
+          </div>
+          <div class="attn-team">
+            <div class="av-stack"><div class="av av-g">RV</div><div class="av av-b">DP</div></div>
+            <span class="fresh fresh-w">7d</span>
+          </div>
+        </div>
+        <div class="attn-row watch">
+          <div>
+            <div class="attn-signal-text watch">86% billed — final billing due</div>
+            <div class="attn-hint">Last tranche not yet requested</div>
+          </div>
+          <div>
+            <div class="attn-name">Iloilo Retail Renovation</div>
+            <div class="attn-meta"><span class="attn-client-sm">Ayala Corp</span><span class="s-pill sp-ongoing">On-going</span></div>
+          </div>
+          <div class="attn-fin">
+            <div class="fin-active" style="min-width:120px">
+              <div class="fin-active-top"><span class="fin-active-amount">₱7,000,000</span><span class="fin-active-pct">86%</span></div>
+              <div class="mini-bar"><div class="mini-fill fill-blue" style="width:86%"></div></div>
+              <div class="fin-active-sub">₱1M remaining to bill</div>
+            </div>
+          </div>
+          <div class="attn-team">
+            <div class="av-stack"><div class="av av-g">RT</div><div class="av av-b">EF</div><div class="av av-m">+2</div></div>
+            <span class="fresh fresh-h">5h</span>
+          </div>
+        </div>
+        <div class="attn-row watch">
+          <div>
+            <div class="attn-signal-text watch">Contract signed, not mobilized</div>
+            <div class="attn-hint">3 days since For Mobilization — no site start</div>
+          </div>
+          <div>
+            <div class="attn-name">Mandaue Warehouse Fitout</div>
+            <div class="attn-meta"><span class="attn-client-sm">JG Summit</span><span class="s-pill sp-mobilize">For Mobilization</span></div>
+          </div>
+          <div class="attn-fin">
+            <div class="fin-ready"><div class="fin-ready-amount">₱4,500,000</div><div class="fin-ready-label">Contract signed · billing not started</div></div>
+          </div>
+          <div class="attn-team">
+            <div class="av-stack"><div class="av av-p">CL</div><div class="av av-a">BC</div></div>
+            <span class="fresh fresh-d">1d</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="attn-section">
+      <div class="attn-hdr ok">
+        <div class="attn-hdr-dot" style="background:var(--green)"></div>
+        <span class="attn-hdr-title">On Track — no action needed</span>
+        <span class="attn-hdr-n">5 projects</span>
+      </div>
+      <div class="attn-list">
+        <div class="attn-row ok">
+          <div><div class="attn-signal-text ok">Active & progressing</div><div class="attn-hint">Updated 2h ago</div></div>
+          <div><div class="attn-name">Cebu Port Expansion</div><div class="attn-meta"><span class="attn-client-sm">DPWH</span><span class="s-pill sp-ongoing">On-going</span></div></div>
+          <div class="attn-fin"><div class="fin-active" style="min-width:120px"><div class="fin-active-top"><span class="fin-active-amount">₱15,000,000</span><span class="fin-active-pct">80%</span></div><div class="mini-bar"><div class="mini-fill fill-blue" style="width:80%"></div></div><div class="fin-active-sub">₱12M billed</div></div></div>
+          <div class="attn-team"><div class="av-stack"><div class="av av-b">JR</div><div class="av av-g">MS</div><div class="av av-m">+1</div></div><span class="fresh fresh-h">2h</span></div>
+        </div>
+        <div class="attn-row ok">
+          <div><div class="attn-signal-text ok">Proposal in progress</div><div class="attn-hint">Updated 5d ago — normal pace</div></div>
+          <div><div class="attn-name">Batangas Cold Storage Facility</div><div class="attn-meta"><span class="attn-client-sm">Del Monte PH</span><span class="s-pill sp-proposal">For Proposal</span></div></div>
+          <div class="attn-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--slate-500);font-size:13px">Est. ₱5,800,000</div><div class="fin-pre-label">Budget estimate</div></div></div>
+          <div class="attn-team"><div class="av-stack"><div class="av av-b">KM</div><div class="av av-g">LR</div></div><span class="fresh fresh-d">5d</span></div>
+        </div>
+        <div class="attn-row ok">
+          <div><div class="attn-signal-text ok">Internal review moving</div><div class="attn-hint">2d — typical turnaround</div></div>
+          <div><div class="attn-name">Pampanga Processing Plant</div><div class="attn-meta"><span class="attn-client-sm">San Miguel Corp</span><span class="s-pill sp-proposal">Internal Approval</span></div></div>
+          <div class="attn-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--slate-500);font-size:13px">Est. ₱11,200,000</div><div class="fin-pre-label">Proposal draft</div></div></div>
+          <div class="attn-team"><div class="av-stack"><div class="av av-p">TG</div></div><span class="fresh fresh-d">2d</span></div>
+        </div>
+        <div class="attn-row ok">
+          <div><div class="attn-signal-text ok">Newly contracted</div><div class="attn-hint">Mobilization planning in progress</div></div>
+          <div><div class="attn-name">GenSan Fish Port Renovation</div><div class="attn-meta"><span class="attn-client-sm">PFDA</span><span class="s-pill sp-approved">Client Approved</span></div></div>
+          <div class="attn-fin"><div class="fin-ready"><div class="fin-ready-amount">₱9,750,000</div><div class="fin-ready-label">Contract signed · mobilizing</div></div></div>
+          <div class="attn-team"><div class="av-stack"><div class="av av-b">SR</div></div><span class="fresh fresh-h">3h</span></div>
+        </div>
+        <!-- P-006: completed, retention within normal DLP window — "on track" signal -->
+        <div class="attn-row ok">
+          <div>
+            <div class="attn-signal-text ok">In defect liability period</div>
+            <div class="attn-hint">45d since completion · 10% retention held, DLP runs 6 months</div>
+          </div>
+          <div>
+            <div class="attn-name">Panay Commercial Complex</div>
+            <div class="attn-meta">
+              <span class="attn-client-sm">Megaworld</span>
+              <span class="s-pill sp-complete">Completed</span>
+              <span class="ret-chip dlp">In DLP · 5 months left</span>
+            </div>
+          </div>
+          <div class="attn-fin">
+            <div class="fin-ret">
+              <div class="fin-ret-top">
+                <span class="fin-ret-amount">₱18,500,000</span>
+                <span class="fin-ret-pct">90%</span>
+              </div>
+              <div class="fin-ret-bar">
+                <div class="fin-ret-billed" style="width:90%"></div>
+                <div class="fin-ret-held" style="width:10%"></div>
+              </div>
+              <div class="fin-ret-sub">₱1.85M retention · to be claimed at 6-month mark</div>
+            </div>
+          </div>
+          <div class="attn-team"><div class="av-stack"><div class="av av-p">JD</div><div class="av av-g">PB</div></div><span class="fresh fresh-s">45d</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /pdb-feed -->
+
+  <!-- ────────────────────────────────────────
+       MODE: Browse All  (Option B layout)
+  ──────────────────────────────────────────── -->
+  <div id="pdb-browse" style="display:none">
+
+    <div class="group-list">
+
+      <div class="grp">
+        <div class="grp-header">
+          <div class="grp-bar" style="background:var(--blue)"></div>
+          <div><div class="grp-title">On-going</div><div class="grp-subtitle">Active execution · billing in progress</div></div>
+          <span class="grp-n">3</span>
+          <span class="grp-total">₱53M active</span>
+          <span class="grp-chevron">▾</span>
+        </div>
+        <div class="grp-body">
+          <div style="display:grid; grid-template-columns:80px 1fr 160px 120px auto;
+            gap:0; padding:7px 18px; border-bottom:1px solid var(--border); background:var(--slate-50)">
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Code</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Project · Client</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;padding-left:16px">Contract · Billed</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Team</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;text-align:right">Updated</span>
+          </div>
+          <div class="grp-row">
+            <span class="code">P-001</span>
+            <div class="grp-row-name">Cebu Port Expansion<div class="grp-row-client">DPWH</div></div>
+            <div class="grp-row-fin"><div class="fin-active"><div class="fin-active-top"><span class="fin-active-amount">₱15,000,000</span><span class="fin-active-pct">80%</span></div><div class="mini-bar"><div class="mini-fill fill-blue" style="width:80%"></div></div><div class="fin-active-sub">₱12M billed</div></div></div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-b">JR</div><div class="av av-g">MS</div><div class="av av-m">+1</div></div></div>
+            <div class="grp-row-act"><span class="fresh fresh-h">2h ago</span></div>
+          </div>
+          <div class="grp-row">
+            <span class="code">P-004</span>
+            <div class="grp-row-name">Iloilo Retail Renovation<div class="grp-row-client">Ayala Corp</div></div>
+            <div class="grp-row-fin"><div class="fin-active"><div class="fin-active-top"><span class="fin-active-amount">₱7,000,000</span><span class="fin-active-pct">86%</span></div><div class="mini-bar"><div class="mini-fill fill-blue" style="width:86%"></div></div><div class="fin-active-sub">₱6M billed</div></div></div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-g">RT</div><div class="av av-b">EF</div><div class="av av-m">+2</div></div></div>
+            <div class="grp-row-act"><span class="fresh fresh-h">5h ago</span></div>
+          </div>
+          <div class="grp-row">
+            <span class="code">P-011</span>
+            <div class="grp-row-name">Quezon City Admin Building<div class="grp-row-client">QCGOV</div></div>
+            <div class="grp-row-fin"><div class="fin-active"><div class="fin-active-top"><span class="fin-active-amount">₱31,000,000</span><span class="fin-active-pct" style="color:var(--orange)">40%</span></div><div class="mini-bar"><div class="mini-fill fill-orange" style="width:40%"></div></div><div class="fin-active-sub">₱12.4M billed</div></div></div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-r">PL</div><div class="av av-b">VC</div></div></div>
+            <div class="grp-row-act"><span class="fresh fresh-s">9d ago</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-header">
+          <div class="grp-bar" style="background:var(--amber)"></div>
+          <div><div class="grp-title">Contracted & Mobilizing</div><div class="grp-subtitle">Client Approved · For Mobilization</div></div>
+          <span class="grp-n">2</span>
+          <span class="grp-total">₱14.25M contracted</span>
+          <span class="grp-chevron">▾</span>
+        </div>
+        <div class="grp-body">
+          <div style="display:grid; grid-template-columns:80px 1fr 160px 120px auto;
+            gap:0; padding:7px 18px; border-bottom:1px solid var(--border); background:var(--slate-50)">
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Code</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Project · Client</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;padding-left:16px">Contract Value</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Team</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;text-align:right">Updated</span>
+          </div>
+          <div class="grp-row">
+            <span class="code">P-002</span>
+            <div class="grp-row-name">Mandaue Warehouse Fitout<div class="grp-row-client">JG Summit</div></div>
+            <div class="grp-row-fin"><div class="fin-ready"><div class="fin-ready-amount">₱4,500,000</div><div class="fin-ready-label">Billing not yet started</div></div></div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-p">CL</div><div class="av av-a">BC</div></div></div>
+            <div class="grp-row-act"><span class="fresh fresh-d">1d ago</span></div>
+          </div>
+          <div class="grp-row">
+            <span class="code">P-010</span>
+            <div class="grp-row-name">GenSan Fish Port Renovation<div class="grp-row-client">PFDA</div></div>
+            <div class="grp-row-fin"><div class="fin-ready"><div class="fin-ready-amount">₱9,750,000</div><div class="fin-ready-label">Billing not yet started</div></div></div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-b">SR</div></div></div>
+            <div class="grp-row-act"><span class="fresh fresh-h">3h ago</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp">
+        <div class="grp-header">
+          <div class="grp-bar" style="background:var(--purple)"></div>
+          <div><div class="grp-title">Proposal Stage</div><div class="grp-subtitle">For Proposal · Internal Approval · Client Review · For Revision</div></div>
+          <span class="grp-n">4</span>
+          <span class="grp-total">₱28.3M proposed</span>
+          <span class="grp-chevron">▾</span>
+        </div>
+        <div class="grp-body">
+          <div style="display:grid; grid-template-columns:80px 1fr 160px 120px auto;
+            gap:0; padding:7px 18px; border-bottom:1px solid var(--border); background:var(--slate-50)">
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Code</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Project · Client</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;padding-left:16px">Proposed Value</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Owner</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;text-align:right">Days in stage</span>
+          </div>
+          <div class="grp-row">
+            <span class="code">P-003</span>
+            <div><div class="grp-row-name">Metro Davao Distribution Hub<div class="grp-row-client">SM Group</div></div></div>
+            <div class="grp-row-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--slate-600)">₱8,200,000</div><div class="fin-pre-label">Proposed — not signed</div></div></div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-b">AG</div></div></div>
+            <div class="grp-row-act"><span class="fresh fresh-s" style="font-size:12px;font-weight:700">47d ⚠</span></div>
+          </div>
+          <div class="grp-row">
+            <span class="code">P-009</span>
+            <div><div class="grp-row-name">Leyte Substation Upgrade<div class="grp-row-client">Meralco</div></div></div>
+            <div class="grp-row-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--amber)">₱3,100,000</div><div class="fin-pre-label">For revision</div></div></div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-g">RV</div><div class="av av-b">DP</div></div></div>
+            <div class="grp-row-act"><span class="fresh fresh-w">7d</span></div>
+          </div>
+          <div class="grp-row">
+            <span class="code">P-007</span>
+            <div><div class="grp-row-name">Batangas Cold Storage Facility<div class="grp-row-client">Del Monte PH</div></div></div>
+            <div class="grp-row-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--slate-600)">₱5,800,000</div><div class="fin-pre-label">Estimated budget</div></div></div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-b">KM</div><div class="av av-g">LR</div></div></div>
+            <div class="grp-row-act"><span class="fresh fresh-d">5d</span></div>
+          </div>
+          <div class="grp-row">
+            <span class="code">P-008</span>
+            <div><div class="grp-row-name">Pampanga Processing Plant<div class="grp-row-client">San Miguel Corp</div></div></div>
+            <div class="grp-row-fin"><div class="fin-pre"><div class="fin-pre-amount" style="color:var(--slate-600)">₱11,200,000</div><div class="fin-pre-label">Proposed — pending internal review</div></div></div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-p">TG</div></div></div>
+            <div class="grp-row-act"><span class="fresh fresh-d">2d</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp collapsed">
+        <div class="grp-header">
+          <div class="grp-bar" style="background:var(--slate-300)"></div>
+          <div><div class="grp-title">For Inspection</div><div class="grp-subtitle">Site visits not yet completed</div></div>
+          <span class="grp-n">1</span>
+          <span class="grp-total" style="color:var(--slate-400)">No contract value</span>
+          <span class="grp-chevron">▾</span>
+        </div>
+        <div class="grp-body">
+          <div class="grp-row">
+            <span class="code">P-005</span>
+            <div><div class="grp-row-name">Clark Logistics Terminal<div class="grp-row-client">Clark Dev Corp</div></div></div>
+            <div class="grp-row-fin"><div class="fin-pre"><div class="fin-pre-amount">—</div><div class="fin-pre-label">Pre-contract</div></div></div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-a">NR</div></div></div>
+            <div class="grp-row-act"><span class="fresh fresh-s" style="font-size:12px;font-weight:700">58d ⚠</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grp collapsed">
+        <div class="grp-header">
+          <div class="grp-bar" style="background:var(--green)"></div>
+          <div><div class="grp-title">Completed</div><div class="grp-subtitle">Closed · retention tracking</div></div>
+          <span class="grp-n">2</span>
+          <span class="grp-total" style="color:var(--slate-600)">₱39.5M billed · <span style="color:var(--red);font-weight:700">₱3.95M retention</span></span>
+          <span class="grp-chevron">▾</span>
+        </div>
+        <div class="grp-body">
+          <!-- Column headers -->
+          <div style="display:grid; grid-template-columns:80px 1fr 180px 120px auto;
+            gap:0; padding:7px 18px; border-bottom:1px solid var(--border); background:var(--slate-50)">
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Code</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Project · Client</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;padding-left:16px">Billing · Retention</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase">Team</span>
+            <span style="font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--slate-400);text-transform:uppercase;text-align:right">Status</span>
+          </div>
+
+          <!-- P-006: completed, 10% retention in DLP (normal, on track) -->
+          <div class="grp-row" style="grid-template-columns:80px 1fr 180px 120px auto">
+            <span class="code">P-006</span>
+            <div><div class="grp-row-name">Panay Commercial Complex<div class="grp-row-client">Megaworld</div></div></div>
+            <div class="grp-row-fin">
+              <div class="fin-ret">
+                <div class="fin-ret-top"><span class="fin-ret-amount">₱18,500,000</span><span class="fin-ret-pct">90%</span></div>
+                <div class="fin-ret-bar"><div class="fin-ret-billed" style="width:90%"></div><div class="fin-ret-held" style="width:10%"></div></div>
+                <div class="fin-ret-sub">₱1.85M retention · In DLP</div>
+              </div>
+            </div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-p">JD</div><div class="av av-g">PB</div></div></div>
+            <div class="grp-row-act"><span class="ret-chip dlp">In DLP</span></div>
+          </div>
+
+          <!-- P-012: completed, 10% retention DLP EXPIRED — overdue -->
+          <div class="grp-row" style="grid-template-columns:80px 1fr 180px 120px auto; border-left:3px solid var(--red)">
+            <span class="code">P-012</span>
+            <div><div class="grp-row-name">Pasay Cold Storage Expansion<div class="grp-row-client">Manila Bay Dev Corp</div></div></div>
+            <div class="grp-row-fin">
+              <div class="fin-ret">
+                <div class="fin-ret-top"><span class="fin-ret-amount">₱21,000,000</span><span class="fin-ret-pct">90%</span></div>
+                <div class="fin-ret-bar"><div class="fin-ret-billed" style="width:90%"></div><div class="fin-ret-held overdue" style="width:10%"></div></div>
+                <div class="fin-ret-sub overdue">₱2.1M retention · DLP expired, release overdue</div>
+              </div>
+            </div>
+            <div class="grp-row-team"><div class="av-stack"><div class="av av-p">LP</div><div class="av av-g">JC</div></div></div>
+            <div class="grp-row-act"><span class="ret-chip overdue">DLP expired ⚠</span></div>
+          </div>
+
+        </div>
+      </div>
+
+    </div><!-- /group-list -->
+
+  </div><!-- /pdb-browse -->
+
+  <div class="notes">
+    <div class="note-box pro">
+      <h4>Why this pairing works</h4>
+      <ul class="note-list">
+        <li><strong>Priority Feed</strong> is the daily briefing — open the page, see what needs your eyes, act. No cognitive work required to find problems.</li>
+        <li><strong>Browse All</strong> satisfies the "I want to see everything by stage" mental model — useful for weekly reviews, reporting, or answering "how many proposals do we have out right now?"</li>
+        <li>The toggle is in the toolbar, not the nav — both modes are the same view, same URL, same data. No extra route or tab to maintain.</li>
+        <li>Collapse state on Browse All groups persists to localStorage — "Completed" stays folded across sessions.</li>
+        <li>Urgency signals computed from <code>updated_at</code> + stage entry timestamp — same fields already tracked, no new schema changes needed for the feed.</li>
+      </ul>
+    </div>
+    <div class="note-box con">
+      <h4>Implementation notes</h4>
+      <ul class="note-list">
+        <li>Default view is Priority Feed — the last-used mode can optionally be persisted to localStorage so users who prefer Browse All don't need to re-toggle each session.</li>
+        <li>Urgency thresholds are configurable constants (e.g. 14d = watch for Client Review, 7d for Revision, 5d no-activity for On-going) — tune after a few weeks of real usage.</li>
+        <li>A project can appear in the feed at "watch" level even while its Browse All group looks fine — this is expected behavior, not a bug.</li>
+      </ul>
+    </div>
+  </div>
+
+</div><!-- /pdb -->
+
+</div><!-- /main -->
+
+<script>
+  function sw(id, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+    document.querySelectorAll('.sw-btn').forEach(b => b.classList.remove('on'));
+    document.getElementById('p' + id).classList.add('on');
+    btn.classList.add('on');
+  }
+
+  // Toggle group collapse (all .grp-header elements, including combo browse panel)
+  document.querySelectorAll('.grp-header').forEach(h => {
+    h.addEventListener('click', () => h.closest('.grp').classList.toggle('collapsed'));
+  });
+
+  // D+B Combo: view-mode toggle
+  function vmSwitch(mode) {
+    document.getElementById('pdb-feed').style.display   = mode === 'feed'   ? 'block' : 'none';
+    document.getElementById('pdb-browse').style.display = mode === 'browse' ? 'block' : 'none';
+    document.getElementById('vm-feed').classList.toggle('vm-on',   mode === 'feed');
+    document.getElementById('vm-browse').classList.toggle('vm-on', mode === 'browse');
+  }
+</script>
+</body>
+</html>

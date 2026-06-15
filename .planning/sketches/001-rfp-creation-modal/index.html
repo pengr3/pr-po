@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 001 — RFP Creation Modal w/ Fees</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding-top: 52px;
+    font-family: var(--font-sans);
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  /* ---- variant tab bar ---- */
+  #variant-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+    background: #0f172a; border-bottom: 1px solid #1e293b;
+    padding: 8px 14px; display: flex; gap: 8px; align-items: center;
+    font-size: 13px;
+  }
+  #variant-nav .title { color:#94a3b8; font-weight:600; margin-right:6px; }
+  .variant-tab {
+    background: #1e293b; color: #cbd5e1; border: 1px solid #334155;
+    padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    font-family: inherit; transition: all .15s ease;
+  }
+  .variant-tab:hover { background:#334155; color:#fff; }
+  .variant-tab.active { background: var(--color-primary); color:#fff; border-color: var(--color-primary); }
+
+  /* ---- stage / viewport ---- */
+  #stage-wrap { display:flex; justify-content:center; padding: 28px 16px 80px; }
+  #stage {
+    width: 100%; max-width: 760px; transition: max-width .2s ease;
+  }
+  .backdrop {
+    background: rgba(15,23,42,0.45);
+    border-radius: 14px; padding: 28px 18px;
+    display: flex; justify-content: center;
+  }
+
+  /* ---- modal (mirrors app .modal-content) ---- */
+  .modal-content {
+    background:#fff; border-radius: var(--radius-modal);
+    max-width: 520px; width: 100%; margin: auto;
+    box-shadow: var(--shadow-modal); overflow: hidden;
+  }
+  .modal-header {
+    padding: 1rem 1.5rem;
+    background: linear-gradient(180deg,#fff 0%,#f8fafc 100%);
+    border-bottom: 1px solid var(--color-border);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .modal-header h2 { font-size: var(--text-lg); font-weight:600; color:var(--color-text); margin:0; }
+  .modal-close { background:none; border:none; font-size:1.5rem; line-height:1; color:#94a3b8; cursor:pointer; padding:0 4px; }
+  .modal-close:hover { color:#475569; }
+  .modal-body { padding: 1.25rem 1.5rem; max-height: 64vh; overflow-y:auto; }
+  .modal-footer {
+    padding: 0.9rem 1.5rem; background:#fff;
+    border-top: 1px solid var(--color-border);
+    display:flex; justify-content:flex-end; gap:.6rem; align-items:center;
+  }
+
+  /* ---- sectioned layout (the overhaul) ---- */
+  .section { margin-bottom: 1.15rem; }
+  .section:last-child { margin-bottom: 0; }
+  .section-head {
+    display:flex; align-items:center; gap:8px; margin-bottom:.7rem;
+  }
+  .section-num {
+    width:20px; height:20px; border-radius: var(--radius-full);
+    background: var(--color-primary); color:#fff; font-size:11px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; flex:0 0 auto;
+  }
+  .section-title {
+    font-size:.72rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--color-text-muted);
+  }
+  .section-rule { flex:1; height:1px; background:var(--color-border); }
+
+  .detail-label { font-size:.72rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--color-text-muted); margin-bottom:3px; }
+  .detail-val { font-weight:600; color:var(--color-text); font-size:.9rem; }
+  .ref-grid { display:grid; grid-template-columns:1fr 1fr; gap:.85rem; background:#f8fafc; border:1px solid var(--color-border-2); border-radius:8px; padding:.85rem; }
+  .ref-grid .span2 { grid-column: span 2; }
+
+  label.fld { display:block; margin-bottom:.4rem; font-weight:600; color:var(--color-text-2); font-size:.875rem; }
+  .req { color: var(--color-danger-2); }
+  .form-control {
+    width:100%; padding:.5rem .75rem; border:1px solid var(--color-border-2);
+    border-radius: var(--radius-input); font-size:.875rem; font-family:inherit;
+    transition: all .2s; background:#fff; color:var(--color-text);
+  }
+  .form-control:focus { outline:none; border-color:var(--color-primary); box-shadow:0 0 0 3px rgba(26,115,232,.12); }
+  .form-control[readonly] { background:var(--color-disabled-bg); cursor:not-allowed; color:#334155; font-weight:600; }
+  .row-2 { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+  .stack { display:flex; flex-direction:column; gap:.85rem; }
+
+  /* ---- buttons ---- */
+  .btn { padding:.5rem 1rem; border:none; border-radius:var(--radius-btn); font-weight:600; cursor:pointer; font-size:.875rem; font-family:inherit; transition:all .2s; display:inline-flex; align-items:center; gap:6px; }
+  .btn-primary { background:var(--color-primary); color:#fff; }
+  .btn-primary:hover { background:var(--color-primary-hover); transform:translateY(-1px); box-shadow:0 2px 8px rgba(26,115,232,.3); }
+  .btn-outline { background:#fff; color:var(--color-text-2); border:1px solid var(--color-border-2); }
+  .btn-outline:hover { background:#f8fafc; }
+  .btn-ghost-fee { background:var(--color-fee-bg); color:#0369a1; border:1px dashed var(--color-fee-border); padding:.45rem .75rem; border-radius:6px; font-size:.82rem; font-weight:600; cursor:pointer; font-family:inherit; transition:all .15s; }
+  .btn-ghost-fee:hover { background:#e0f2fe; }
+  .icon-x { background:none; border:none; color:#94a3b8; cursor:pointer; font-size:1.05rem; line-height:1; padding:2px 6px; border-radius:4px; }
+  .icon-x:hover { color:var(--color-danger); background:#fef2f2; }
+
+  /* ---- fees ---- */
+  .fee-amount-wrap { position:relative; }
+  .fee-amount-wrap::before { content:"₱"; position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:.85rem; pointer-events:none; }
+  .fee-amount-wrap .form-control { padding-left:22px; text-align:right; }
+  .fee-row { display:grid; grid-template-columns: 1fr 150px 32px; gap:.5rem; align-items:center; margin-bottom:.55rem; }
+  .fee-fixed-row { display:grid; grid-template-columns: 1fr 150px; gap:.5rem; align-items:end; margin-bottom:.7rem; }
+  .fee-fixed-row.removable { grid-template-columns: 1fr 150px 32px; }
+  .muted-hint { color:var(--color-text-muted); font-size:.8rem; font-style:italic; padding:.35rem 0; }
+
+  .fees-card { border:1px solid var(--color-fee-border); background:var(--color-fee-bg); border-radius:var(--radius-card); padding:.9rem; }
+
+  /* total displays */
+  .total-line { display:flex; justify-content:space-between; align-items:baseline; padding:.35rem 0; font-size:.875rem; color:var(--color-text-2); }
+  .total-line .v { font-weight:600; color:var(--color-text); font-variant-numeric: tabular-nums; }
+  .grand {
+    display:flex; justify-content:space-between; align-items:center;
+    border-top:1px dashed var(--color-fee-border); margin-top:.4rem; padding-top:.55rem;
+  }
+  .grand .lbl { font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--color-text-2); }
+  .grand .amt { font-size:1.3rem; font-weight:800; color:var(--color-text); font-variant-numeric:tabular-nums; }
+  .incl-pill { display:inline-flex; align-items:center; gap:4px; background:var(--color-fee-bg); color:#0369a1; border:1px solid var(--color-fee-border); border-radius:var(--radius-full); font-size:.66rem; font-weight:700; padding:2px 8px; letter-spacing:.03em; }
+
+  /* variant C sticky total bar */
+  .total-bar { background:var(--color-fee-bg); border-top:1px solid var(--color-fee-border); padding:.7rem 1.5rem; display:flex; justify-content:space-between; align-items:center; }
+  .total-bar .breakdown { font-size:.78rem; color:var(--color-text-2); }
+  .total-bar .breakdown b { color:var(--color-text); font-variant-numeric:tabular-nums; }
+  .total-bar .grand-amt { font-size:1.2rem; font-weight:800; color:var(--color-text); font-variant-numeric:tabular-nums; }
+
+  .variant { display:none; }
+  .variant.active { display:block; }
+  .note { max-width:520px; margin:0 auto 14px; color:#475569; font-size:.82rem; background:#fff; border:1px solid var(--color-border); border-left:3px solid var(--color-primary); border-radius:8px; padding:.6rem .8rem; }
+
+  /* ---- sketch toolbar ---- */
+  #sketch-tools { position:fixed; bottom:12px; right:12px; z-index:9999; font-family:system-ui; font-size:12px; background:rgba(15,23,42,.82); color:#fff; padding:8px 10px; border-radius:10px; opacity:.5; transition:opacity .2s; display:flex; gap:6px; align-items:center; }
+  #sketch-tools:hover { opacity:1; }
+  #sketch-tools button { background:#334155; color:#fff; border:none; border-radius:5px; padding:4px 8px; cursor:pointer; font-size:11px; }
+  #sketch-tools button.on { background:var(--color-primary); }
+  #sketch-tools .vw { color:#94a3b8; min-width:62px; text-align:center; }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <span class="title">Sketch 001 · RFP Fees</span>
+  <button class="variant-tab" data-v="a" onclick="showVariant('a')">A · Always-visible</button>
+  <button class="variant-tab active" data-v="b" onclick="showVariant('b')">B · Progressive ★ Selected</button>
+  <button class="variant-tab" data-v="c" onclick="showVariant('c')">C · Boxed + sticky total</button>
+</div>
+
+<div id="stage-wrap">
+<div id="stage">
+
+  <!-- ============ VARIANT A ============ -->
+  <div id="variant-a" class="variant">
+    <div class="note"><b>A · Fees always visible.</b> Transfer &amp; Cash-Out fields sit in the Fees section by default (optional, blank = not applied). Misc lines added on demand. Running total lives at the bottom of the Fees section.</div>
+    <div class="backdrop">
+      <div class="modal-content" id="modal-a">
+        <div class="modal-header"><h2>Create Request for Payment</h2><button class="modal-close">&times;</button></div>
+        <div class="modal-body">
+
+          <!-- 1 Reference -->
+          <div class="section">
+            <div class="section-head"><span class="section-num">1</span><span class="section-title">Reference</span><span class="section-rule"></span></div>
+            <div class="ref-grid">
+              <div><div class="detail-label">Supplier</div><div class="detail-val">Prime Hardware &amp; Elec. Supply</div></div>
+              <div><div class="detail-label">PO Reference</div><div class="detail-val">PO-2026-014</div></div>
+              <div class="span2"><div class="detail-label">Department</div><div class="detail-val">Project: CLMC-ACME-2026014</div></div>
+            </div>
+          </div>
+
+          <!-- 2 Base -->
+          <div class="section">
+            <div class="section-head"><span class="section-num">2</span><span class="section-title">Base Amount</span><span class="section-rule"></span></div>
+            <div class="stack">
+              <div>
+                <label class="fld">Tranche</label>
+                <select class="form-control" id="a-tranche" onchange="recompute('a')"></select>
+              </div>
+              <div>
+                <label class="fld">Amount Requested <span style="font-weight:400;color:#94a3b8;">(auto from tranche %)</span></label>
+                <input class="form-control" id="a-base" readonly>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3 Fees -->
+          <div class="section">
+            <div class="section-head"><span class="section-num">3</span><span class="section-title">Fees <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;">— optional</span></span><span class="section-rule"></span></div>
+            <div class="fee-fixed-row">
+              <div><label class="fld">Transfer Fee</label><div class="fee-amount-wrap"><input class="form-control fee-amount" id="a-transfer" inputmode="decimal" placeholder="0.00" oninput="recompute('a')"></div></div>
+              <div></div>
+            </div>
+            <div class="fee-fixed-row">
+              <div><label class="fld">Cash-Out Fee</label><div class="fee-amount-wrap"><input class="form-control fee-amount" id="a-cashout" inputmode="decimal" placeholder="0.00" oninput="recompute('a')"></div></div>
+              <div></div>
+            </div>
+            <div style="margin:.4rem 0 .2rem;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;">Miscellaneous</div>
+            <div id="a-misc"></div>
+            <button class="btn-ghost-fee" onclick="addMisc('a')">+ Add miscellaneous fee</button>
+
+            <div style="margin-top:.9rem;border-top:1px solid var(--color-border);padding-top:.6rem;">
+              <div class="total-line"><span>Base amount</span><span class="v" id="a-baseEcho">₱0.00</span></div>
+              <div class="total-line"><span>Fees</span><span class="v" id="a-feesEcho">₱0.00</span></div>
+              <div class="grand"><span class="lbl">Grand total</span><span class="amt" id="a-grand">₱0.00</span></div>
+            </div>
+          </div>
+
+          <!-- 4 Payment -->
+          <div class="section">
+            <div class="section-head"><span class="section-num">4</span><span class="section-title">Payment Details</span><span class="section-rule"></span></div>
+            <div class="stack">
+              <div><label class="fld">Proof <span class="req">*</span></label><input class="form-control" placeholder="Paste URL or enter proof details"></div>
+              <div class="row-2">
+                <div><label class="fld">Due Date <span class="req">*</span></label><input type="date" class="form-control"></div>
+                <div><label class="fld">Mode of Payment <span class="req">*</span></label>
+                  <select class="form-control"><option>Select…</option><option>Bank Transfer</option><option>Check</option><option>Cash</option><option>Other</option></select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <span style="margin-right:auto;font-size:.78rem;color:#64748b;">Total <b id="a-footTotal" style="color:#1e293b;">₱0.00</b> <span class="incl-pill" id="a-footPill" style="display:none;">+ incl. fees</span></span>
+          <button class="btn btn-outline">Discard</button>
+          <button class="btn btn-primary">Submit RFP</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VARIANT B ============ -->
+  <div id="variant-b" class="variant active">
+    <div class="note"><b>B · Progressive disclosure.</b> The common case (no fees) stays clean — Fees section shows only "add" chips. Tap a chip to reveal that fee. Total appears once a fee exists.</div>
+    <div class="backdrop">
+      <div class="modal-content" id="modal-b">
+        <div class="modal-header"><h2>Create Request for Payment</h2><button class="modal-close">&times;</button></div>
+        <div class="modal-body">
+
+          <div class="section">
+            <div class="section-head"><span class="section-num">1</span><span class="section-title">Reference</span><span class="section-rule"></span></div>
+            <div class="ref-grid">
+              <div><div class="detail-label">Supplier</div><div class="detail-val">Prime Hardware &amp; Elec. Supply</div></div>
+              <div><div class="detail-label">PO Reference</div><div class="detail-val">PO-2026-014</div></div>
+              <div class="span2"><div class="detail-label">Department</div><div class="detail-val">Project: CLMC-ACME-2026014</div></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><span class="section-num">2</span><span class="section-title">Base Amount</span><span class="section-rule"></span></div>
+            <div class="stack">
+              <div><label class="fld">Tranche</label><select class="form-control" id="b-tranche" onchange="recompute('b')"></select></div>
+              <div><label class="fld">Amount Requested <span style="font-weight:400;color:#94a3b8;">(auto from tranche %)</span></label><input class="form-control" id="b-base" readonly></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><span class="section-num">3</span><span class="section-title">Fees <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;">— optional</span></span><span class="section-rule"></span></div>
+
+            <!-- chips -->
+            <div id="b-chips" style="display:flex;flex-wrap:wrap;gap:8px;">
+              <button class="btn-ghost-fee" id="b-chip-transfer" onclick="revealFee('b','transfer')">+ Transfer fee</button>
+              <button class="btn-ghost-fee" id="b-chip-cashout" onclick="revealFee('b','cashout')">+ Cash-out fee</button>
+              <button class="btn-ghost-fee" onclick="addMisc('b')">+ Misc fee</button>
+            </div>
+
+            <!-- revealed fixed fees -->
+            <div id="b-transfer-row" class="fee-fixed-row removable" style="display:none;margin-top:.7rem;">
+              <div><label class="fld">Transfer Fee</label><div class="fee-amount-wrap"><input class="form-control fee-amount" id="b-transfer" inputmode="decimal" placeholder="0.00" oninput="recompute('b')"></div></div>
+              <div></div>
+              <button class="icon-x" title="Remove" onclick="hideFee('b','transfer')">&times;</button>
+            </div>
+            <div id="b-cashout-row" class="fee-fixed-row removable" style="display:none;margin-top:.55rem;">
+              <div><label class="fld">Cash-Out Fee</label><div class="fee-amount-wrap"><input class="form-control fee-amount" id="b-cashout" inputmode="decimal" placeholder="0.00" oninput="recompute('b')"></div></div>
+              <div></div>
+              <button class="icon-x" title="Remove" onclick="hideFee('b','cashout')">&times;</button>
+            </div>
+
+            <div id="b-misc" style="margin-top:.55rem;"></div>
+
+            <div id="b-totalblock" style="display:none;margin-top:.9rem;border-top:1px solid var(--color-border);padding-top:.6rem;">
+              <div class="total-line"><span>Base amount</span><span class="v" id="b-baseEcho">₱0.00</span></div>
+              <div class="total-line"><span>Fees</span><span class="v" id="b-feesEcho">₱0.00</span></div>
+              <div class="grand"><span class="lbl">Grand total</span><span class="amt" id="b-grand">₱0.00</span></div>
+            </div>
+            <div id="b-noFees" class="muted-hint" style="margin-top:.5rem;">No fees added — disbursement equals the base amount.</div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><span class="section-num">4</span><span class="section-title">Payment Details</span><span class="section-rule"></span></div>
+            <div class="stack">
+              <div><label class="fld">Proof <span class="req">*</span></label><input class="form-control" placeholder="Paste URL or enter proof details"></div>
+              <div class="row-2">
+                <div><label class="fld">Due Date <span class="req">*</span></label><input type="date" class="form-control"></div>
+                <div><label class="fld">Mode of Payment <span class="req">*</span></label><select class="form-control"><option>Select…</option><option>Bank Transfer</option><option>Check</option><option>Cash</option><option>Other</option></select></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <span style="margin-right:auto;font-size:.78rem;color:#64748b;">Total <b id="b-footTotal" style="color:#1e293b;">₱0.00</b> <span class="incl-pill" id="b-footPill" style="display:none;">+ incl. fees</span></span>
+          <button class="btn btn-outline">Discard</button>
+          <button class="btn btn-primary">Submit RFP</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VARIANT C ============ -->
+  <div id="variant-c" class="variant">
+    <div class="note"><b>C · Boxed Fees card + sticky total bar.</b> Fees grouped in a tinted card; a persistent total bar between body and footer always shows Base + Fees = Total as you type.</div>
+    <div class="backdrop">
+      <div class="modal-content" id="modal-c">
+        <div class="modal-header"><h2>Create Request for Payment</h2><button class="modal-close">&times;</button></div>
+        <div class="modal-body">
+
+          <div class="section">
+            <div class="section-head"><span class="section-num">1</span><span class="section-title">Reference</span><span class="section-rule"></span></div>
+            <div class="ref-grid">
+              <div><div class="detail-label">Supplier</div><div class="detail-val">Prime Hardware &amp; Elec. Supply</div></div>
+              <div><div class="detail-label">PO Reference</div><div class="detail-val">PO-2026-014</div></div>
+              <div class="span2"><div class="detail-label">Department</div><div class="detail-val">Project: CLMC-ACME-2026014</div></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><span class="section-num">2</span><span class="section-title">Base Amount</span><span class="section-rule"></span></div>
+            <div class="stack">
+              <div><label class="fld">Tranche</label><select class="form-control" id="c-tranche" onchange="recompute('c')"></select></div>
+              <div><label class="fld">Amount Requested <span style="font-weight:400;color:#94a3b8;">(auto from tranche %)</span></label><input class="form-control" id="c-base" readonly></div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><span class="section-num">3</span><span class="section-title">Fees <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;">— optional</span></span><span class="section-rule"></span></div>
+            <div class="fees-card">
+              <div class="row-2" style="gap:.7rem;">
+                <div><label class="fld">Transfer Fee</label><div class="fee-amount-wrap"><input class="form-control fee-amount" id="c-transfer" inputmode="decimal" placeholder="0.00" oninput="recompute('c')"></div></div>
+                <div><label class="fld">Cash-Out Fee</label><div class="fee-amount-wrap"><input class="form-control fee-amount" id="c-cashout" inputmode="decimal" placeholder="0.00" oninput="recompute('c')"></div></div>
+              </div>
+              <div style="margin:.7rem 0 .3rem;font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0369a1;">Miscellaneous</div>
+              <div id="c-misc"></div>
+              <button class="btn-ghost-fee" style="background:#fff;" onclick="addMisc('c')">+ Add miscellaneous fee</button>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-head"><span class="section-num">4</span><span class="section-title">Payment Details</span><span class="section-rule"></span></div>
+            <div class="stack">
+              <div><label class="fld">Proof <span class="req">*</span></label><input class="form-control" placeholder="Paste URL or enter proof details"></div>
+              <div class="row-2">
+                <div><label class="fld">Due Date <span class="req">*</span></label><input type="date" class="form-control"></div>
+                <div><label class="fld">Mode of Payment <span class="req">*</span></label><select class="form-control"><option>Select…</option><option>Bank Transfer</option><option>Check</option><option>Cash</option><option>Other</option></select></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <!-- sticky total bar -->
+        <div class="total-bar">
+          <div class="breakdown">Base <b id="c-baseEcho">₱0.00</b> &nbsp;+&nbsp; Fees <b id="c-feesEcho">₱0.00</b> <span class="incl-pill" id="c-pill" style="display:none;">incl. fees</span></div>
+          <div><span style="font-size:.7rem;color:#64748b;font-weight:700;text-transform:uppercase;margin-right:6px;">Total</span><span class="grand-amt" id="c-grand">₱0.00</span></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-outline" style="margin-right:auto;">Discard</button>
+          <button class="btn btn-primary">Submit RFP</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ---- sketch toolbar ---- -->
+<div id="sketch-tools">
+  <span style="color:#94a3b8;">view:</span>
+  <button id="vw-phone" onclick="setVw(390,'vw-phone')">Phone</button>
+  <button id="vw-tab" onclick="setVw(768,'vw-tab')">Tablet</button>
+  <button id="vw-desk" class="on" onclick="setVw(760,'vw-desk')">Desktop</button>
+  <span class="vw" id="vw-label">760px</span>
+</div>
+
+<script>
+  const TRANCHES = [
+    { label: '30% Downpayment',   amount: 45000 },
+    { label: '40% Upon Delivery', amount: 60000 },
+    { label: '30% Final Payment', amount: 45000 },
+  ];
+  function peso(n){ return '₱' + (Number(n)||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function parseAmt(v){ const n = parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?0:Math.max(0,n); }
+
+  // populate tranche selects
+  ['a','b','c'].forEach(V => {
+    const sel = document.getElementById(V+'-tranche');
+    TRANCHES.forEach((t,i) => {
+      const o = document.createElement('option');
+      o.value = i; o.dataset.amount = t.amount;
+      o.textContent = `${t.label} — ${peso(t.amount)}`;
+      sel.appendChild(o);
+    });
+  });
+
+  let miscSeq = 0;
+  function addMisc(V){
+    miscSeq++;
+    const wrap = document.getElementById(V+'-misc');
+    const row = document.createElement('div');
+    row.className = 'fee-row';
+    row.innerHTML =
+      `<input class="form-control" placeholder="Label (e.g. Notary, Courier)" oninput="recompute('${V}')">
+       <div class="fee-amount-wrap"><input class="form-control fee-amount" inputmode="decimal" placeholder="0.00" oninput="recompute('${V}')"></div>
+       <button class="icon-x" title="Remove" onclick="this.closest('.fee-row').remove(); recompute('${V}')">&times;</button>`;
+    wrap.appendChild(row);
+    row.querySelector('input').focus();
+    recompute(V);
+  }
+
+  // variant B reveal/hide
+  function revealFee(V, type){
+    document.getElementById(V+'-'+type+'-row').style.display = 'grid';
+    document.getElementById(V+'-chip-'+type).style.display = 'none';
+    document.getElementById(V+'-'+type).focus();
+    recompute(V);
+  }
+  function hideFee(V, type){
+    const inp = document.getElementById(V+'-'+type); inp.value = '';
+    document.getElementById(V+'-'+type+'-row').style.display = 'none';
+    document.getElementById(V+'-chip-'+type).style.display = 'inline-block';
+    recompute(V);
+  }
+
+  function recompute(V){
+    const sel = document.getElementById(V+'-tranche');
+    const base = parseAmt(sel.selectedOptions[0].dataset.amount);
+    document.getElementById(V+'-base').value = peso(base);
+
+    let fees = 0;
+    document.querySelectorAll('#modal-'+V+' .fee-amount').forEach(inp => {
+      // only count visible inputs (variant B hides removed rows)
+      if (inp.offsetParent !== null) fees += parseAmt(inp.value);
+    });
+    const total = base + fees;
+
+    const set = (id,val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set(V+'-baseEcho', peso(base));
+    set(V+'-feesEcho', peso(fees));
+    set(V+'-grand', peso(total));
+    set(V+'-footTotal', peso(total));
+
+    const pill = document.getElementById(V+'-footPill') || document.getElementById(V+'-pill');
+    if (pill) pill.style.display = fees > 0 ? 'inline-flex' : 'none';
+
+    // variant B empty-state toggle
+    const tb = document.getElementById(V+'-totalblock');
+    const nf = document.getElementById(V+'-noFees');
+    if (tb && nf){
+      const hasFee = fees > 0 || document.querySelectorAll('#'+V+'-misc .fee-row').length > 0
+        || document.getElementById(V+'-transfer-row').style.display !== 'none'
+        || document.getElementById(V+'-cashout-row').style.display !== 'none';
+      tb.style.display = hasFee ? 'block' : 'none';
+      nf.style.display = hasFee ? 'none' : 'block';
+    }
+  }
+
+  function showVariant(v){
+    document.querySelectorAll('.variant').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('variant-'+v).classList.add('active');
+    document.querySelector('.variant-tab[data-v="'+v+'"]').classList.add('active');
+  }
+
+  function setVw(px, id){
+    document.getElementById('stage').style.maxWidth = px + 'px';
+    document.getElementById('vw-label').textContent = px + 'px';
+    ['vw-phone','vw-tab','vw-desk'].forEach(b => document.getElementById(b).classList.toggle('on', b===id));
+  }
+
+  ['a','b','c'].forEach(recompute);
+</script>
+</body>
+</html>
