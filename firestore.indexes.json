@@ -1,16 +1,42 @@
 {
   "indexes": [
     {
-      "collectionGroup": "users",
+      "collectionGroup": "pos",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "status",
+          "fieldPath": "is_subcon",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "created_at",
-          "order": "DESCENDING"
+          "fieldPath": "project_name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "delivery_fee",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_amount",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "is_subcon",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "project_name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_amount",
+          "order": "ASCENDING"
         }
       ]
     },
@@ -24,6 +50,94 @@
         },
         {
           "fieldPath": "date_issued",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "project_name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_amount",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "service_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_amount",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "supplier_name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_issued",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pos",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "supplier_name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_issued",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "total_amount",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "projects",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "client_code",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "project_code",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "finance_status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_approved",
           "order": "ASCENDING"
         }
       ]
@@ -43,16 +157,76 @@
       ]
     },
     {
-      "collectionGroup": "pos",
+      "collectionGroup": "services",
       "queryScope": "COLLECTION",
       "fields": [
         {
+          "fieldPath": "client_code",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "service_code",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "transport_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "finance_status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date_submitted",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "transport_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "finance_status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "project_name",
           "order": "ASCENDING"
         },
         {
           "fieldPath": "total_amount",
           "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "transport_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "project_name",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "total_amount",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
         }
       ]
     },
@@ -74,17 +248,32 @@
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "user_id", "order": "ASCENDING" },
-        { "fieldPath": "created_at", "order": "DESCENDING" }
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "notifications",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "user_id", "order": "ASCENDING" },
-        { "fieldPath": "read", "order": "ASCENDING" },
-        { "fieldPath": "created_at", "order": "DESCENDING" }
+        {
+          "fieldPath": "user_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "read",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "created_at",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],
