@@ -143,6 +143,9 @@ export async function init(activeTab = null, param = null) {
     if (journalActivityUnsub) { try { journalActivityUnsub(); } catch (e) {} journalActivityUnsub = null; }
     if (journalProgressUnsub) { try { journalProgressUnsub(); } catch (e) {} journalProgressUnsub = null; }
     if (journalIssuesUnsub) { try { journalIssuesUnsub(); } catch (e) {} journalIssuesUnsub = null; }
+    // Phase 105 — tasks listener teardown (same-view re-init — router skips destroy on service→service nav)
+    if (currentTasksListenerUnsub) { try { currentTasksListenerUnsub(); } catch (e) {} currentTasksListenerUnsub = null; }
+    currentTasks = [];
     journalActivityEntries = [];
     journalProgressUpdates = [];
     journalIssues = [];
@@ -214,6 +217,8 @@ export async function init(activeTab = null, param = null) {
             ensureServiceCollectiblesListener();
             // Phase 104 — attach the journal listeners only on visible statuses (D-11)
             if (['For Mobilization', 'On-going', 'Completed'].includes(currentService?.project_status)) ensureServiceJournalListeners();
+            // Phase 105 — service_tasks onSnapshot feeding the Service Plan summary card (D-01)
+            ensureTasksListener();
 
             // Phase 104 — attach-triggered snapshot: rebuild only the accordion body in place (no full re-render / flicker)
             if (_lcAttachPending) {
@@ -309,6 +314,11 @@ export async function destroy() {
     journalSelectedTag = 'update';
     journalEditingProgressId = null;
 
+    // Phase 105 — tasks listener teardown
+    if (currentTasksListenerUnsub) { try { currentTasksListenerUnsub(); } catch (e) { /* swallow */ } }
+    currentTasksListenerUnsub = null;
+    currentTasks = [];
+
     currentService = null;
     currentServiceDocId = null;
     serviceParam = null;
@@ -380,6 +390,28 @@ export async function destroy() {
     delete window.recordServiceRetentionRelease;
     editorTranches = [];
     trancheEditorOpen = false;
+}
+
+// Phase 105 — idempotent attach of service_tasks listener. Re-renders the Service Plan card in-place.
+// Mirrors project-detail.js ensureTasksListener (Phase 86). Torn down in BOTH init() re-init block
+// (router skips destroy on service→service nav) AND destroy() (normal teardown).
+function ensureTasksListener() {
+    if (currentTasksListenerUnsub) return;
+    if (!currentService || !currentService.id) return;
+    currentTasksListenerUnsub = onSnapshot(
+        query(collection(db, 'service_tasks'), where('service_id', '==', currentService.id)),
+        (snap) => {
+            currentTasks = [];
+            snap.forEach(d => currentTasks.push({ id: d.id, ...d.data() }));
+            currentServiceProgress = computeServiceProgress(currentTasks);
+            const cardEl = document.getElementById('servicePlanCard');
+            if (cardEl) {
+                const tmp = document.createElement('div');
+                tmp.innerHTML = buildServicePlanCardHtml();
+                cardEl.replaceWith(tmp.firstElementChild);
+            }
+        }
+    );
 }
 
 // Phase 99.1 (Phase 99 port) — idempotent attach of the own billing-requests listener.
