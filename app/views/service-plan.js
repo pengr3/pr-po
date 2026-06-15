@@ -154,7 +154,9 @@ export function render(activeTab = null, param = null) {
                     <div class="gantt-pane">
                         <div id="ganttPane"></div>
                     </div>
-        </div>
+                </div><!-- /plan-split-pane -->
+            </div><!-- /plan-body-row -->
+        </div><!-- /plan-view-surface -->
     `;
 }
 
@@ -2319,7 +2321,7 @@ function mountGanttArrowContextMenu() {
         e.preventDefault();
         const { fromId, toId } = getArrowFromTo(arrowEl);
         if (!fromId || !toId) {
-            showToast('Could not identify this dependency. Reload the project plan.', 'warning');
+            showToast('Could not identify this dependency. Reload the service plan.', 'warning');
             return;
         }
         const fromTask = tasks.find(x => x.task_id === fromId);
@@ -3597,7 +3599,7 @@ function exportGanttPDF() {
     frame.id = 'gantt-print-frame';
     frame.innerHTML = `
         <div class="pdf-header">
-            <h2>${escapeHTML(projectName)} — Project Plan</h2>
+            <h2>${escapeHTML(projectName)} — Service Plan</h2>
             <p>Exported: ${dateStr}</p>
         </div>
         <div class="pdf-gantt-section">
@@ -3684,7 +3686,7 @@ async function gridToggleMilestone(taskId) {
     } catch (err) {
         console.error('[ServicePlan] gridToggleMilestone failed:', err);
         showToast(err?.code === 'permission-denied'
-            ? `You don't have permission to change milestone status on this project.`
+            ? `You don't have permission to change milestone status on this service.`
             : 'Could not update milestone. Please try again.', 'error');
     }
 }

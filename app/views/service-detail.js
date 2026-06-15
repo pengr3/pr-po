@@ -410,7 +410,8 @@ function ensureTasksListener() {
                 tmp.innerHTML = buildServicePlanCardHtml();
                 cardEl.replaceWith(tmp.firstElementChild);
             }
-        }
+        },
+        (err) => console.error('[ServiceDetail/ServiceTasks] snapshot error:', err)
     );
 }
 
