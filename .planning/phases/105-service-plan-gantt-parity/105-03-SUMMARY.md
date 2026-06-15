@@ -119,3 +119,13 @@ Reply "approved" or list failures.
 - `b743b60` — Task 2: wire service_tasks listener + teardown + insert card
 
 ## Self-Check: PASSED
+
+## UAT (2026-06-15) — APPROVED
+
+Operator requested project-detail layout parity: proposal card + Service Plan card
+in a 2-column inline grid (proposal left, plan right). Added in `1712450` — wrapped
+both cards in `#serviceDetailBottomRow` with `syncServiceBottomRow()` (mirror of
+project-detail `syncBottomRow()`): 1fr 1fr when a proposal is visible, plan
+full-width otherwise; called from each `loadProposalCard` branch. Card data,
+"Open Plan" CTA → `#/services/{service_code}/plan`, disabled-on-no-code state, live
+onSnapshot re-render, and clean service→service teardown all verified. **Operator: approved.**
