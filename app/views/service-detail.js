@@ -767,20 +767,24 @@ function renderServiceDetail() {
 
             ${renderServiceLifecycleCard(currentService, user)}
 
-            <!-- Active Toggle Badge (Above Cards) -->
-            <div style="margin-bottom: 1.5rem;">
-                <div style="display: inline-flex; align-items: center; gap: 0.75rem;">
-                    <span class="status-badge ${currentService.active ? 'approved' : 'rejected'}"
-                          style="cursor: ${showEditControls ? 'pointer' : 'default'}; font-size: 0.875rem; padding: 0.5rem 1rem; transition: all 0.2s;"
-                          ${showEditControls ? `onclick="window.toggleServiceDetailActive(${!currentService.active})"` : ''}>
-                        ${currentService.active ? '✓ Active' : '✗ Inactive'}
-                    </span>
-                    <button class="btn btn-sm btn-secondary"
-                            onclick="window.location.hash='#/services'"
-                            style="padding: 0.4rem 0.75rem; font-size: 0.8rem;">
-                        ← Back to Services
-                    </button>
-                </div>
+            <!-- Header strip: badge · code · status · actions (Phase 104 parity — mirrors project-detail.js:622-640) -->
+            <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.75rem;">
+                <span class="status-badge ${currentService.active ? 'approved' : 'rejected'}"
+                      style="cursor:${showEditControls ? 'pointer' : 'default'};font-size:0.8rem;padding:0.35rem 0.75rem;transition:all 0.2s;"
+                      ${showEditControls ? `onclick="window.toggleServiceDetailActive(${!currentService.active})"` : ''}>
+                    ${currentService.active ? '✓ Active' : '✗ Inactive'}
+                </span>
+                <span style="color:#cbd5e1;">·</span>
+                <span style="font-family:monospace;font-size:0.82rem;font-weight:700;color:#64748b;">${escapeHTML(currentService.service_code || '—')}</span>
+                <span style="color:#cbd5e1;">·</span>
+                <span id="hdrServiceStatusBadge" class="hdr-status" style="background:${_getServiceStatusColor(currentService.project_status || '')};color:white;padding:0.3rem 0.85rem;border-radius:20px;font-size:0.82rem;font-weight:600;">${escapeHTML(currentService.project_status || '—')}</span>
+                <span style="flex:1;"></span>
+                <button class="btn btn-sm btn-secondary" onclick="window.showEditHistory()" style="white-space:nowrap;">Edit History</button>
+                <button class="btn btn-sm btn-secondary" onclick="window.exportServiceExpenseCSV()"
+                        style="display:flex;align-items:center;gap:0.35rem;${currentServiceExpense.poCount === 0 ? 'opacity:0.45;pointer-events:none;cursor:default;' : ''}"
+                        ${currentServiceExpense.poCount === 0 ? 'disabled' : ''}>
+                    &#8681; Export CSV
+                </button>
             </div>
 
             <!-- Phase 104 parity (quick 260615-eo0) — Info + Financial side-by-side, mirroring project-detail.js:644-645 -->
@@ -788,86 +792,56 @@ function renderServiceDetail() {
 
             <!-- Card 1 — Service Information -->
             <div class="card" style="margin-bottom: 0;">
-                <div class="card-body" style="padding: 1.5rem;">
-                    <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div class="card-body" style="padding:0.75rem 1rem;">
+                    <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem;">Service Information</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 0.75rem;">
                         <div>
-                            <h3 style="margin: 0 0 0.25rem 0; font-size: 1.125rem; font-weight: 600;">Service Information</h3>
-                            <p style="color: #94a3b8; font-size: 0.875rem; margin: 0;">Created: ${formatDate(currentService.created_at)}${currentService.updated_at ? ' | Updated: ' + formatDate(currentService.updated_at) : ''}</p>
+                            <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Service Name *</label>
+                            <input type="text" class="detail-field" data-field="service_name" value="${escapeHTML(currentService.service_name || '')}" onblur="window.saveServiceField('service_name', this.value)" placeholder="Enter service name" ${!showEditControls ? 'disabled' : ''}>
                         </div>
-                        <button class="btn btn-sm btn-secondary" onclick="window.showEditHistory()" style="white-space: nowrap; padding: 0.4rem 0.75rem; font-size: 0.8rem;">
-                            Edit History
-                        </button>
-                    </div>
-
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
-                        <!-- Service Code — locked -->
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Service Code</label>
-                            <div style="color: #64748b; font-size: 1rem; font-family: monospace;">${escapeHTML(currentService.service_code || '—')}</div>
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Client</label>
+                            <div style="color:#64748b;font-size:0.9rem;padding:0.35rem 0;">${escapeHTML(currentService.client_code || currentService.client_name || 'N/A')}</div>
                         </div>
-
-                        <!-- Service Name — editable -->
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.25rem;">Service Name *</label>
-                            <input type="text"
-                                   data-field="service_name"
-                                   value="${escapeHTML(currentService.service_name || '')}"
-                                   onblur="window.saveServiceField('service_name', this.value)"
-                                   placeholder="Enter service name"
-                                   ${!showEditControls ? 'disabled' : ''}>
-                        </div>
-
-                        <!-- Service Type — display only (locked post-creation) -->
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Service Type</label>
-                            <div>
-                                <span class="status-badge ${currentService.service_type === 'recurring' ? 'approved' : 'pending'}"
-                                      style="font-size: 0.8rem;">
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Service Type</label>
+                            <div style="padding:0.35rem 0;">
+                                <span class="status-badge ${currentService.service_type === 'recurring' ? 'approved' : 'pending'}" style="font-size:0.8rem;">
                                     ${currentService.service_type === 'recurring' ? 'Recurring' : 'One-time'}
                                 </span>
                             </div>
                         </div>
-
-                        <!-- Client — locked -->
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.5rem; display: block; font-weight: 600; color: #1e293b;">Client</label>
-                            <div style="color: #64748b; font-size: 1rem;">${escapeHTML(currentService.client_code || currentService.client_name || 'N/A')}</div>
+                        <div style="grid-column:1/-1;">
+                            <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">Location</label>
+                            <input type="text" class="detail-field" data-field="location" value="${escapeHTML(currentService.location || '')}" onblur="window.saveServiceField('location', this.value)" placeholder="(Not set)" ${!showEditControls ? 'disabled' : ''}>
                         </div>
-
-                        <!-- Location — editable -->
-                        <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.25rem;">Location</label>
-                            <input type="text"
-                                   data-field="location"
-                                   value="${escapeHTML(currentService.location || '')}"
-                                   onblur="window.saveServiceField('location', this.value)"
-                                   placeholder="(Not set)"
-                                   ${!showEditControls ? 'disabled' : ''}>
+                        <div style="grid-column:1/-1;">
+                            ${renderPersonnelPills(canEditPersonnel)}
                         </div>
-
-                        <!-- Personnel Pills -->
-                        ${renderPersonnelPills(canEditPersonnel)}
+                        ${getDlpState(currentService, currentCollectibleDocs) !== 'active' ? `
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">DLP Period</label>
+                            <div style="color:#64748b;font-size:0.9rem;padding:0.35rem 0;">${(currentService.dlp_months || null) ? escapeHTML(String(currentService.dlp_months)) + ' months' : '—'}</div>
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;display:block;margin-bottom:0.15rem;">DLP Expires</label>
+                            <div style="color:#64748b;font-size:0.9rem;padding:0.35rem 0;">${escapeHTML((currentService.dlp_expires_at || null) || '—')}</div>
+                        </div>` : ''}
                     </div>
+                    <div style="font-size:0.7rem;color:#94a3b8;margin-top:0.5rem;">Created: ${formatDate(currentService.created_at)}${currentService.updated_at ? ' · Updated: ' + formatDate(currentService.updated_at) : ''}</div>
                 </div>
             </div>
 
             <!-- Card 2 — Financial Summary -->
             <div class="card" style="margin-bottom: 0;">
-                <div class="card-body" style="padding: 1.5rem;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
-                        <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600;">Financial Summary</h3>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <button class="btn btn-sm btn-secondary" onclick="window.openServiceFullBreakdown()"
-                                style="font-size: 0.75rem; padding: 0.25rem 0.75rem; white-space: nowrap;">Full Breakdown →</button>
-                            <button class="btn btn-sm btn-secondary" onclick="window.exportServiceExpenseCSV()"
-                                style="font-size: 0.75rem; padding: 0.25rem 0.75rem; display: flex; align-items: center; gap: 0.35rem;${currentServiceExpense.poCount === 0 ? ' opacity: 0.45; pointer-events: none; cursor: default;' : ''}"
-                                ${currentServiceExpense.poCount === 0 ? 'disabled' : ''}>
-                                &#8681; Export CSV
-                            </button>
-                        </div>
+                <div class="card-body" style="padding:0.75rem 1rem;">
+                    <!-- Phase 104 parity — flex header with single Full Breakdown entry button (mirrors project-detail.js:695-699) -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem;">
+                        <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Financial Summary</div>
+                        <button class="btn btn-sm btn-secondary" onclick="window.openServiceFullBreakdown()" style="font-size:0.7rem;padding:0.2rem 0.6rem;white-space:nowrap;">Full Breakdown →</button>
                     </div>
 
-                    ${renderServiceDlpFinanceBar()}
+                    <div style="margin-bottom:0.6rem;">${renderServiceDlpFinanceBar()}</div>
 
                     <!-- Phase 104 parity (quick 260615-eo0) — grouped, tinted card-grid mirroring project-detail.js:704-771 -->
                     <!-- Budget group -->
@@ -944,30 +918,20 @@ function renderServiceDetail() {
                             <div style="font-weight:700;color:${currentServiceCollectibles.remainingCollectible > 0 ? '#ef4444' : '#059669'};font-size:0.85rem;">${formatCurrency(currentServiceCollectibles.remainingCollectible)}</div>
                         </div>
                     </div>
-                    <div class="tranche-section-header" style="display:flex;align-items:center;justify-content:space-between;margin-top:1.25rem;margin-bottom:0.5rem;">
-                        <h4 style="margin:0;font-size:0.95rem;font-weight:600;color:#1e293b;">Collection Tranches</h4>
-                        <button class="edit-tranches-btn" onclick="window.toggleTrancheEditor()">⚙ Edit Tranches</button>
+                    <!-- Initiate Billing footer (Phase 104 parity — mirrors project-detail.js:772-775) -->
+                    <div style="text-align:right;margin-top:0.5rem;">
+                        <span onclick="window.openBillingRequestModal()" style="cursor:pointer;color:#1a73e8;font-size:0.72rem;font-weight:700;user-select:none;">↑ Initiate Billing →</span>
+                    </div>
+                    <div style="border-top:1px solid #f1f5f9;margin:0.5rem 0 0.25rem;"></div>
+                    <div class="tranche-header">
+                        <span style="font-size:0.65rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.07em;">Collection Tranches</span>
+                        ${showEditControls ? `<button class="edit-tranches-btn${trancheEditorOpen ? ' active' : ''}" onclick="window.toggleTrancheEditor()">⚙ Edit Tranches</button>` : ''}
                     </div>
                     <div id="trancheEditorHost">${renderTrancheDisplay()}${renderTrancheEditor()}</div>
                     ${renderServiceTrancheLifecycle()}
                 </div>
             </div>
             </div><!-- /Phase 104 parity Info+Financial grid -->
-
-            <!-- Card 3 — Status & Assignment -->
-            <div class="card" style="margin-bottom: 1.5rem;">
-                <div class="card-body" style="padding: 1.5rem;">
-                    <h3 style="margin: 0 0 1rem 0; font-size: 1.125rem; font-weight: 600;">Status & Assignment</h3>
-
-                    <div class="form-group" style="margin-bottom: 0;">
-                        <label style="margin-bottom: 0.25rem;">Status</label>
-                        <div>
-                            <span id="hdrServiceStatusBadge" class="hdr-status" style="background:${_getServiceStatusColor(currentService.project_status || '')};color:white;padding:0.3rem 0.85rem;border-radius:20px;font-size:0.82rem;font-weight:600;display:inline-block;">${escapeHTML(currentService.project_status || '—')}</span>
-                            <div style="font-size:0.75rem;color:#94a3b8;margin-top:0.45rem;">Status is advanced via the Lifecycle accordion above.</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             ${proposalCardHtml}
             ${_buildServiceJournalPanelHtml(currentService)}
