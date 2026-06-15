@@ -2989,13 +2989,13 @@ async function loadMRFs() {
         let scopedMRFs = allMRFs;
         if (assignedCodes !== null) {
             scopedMRFs = allMRFs.filter(mrf =>
-                mrf.project_code == null || assignedCodes.includes(mrf.project_code)
+                assignedCodes.includes(mrf.project_code)
             );
         }
         const assignedServiceCodes = window.getAssignedServiceCodes?.();
         if (assignedServiceCodes !== null) {
             scopedMRFs = scopedMRFs.filter(mrf =>
-                mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code)
+                assignedServiceCodes.includes(mrf.service_code)
             );
         }
 
@@ -3062,13 +3062,13 @@ function reFilterAndRenderMRFs() {
     let scopedMRFs = cachedAllMRFs;
     if (assignedCodes !== null) {
         scopedMRFs = cachedAllMRFs.filter(mrf =>
-            mrf.project_code == null || assignedCodes.includes(mrf.project_code)
+            assignedCodes.includes(mrf.project_code)
         );
     }
     const assignedServiceCodes = window.getAssignedServiceCodes?.();
     if (assignedServiceCodes !== null) {
         scopedMRFs = scopedMRFs.filter(mrf =>
-            mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code)
+            assignedServiceCodes.includes(mrf.service_code)
         );
     }
 
@@ -3094,12 +3094,12 @@ function reFilterAndRenderPRPORecords() {
     let scoped = [...cachedAllPRPORecords];
     if (assignedCodes !== null) {
         scoped = scoped.filter(mrf =>
-            mrf.project_code == null || assignedCodes.includes(mrf.project_code)
+            assignedCodes.includes(mrf.project_code)
         );
     }
     if (assignedServiceCodes !== null) {
         scoped = scoped.filter(mrf =>
-            mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code)
+            assignedServiceCodes.includes(mrf.service_code)
         );
     }
     allPRPORecords = scoped;
@@ -5352,10 +5352,10 @@ async function loadPRPORecords(force = false) {
         const assignedServiceCodes = window.getAssignedServiceCodes?.();
         let scoped = [...cachedAllPRPORecords];
         if (assignedCodes !== null) {
-            scoped = scoped.filter(mrf => mrf.project_code == null || assignedCodes.includes(mrf.project_code));
+            scoped = scoped.filter(mrf => assignedCodes.includes(mrf.project_code));
         }
         if (assignedServiceCodes !== null) {
-            scoped = scoped.filter(mrf => mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code));
+            scoped = scoped.filter(mrf => assignedServiceCodes.includes(mrf.service_code));
         }
         allPRPORecords = scoped;
         filterPRPORecords();
@@ -5406,13 +5406,13 @@ async function loadPRPORecords(force = false) {
         const assignedCodes = window.getAssignedProjectCodes?.();
         if (assignedCodes !== null) {
             allPRPORecords = allPRPORecords.filter(mrf =>
-                mrf.project_code == null || assignedCodes.includes(mrf.project_code)
+                assignedCodes.includes(mrf.project_code)
             );
         }
         const assignedServiceCodes = window.getAssignedServiceCodes?.();
         if (assignedServiceCodes !== null) {
             allPRPORecords = allPRPORecords.filter(mrf =>
-                mrf.service_code == null || assignedServiceCodes.includes(mrf.service_code)
+                assignedServiceCodes.includes(mrf.service_code)
             );
         }
 
