@@ -537,6 +537,10 @@ export async function destroy() {
     delete window.recordRetentionRelease;
     editorTranches = [];
     trancheEditorOpen = false;
+    // OSA-LOSS-01 — stage-agnostic Mark as Loss cleanup
+    delete window.openProjectLossModal;
+    delete window.submitProjectLoss;
+    document.getElementById('projectLossModal')?.remove();
     document.getElementById('billingRequestModal')?.remove();
     document.getElementById('issueCodeOverlay')?.remove();
     document.getElementById('proposal-inline-submit-modal')?.remove();
@@ -2749,6 +2753,16 @@ function renderLifecycleCard(project, currentUser) {
     const isComplete = status === 'Completed';
     const gated = ['For Inspection','Client Approved','For Mobilization','On-going'].includes(status);
     const color = _getProjectStatusColor(status);
+    // OSA-LOSS-01: compute canDrive gate (mirrors loadProposalCard shape exactly)
+    const uid = currentUser?.uid;
+    const role = currentUser?.role || '';
+    const adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
+    const assignedRoles = ['operations_user', 'services_user'];
+    const parentPersonnel = project.personnel_user_ids || [];
+    const canDrive = adminRoles.includes(role)
+        || (assignedRoles.includes(role) && uid && parentPersonnel.includes(uid));
+    const terminalStatuses = ['Loss', 'Completed'];
+    const showLossBtn = !terminalStatuses.includes(status) && canDrive;
     return `<div class="lc-accordion ${isActive ? 'lc-active' : ''} ${isComplete ? 'lc-complete' : ''} ${_lcOpen ? 'open' : ''}" id="lcAccordion">
         <div class="lc-card-header" onclick="window.toggleLifecycleAccordion()">
             <div class="lc-header-left">
@@ -2762,6 +2776,9 @@ function renderLifecycleCard(project, currentUser) {
         </div>
         <div class="lc-track-wrap"><div class="lc-track" id="lcTrack">${buildLifecycleTrack(project)}</div></div>
         <div class="lc-body" id="lcBody"><!-- Plan 03 fills this --></div>
+        ${showLossBtn ? `<div class="lc-footer" style="padding:0.75rem 1rem;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;">
+            <button class="btn btn-danger" onclick="window.openProjectLossModal('${escapeHTML(project.id)}')">Mark as Loss</button>
+        </div>` : ''}
     </div>`;
 }
 
@@ -3856,6 +3873,45 @@ function attachWindowFunctions() {
             await addProjectAuditEntry(projectId, 'PROJECT_COMPLETED', cu?.uid, cu?.full_name, 'project_completed_at: ' + now);
             await _addActivityEntry(projectId, { type: 'system', is_system: true, text: `Project marked Completed by ${cu?.full_name || 'Unknown'}` });
         } catch (err) { console.error('[ProjectDetail] lcMarkProjectComplete failed:', err); showToast('Failed to mark project complete.', 'error'); }
+    };
+    // OSA-LOSS-01 — stage-agnostic Mark as Loss modal opener
+    window.openProjectLossModal = function(projectId) {
+        if (!currentProject || currentProject.id !== projectId) return;
+        // Defense in depth: re-check gate (button is gated at render time, but window fn must not trust DOM)
+        const cu = window.getCurrentUser?.();
+        const _uid = cu?.uid;
+        const _role = cu?.role || '';
+        const _adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
+        const _assignedRoles = ['operations_user', 'services_user'];
+        const _personnel = currentProject.personnel_user_ids || [];
+        const _canDrive = _adminRoles.includes(_role)
+            || (_assignedRoles.includes(_role) && _uid && _personnel.includes(_uid));
+        const _status = currentProject.project_status || 'For Inspection';
+        if (['Loss', 'Completed'].includes(_status) || !_canDrive) {
+            showToast('Permission denied.', 'error');
+            return;
+        }
+        document.getElementById('projectLossModal')?.remove();
+        const html = `
+        <div id="projectLossModal" class="modal" style="display:flex;z-index:1001;">
+            <div class="modal-content" style="max-width:480px;margin:auto;">
+                <div class="modal-header">
+                    <h2 style="font-size:1.125rem;font-weight:600;margin:0;">Mark as Loss</h2>
+                    <button class="modal-close" aria-label="Close" onclick="document.getElementById('projectLossModal').remove()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding:1.5rem;">
+                    <p style="color:#475569;margin:0 0 1rem 0;font-size:14px;line-height:1.5;">This will permanently mark the project as Loss. This action cannot be undone.</p>
+                    <label style="display:block;font-weight:600;color:#475569;font-size:0.875rem;margin-bottom:0.5rem;">Loss Reason <span style="color:#ef4444;">*</span></label>
+                    <textarea id="projectLossReason" rows="3" placeholder="Describe why this project was lost (client decision, budget, competitor, etc.)" style="width:100%;min-height:96px;padding:0.5rem 0.75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:0.9375rem;box-sizing:border-box;resize:vertical;"></textarea>
+                    <div id="projectLossReasonError" style="display:none;color:#ea4335;font-size:13px;margin-top:4px;"></div>
+                </div>
+                <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:1rem 1.5rem;border-top:1px solid #e5e7eb;">
+                    <button class="btn btn-outline" onclick="document.getElementById('projectLossModal').remove()">Cancel</button>
+                    <button class="btn btn-danger" onclick="window.submitProjectLoss('${escapeHTML(projectId)}')">Confirm Loss</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
     };
     // Phase 102 Plan 04 — Finance-only Record Release (direct write of retention_released_at; D-03/D-15/D-21)
     window.recordRetentionRelease = async function(projectId) {
