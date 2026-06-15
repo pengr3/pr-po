@@ -759,10 +759,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 | 260615-nlj | Tighten MRF visibility scoping in procurement.js — drop the `code == null \|\|` leak terms from all 8 MRF scope predicates (4 functions) so services_user sees ONLY assigned-service MRFs and operations_user sees ONLY assigned-project MRFs. Uncoded legacy MRFs now hidden from scoped roles; admin/finance/procurement unaffected. Pairs with debug fix c847b30 (services_user read rules). Display-layer only — no utils.js / rules change. | 2026-06-15 | 4149736 | UAT approved 2026-06-15 | [260615-nlj-tighten-mrf-visibility-scoping-services-](.planning/quick/260615-nlj-tighten-mrf-visibility-scoping-services-/) |
 | 260602-q50 | Phase 97.2 UAT follow-up: iteration indicator on load, save overwrite vs save-as, delete baseline | 2026-06-02 | feeb81c | Awaiting browser UAT | [260602-q50-phase-97-2-uat-follow-up-iteration-indic](.planning/quick/260602-q50-phase-97-2-uat-follow-up-iteration-indic/) |
 | 260615-eo0 | Apply Projects Financial-Summary card layout to Services for Phase 104 parity (grouped tinted card-grid: Budget/Payables/Collectibles) | 2026-06-15 | f090fe8 | Awaiting browser UAT | [260615-eo0-apply-projects-financial-summary-card-la](.planning/quick/260615-eo0-apply-projects-financial-summary-card-la/) |
+| 260615-nzy | Add a "Legacy" group to the Priority Feed + Browse All in both projects and services views. `isLegacyStatus` predicate (non-empty `project_status` not in UNIFIED_STATUS_OPTIONS) pulls legacy rows out of the On Track bucket into a hide-when-empty 🗂️ Legacy Feed section, and adds a predicate-based default-collapsed "Legacy / Unmapped" Browse group (#6b7280). Previously legacy-status engagements were mislabeled under On Track in the Feed and vanished entirely from Browse All. Scorecards untouched (accepted gap). | 2026-06-15 | e80fe99, 59163ef | Awaiting browser UAT | [260615-nzy-add-legacy-group-to-priority-feed-and-br](.planning/quick/260615-nzy-add-legacy-group-to-priority-feed-and-br/) |
 
 ## Session Continuity
 
-Last activity: 2026-06-15 - Completed quick task 260615-nlj: Tighten MRF visibility scoping (services_user → assigned services only; operations_user → assigned projects only)
+Last activity: 2026-06-15 - Completed quick task 260615-nzy: Add Legacy group to Priority Feed + Browse All (projects + services views)
 Last session: 2026-06-15T06:15:45.348Z
 Stopped at: Phase 105 context gathered
 Resume file: None
