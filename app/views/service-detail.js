@@ -125,6 +125,26 @@ export async function init(activeTab = null, param = null) {
     window.addEventListener('assignmentsChanged', assignmentChangeHandler);
     window._serviceDetailAssignmentHandler = assignmentChangeHandler;
 
+    // Debug fix (service-detail-header-journal) — tear down per-service listeners on re-init.
+    // Router isSameView skips destroy() on service→service navigation; without this the prior
+    // service's orphaned onSnapshot keeps firing and overwrites currentService with stale (e.g.
+    // Completed) data — wrongly hiding the journal composer — while the idempotent journal guards
+    // (ensureServiceJournalListeners) stay latched to the old service so the new service's journal
+    // never loads ("No entries yet"). Mirrors project-detail.js init() teardown.
+    if (listener) { try { listener(); } catch (e) {} listener = null; }
+    if (usersListenerUnsub) { try { usersListenerUnsub(); } catch (e) {} usersListenerUnsub = null; }
+    if (billingRequestsListenerUnsub) { try { billingRequestsListenerUnsub(); } catch (e) {} billingRequestsListenerUnsub = null; }
+    if (collectiblesListenerUnsub) { try { collectiblesListenerUnsub(); } catch (e) {} collectiblesListenerUnsub = null; }
+    if (journalActivityUnsub) { try { journalActivityUnsub(); } catch (e) {} journalActivityUnsub = null; }
+    if (journalProgressUnsub) { try { journalProgressUnsub(); } catch (e) {} journalProgressUnsub = null; }
+    if (journalIssuesUnsub) { try { journalIssuesUnsub(); } catch (e) {} journalIssuesUnsub = null; }
+    journalActivityEntries = [];
+    journalProgressUpdates = [];
+    journalIssues = [];
+    currentBillingRequests = [];
+    currentCollectibleDocs = [];
+    currentService = null;
+
     if (!serviceParam) {
         document.getElementById('serviceDetailContainer').innerHTML = `
             <div class="container" style="margin-top: 2rem;">
@@ -765,8 +785,6 @@ function renderServiceDetail() {
                 </div>
             ` : ''}
 
-            ${renderServiceLifecycleCard(currentService, user)}
-
             <!-- Header strip: badge · code · status · actions (Phase 104 parity — mirrors project-detail.js:622-640) -->
             <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.75rem;">
                 <span class="status-badge ${currentService.active ? 'approved' : 'rejected'}"
@@ -786,6 +804,8 @@ function renderServiceDetail() {
                     &#8681; Export CSV
                 </button>
             </div>
+
+            ${renderServiceLifecycleCard(currentService, user)}
 
             <!-- Phase 104 parity (quick 260615-eo0) — Info + Financial side-by-side, mirroring project-detail.js:644-645 -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem;">
