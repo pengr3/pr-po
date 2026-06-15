@@ -19,6 +19,11 @@ let editingProjectTranches = []; // Phase 85: populated from project.collection_
 let currentPage = 1;
 const itemsPerPage = 15;
 let listeners = [];
+// list-tranche-progress-bar fix: per-project_code collected total (Σ non-voided
+// payment_records[].amount across that project's collectibles). Populated by the
+// portfolio collectibles listener so renderFinancial's On-going bar can show real
+// collection progress. Empty until the listener's first snapshot fires.
+let collectedByProjectCode = {};
 
 // Filtering state
 let allProjects = [];           // Unfiltered data from Firebase
@@ -38,6 +43,10 @@ const UNIFIED_STATUS_OPTIONS = [
     'Completed',
     'Loss'
 ];
+
+// Predicate: true for non-empty project_status values that fall outside UNIFIED_STATUS_OPTIONS.
+// Empty/missing statuses (renders "—") are NOT legacy — they must NOT be pulled into the Legacy bucket.
+const isLegacyStatus = (s) => !!s && !UNIFIED_STATUS_OPTIONS.includes(s);
 
 // Phase 103.1 D-04 — two-tier urgency thresholds (days). Each funnel stage has its own watch AND
 // urgent trip-point, read against status_changed_at. Operator-confirmed 2026-06-13. Tunable.
@@ -68,7 +77,7 @@ const STAGE_GROUPS = [
 function getCollapseState(key) {
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem('browse-collapse') || '{}'); } catch (_) {}
-    return saved[key] ?? (key === 'completed' || key === 'loss');
+    return saved[key] ?? (key === 'completed' || key === 'loss' || key === 'legacy');
 }
 function setCollapseState(key, collapsed) {
     let saved = {};
@@ -362,6 +371,7 @@ export async function destroy() {
 
     listeners.forEach(unsubscribe => unsubscribe?.());
     listeners = [];
+    collectedByProjectCode = {};  // list-tranche-progress-bar fix — reset collected map on teardown
     projectsData = [];
     clientsData = [];
     usersData = [];
@@ -782,15 +792,27 @@ function applyFilters() {
     // Phase 7: Scope to assigned projects for operations_user
     // getAssignedProjectCodes() returns null (no filter) for all roles except
     // operations_user without all_projects. Returns [] if zero assignments.
-    const assignedCodes = window.getAssignedProjectCodes?.();
-    let scopedProjects = allProjects;
-    if (assignedCodes !== null) {
-        // Filter to assigned projects only. Defensively include any project that
-        // lacks a project_code field (legacy pre-Phase-4 data) so they are never
-        // accidentally hidden.
-        scopedProjects = allProjects.filter(project =>
-            !project.project_code || assignedCodes.includes(project.project_code)
-        );
+    //
+    // Debug: services-user-access-scoping (2026-06-15). Services roles have no project domain
+    // (their assignments are service_codes), yet the Projects tab is granted view-only by their
+    // role_template — so the page was showing ALL projects. Scope services roles to their (empty)
+    // project assignments so the portfolio is empty for them, mirroring the operations_user scope.
+    const role = window.getCurrentUser?.()?.role || '';
+    let scopedProjects;
+    if (role === 'services_user' || role === 'services_admin') {
+        scopedProjects = [];
+    } else {
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        if (assignedCodes !== null) {
+            // Filter to assigned projects only. Defensively include any project that
+            // lacks a project_code field (legacy pre-Phase-4 data) so they are never
+            // accidentally hidden.
+            scopedProjects = allProjects.filter(project =>
+                !project.project_code || assignedCodes.includes(project.project_code)
+            );
+        } else {
+            scopedProjects = allProjects;
+        }
     }
 
     filteredProjects = scopedProjects.filter(project => {
@@ -834,6 +856,31 @@ async function loadProjects() {
         });
 
         listeners.push(listener);
+
+        // list-tranche-progress-bar fix — portfolio-wide collectibles listener that feeds
+        // collectedByProjectCode so renderFinancial's On-going bar reflects real collection
+        // progress. Mirrors the canonical detail-page formula (non-voided payment_records[].amount).
+        // Reverses the Phase 103 D-05 "no new listener" constraint, which was the root cause of the
+        // bar never advancing. Re-renders on each snapshot so recording a collection updates the bar.
+        const collectiblesListener = onSnapshot(collection(db, 'collectibles'), (snapshot) => {
+            const map = {};
+            snapshot.forEach(d => {
+                const c = d.data();
+                const code = c.project_code;
+                if (!code) return;
+                const collected = (c.payment_records || [])
+                    .filter(r => r.status !== 'voided')
+                    .reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+                map[code] = (map[code] || 0) + collected;
+            });
+            collectedByProjectCode = map;
+            // Re-render so On-going progress bars reflect the latest collected totals.
+            applyFilters();
+        }, (err) => {
+            console.error('[Projects] Collectibles listener error:', err);
+        });
+
+        listeners.push(collectiblesListener);
     } catch (error) {
         console.error('[Projects] Error loading projects:', error);
     }
@@ -986,13 +1033,17 @@ function computeUrgencySignals(projects) {
     return { urgent, watch, ok };
 }
 
-// Phase 103 CONSTRAINT — billed% is NOT computable at render time. collection_tranches stores only
-// { label, percentage, is_retention } and does NOT record which tranches are billed (that lives in
-// billing_requests/collectibles, which the portfolio MUST NOT load — no new listener, D-05). Returns
-// null so renderFinancial shows tranche structure without a misleading filled bar. A future
-// billing-aware phase (with a listener) can compute a true paid% here.
+// list-tranche-progress-bar fix — the Phase 103 D-05 "no new listener" constraint left this
+// hardcoded to null, so the On-going progress bar never advanced when a collectible was recorded
+// (the detail page advanced because it loads collectibles; the list did not). We now load a scoped
+// collectibles listener in loadProjects() and derive collected% here from the canonical formula
+// mirrored from project-detail.js renderDlpFinanceBar(): Σ non-voided payment_records[].amount over
+// contract_cost, clamped 0–100. Returns null only when contract_cost is missing/0 (no meaningful %).
 function computeBillingPct(project) {
-    return null;
+    const contract = parseFloat(project?.contract_cost) || 0;
+    if (contract <= 0) return null;
+    const collected = collectedByProjectCode[project?.project_code] || 0;
+    return Math.max(0, Math.min(100, (collected / contract) * 100));
 }
 
 // Phase 103 D-06 — stage-aware finance cell (4 display states). Reuses the Plan-01 .fin-* classes
@@ -1065,10 +1116,14 @@ function renderPriorityFeed() {
     const el = document.getElementById('pdb-feed');
     if (!el) return;
     const { urgent, watch, ok } = computeUrgencySignals(filteredProjects);
+    // Pull legacy-status rows out of the ok bucket so they don't mislabel as On Track.
+    const legacy = ok.filter(p => isLegacyStatus(p.project_status));
+    const okClean = ok.filter(p => !isLegacyStatus(p.project_status));
     const sections = [
-        { tier: 'urgent', label: 'Needs Attention', icon: '🔴', rows: urgent, hideWhenEmpty: true },
-        { tier: 'watch',  label: 'Worth Watching',  icon: '🟠', rows: watch,  hideWhenEmpty: true },
-        { tier: 'ok',     label: 'On Track',        icon: '🟢', rows: ok,     hideWhenEmpty: false }
+        { tier: 'urgent', label: 'Needs Attention', icon: '🔴', rows: urgent,  hideWhenEmpty: true },
+        { tier: 'watch',  label: 'Worth Watching',  icon: '🟠', rows: watch,   hideWhenEmpty: true },
+        { tier: 'ok',     label: 'On Track',        icon: '🟢', rows: okClean, hideWhenEmpty: false },
+        { tier: 'legacy', label: 'Legacy',          icon: '🗂️', rows: legacy,  hideWhenEmpty: true }
     ];
     el.innerHTML = sections.map(sec => {
         if (sec.hideWhenEmpty && sec.rows.length === 0) return '';
@@ -1137,13 +1192,18 @@ function buildFeedRow(p) {
 // as the Feed (filteredProjects → all client/search/scorecard/Phase-7 filters already applied, SC-7).
 // Rows reuse buildFeedRow so they look identical to Feed rows (DLP accent + stage-aware finance).
 // Always renders all 6 groups (the browse skeleton); empty groups show a placeholder line.
+// Legacy group constant — mid-grey (#6b7280), distinct from the inspection group (#94a3b8).
+// Membership is predicate-based (isLegacyStatus), not a fixed statuses[] list.
+const LEGACY_GROUP = { key: 'legacy', label: 'Legacy / Unmapped', color: '#6b7280' };
+
 function renderBrowseAll() {
     const el = document.getElementById('pdb-browse');
     if (!el) return;
-    el.innerHTML = STAGE_GROUPS.map(group => {
-        const rows = filteredProjects
-            .filter(p => group.statuses.includes(p.project_status))
-            .sort((a, b) => (a.project_code || a.project_name || '').localeCompare(b.project_code || b.project_name || ''));
+    el.innerHTML = [...STAGE_GROUPS, LEGACY_GROUP].map(group => {
+        const rows = (group.key === 'legacy'
+            ? filteredProjects.filter(p => isLegacyStatus(p.project_status))
+            : filteredProjects.filter(p => group.statuses.includes(p.project_status))
+        ).sort((a, b) => (a.project_code || a.project_name || '').localeCompare(b.project_code || b.project_name || ''));
         const collapsed = getCollapseState(group.key);
         const body = rows.length
             ? rows.map(buildFeedRow).join('')
