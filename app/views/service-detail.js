@@ -811,7 +811,7 @@ function renderServiceDetail() {
     const focusedField = document.activeElement?.dataset?.field;
 
     // ----- Phase 87.3 D-07: proposalInlineCard always rendered; loadProposalCard handles all branching -----
-    const proposalCardHtml = '<div id="proposalInlineCard" style="margin-top:1rem;"></div>';
+    const proposalCardHtml = '<div id="proposalInlineCard"></div>';
     // Phase 105 — Service Plan summary card (D-01)
     const planCardHtml = buildServicePlanCardHtml();
 
@@ -992,8 +992,11 @@ function renderServiceDetail() {
             </div>
             </div><!-- /Phase 104 parity Info+Financial grid -->
 
-            ${proposalCardHtml}
-            ${planCardHtml}
+            <!-- Phase 105 — Bottom row: proposal (left) + service plan (right), layout synced by syncServiceBottomRow() -->
+            <div id="serviceDetailBottomRow" style="margin-top:1rem;margin-bottom:0.75rem;">
+                ${proposalCardHtml}
+                ${planCardHtml}
+            </div>
             ${_buildServiceJournalPanelHtml(currentService)}
         </div>
     `;
@@ -1795,6 +1798,20 @@ async function confirmProposalInlineSubmit(proposalDocId) {
     }
 }
 
+// Phase 105 — mirror project-detail syncBottomRow(): when the proposal card is
+// visible, lay proposal (left) + service plan (right) side-by-side as a 2-col grid;
+// otherwise the plan card spans full width.
+function syncServiceBottomRow() {
+    const proposalEl = document.getElementById('proposalInlineCard');
+    const bottomRow = document.getElementById('serviceDetailBottomRow');
+    if (!bottomRow) return;
+    const proposalVisible = proposalEl && proposalEl.style.display !== 'none' && proposalEl.innerHTML.trim() !== '';
+    bottomRow.style.display = proposalVisible ? 'grid' : 'block';
+    bottomRow.style.gridTemplateColumns = proposalVisible ? '1fr 1fr' : '';
+    bottomRow.style.gap = proposalVisible ? '0.75rem' : '';
+    bottomRow.style.alignItems = 'stretch';
+}
+
 async function loadProposalCard(parentDocId, parentCollection) {
     try {
         // Phase 87.3 D-01/D-02/D-05 — compute canDrive from current user role + personnel assignment
@@ -1834,6 +1851,7 @@ async function loadProposalCard(parentDocId, parentCollection) {
                 // Not in proposal range and no proposal — hide container
                 el.style.display = 'none';
             }
+            syncServiceBottomRow();
             return;
         }
 
@@ -1841,6 +1859,7 @@ async function loadProposalCard(parentDocId, parentCollection) {
         const proposal = { id: snap.docs[0].id, ...snap.docs[0].data() };
         el.style.display = '';
         el.innerHTML = renderInlineProposalCard(proposal, canDrive);
+        syncServiceBottomRow();
     } catch (err) {
         console.error('[ServiceDetail] loadProposalCard failed:', err);
         const el = document.getElementById('proposalInlineCard');
