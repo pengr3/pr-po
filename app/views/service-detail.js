@@ -783,8 +783,11 @@ function renderServiceDetail() {
                 </div>
             </div>
 
+            <!-- Phase 104 parity (quick 260615-eo0) — Info + Financial side-by-side, mirroring project-detail.js:644-645 -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem;">
+
             <!-- Card 1 — Service Information -->
-            <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card" style="margin-bottom: 0;">
                 <div class="card-body" style="padding: 1.5rem;">
                     <div style="border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: flex-start;">
                         <div>
@@ -849,7 +852,7 @@ function renderServiceDetail() {
             </div>
 
             <!-- Card 2 — Financial Summary -->
-            <div class="card" style="margin-bottom: 1.5rem;">
+            <div class="card" style="margin-bottom: 0;">
                 <div class="card-body" style="padding: 1.5rem;">
                     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
                         <h3 style="margin: 0; font-size: 1.125rem; font-weight: 600;">Financial Summary</h3>
@@ -949,6 +952,7 @@ function renderServiceDetail() {
                     ${renderServiceTrancheLifecycle()}
                 </div>
             </div>
+            </div><!-- /Phase 104 parity Info+Financial grid -->
 
             <!-- Card 3 — Status & Assignment -->
             <div class="card" style="margin-bottom: 1.5rem;">
