@@ -709,6 +709,65 @@ service cloud.firestore {
     }
 
     // =============================================
+    // service_tasks collection (Phase 105 — service plan parity, D-02, D-03, D-06)
+    // =============================================
+    // Native PM tasks for services. Mirrors project_tasks exactly (D-01 zero-divergence).
+    // service_code is denormalized for service-scoped services_user assignments
+    // (identical pattern to project_code in project_tasks).
+    //
+    // Two-tier update rule (D-06, mirrors project_tasks D-18):
+    //   Tier 1 (full WBS edit): services_admin or assigned services_user.
+    //   Tier 2 (progress-only — affectedKeys hasOnly ['progress','updated_at']):
+    //     services_admin, or uid in resource.data.assignees.
+    //
+    // Schema: task_id (==doc id), service_id, service_code, parent_task_id,
+    //   name, description, start_date, end_date, progress (0-100),
+    //   is_milestone, dependencies[], assignees[uid], created_at, updated_at, created_by.
+    //
+    // Read scope (D-06 DECISION — isActiveUser, NOT the stricter services list shape):
+    //   The ID generator and both card/view listeners query service_tasks filtered
+    //   only by service_code/service_id. A services_user-assignment-scoped list rule
+    //   would block reads for cross-team viewers and complicate the generator's
+    //   max-seq scan. Mirrors the project_tasks plain isActiveUser() pattern exactly
+    //   (JS-layer scoping via where('service_id','==',X)). T-105-04 ACCEPTED posture.
+    //
+    // isRole('services_user') short-circuit guard in every branch ensures
+    // non-services_user docs never dereference assigned_service_codes (T-105-03).
+    match /service_tasks/{taskId} {
+      // Read: any active user (service-scoping at JS query layer, D-06)
+      allow read: if isActiveUser();
+
+      // Create: admins or services_user assigned to this service
+      allow create: if hasRole(['super_admin', 'services_admin']) ||
+                       (isRole('services_user') &&
+                        isAssignedToService(request.resource.data.service_code));
+
+      // Update — two-tier:
+      //  Tier 1 (full WBS edit): admins or assigned services_user
+      //  Tier 2 (progress-only): admins OR uid in resource.data.assignees
+      //         (affectedKeys().hasOnly() technique mirrors project_tasks + notifications block)
+      allow update: if (
+        // Tier 1: full edit
+        hasRole(['super_admin', 'services_admin']) ||
+        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+      ) || (
+        // Tier 2: progress-only update — request changes ONLY 'progress' + 'updated_at'
+        // services_user (or admins) may write progress; finance/operations/procurement
+        // are READ-ONLY even if accidentally added to task.assignees.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['progress', 'updated_at']) &&
+        (hasRole(['super_admin', 'services_admin']) ||
+         (isRole('services_user') &&
+          resource.data.keys().hasAny(['assignees']) &&
+          resource.data.assignees is list &&
+          request.auth.uid in resource.data.assignees))
+      );
+
+      // Delete: admins or services_user assigned to this service
+      allow delete: if hasRole(['super_admin', 'services_admin']) ||
+                       (isRole('services_user') && isAssignedToService(resource.data.service_code));
+    }
+
+    // =============================================
     // proposals collection (Phase 87 — PROP-11, D-10; Phase 87.2 — D-16..D-20;
     //                        Phase 87.3 — D-09, D-10)
     // =============================================
