@@ -158,6 +158,16 @@ The plan has a `checkpoint:human-verify` gate requiring browser testing. All 3 a
 
 ## Self-Check: PASSED
 
+## UAT (2026-06-15) — APPROVED
+
+Browser UAT surfaced one defect: the copy-adapt left three write-path guards
+checking `currentService.project_code` (a field no service has), so every task
+write was rejected with "This service doesn't have a service code yet". Fixed in
+`f4fdc3a` — swapped the three guards to `service_code` plus 4 stale `project_*`
+comments and the PDF-title fallback (0 `project_*` leaks remain, `node --check`
+passes). Re-tested: task create/insert/paste write `TASK-{service_code}-N` docs,
+Gantt renders, no baseline/iterations/diff-undo UI. **Operator: approved.**
+
 ---
 *Phase: 105-service-plan-gantt-parity*
-*Completed: 2026-06-15 (auto tasks only; pending browser UAT)*
+*Completed: 2026-06-15 (UAT approved)*
