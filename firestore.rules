@@ -218,7 +218,8 @@ service cloud.firestore {
            request.resource.data.client_id == resource.data.client_id &&
            request.resource.data.client_code == resource.data.client_code))
       ) || (
-        isRole('operations_user') &&
+        // Quick 260627-kg0: assigned cross-dept services_user gets the same lifecycle field-mask write.
+        (isRole('operations_user') || isRole('services_user')) &&
         request.auth.uid in resource.data.personnel_user_ids &&
         // Phase 100 — lifecycle fields: doc attachments + gate timestamps
         // Phase 102 Plan 04 — DLP capture fields (assigned ops user marking completion writes these in the same update)
@@ -278,7 +279,9 @@ service cloud.firestore {
         allow read: if isActiveUser();
         // Create: admin roles OR operations_user assigned to this project (mirrors lifecycle gate permissions)
         allow create: if hasRole(['super_admin', 'operations_admin']) ||
-                         (isRole('operations_user') && request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.personnel_user_ids);
+                         (isRole('operations_user') && request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.personnel_user_ids) ||
+                         // Quick 260627-kg0: assigned cross-dept services_user may append audit_log.
+                         (isRole('services_user') && request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.personnel_user_ids);
         allow update: if false;
         allow delete: if false;
       }
@@ -571,6 +574,8 @@ service cloud.firestore {
       // Phase 104 D-15 — Finance records the retention release (field-masked; mirrors projects:238-242)
       allow update: if hasRole(['super_admin', 'services_admin']) ||
                        (isRole('services_user') && isAssignedToService(resource.data.service_code)) ||
+                       // Quick 260627-kg0: assigned cross-dept operations_user gets EXACTLY the native services_user authority (same isAssignedToService gate).
+                       (isRole('operations_user') && isAssignedToService(resource.data.service_code)) ||
                        (hasRole(['finance']) &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['retention_released_at', 'updated_at']));
 
@@ -590,7 +595,9 @@ service cloud.firestore {
         allow read: if isActiveUser();
         // Create: admin roles OR services_user assigned to this service (mirrors lifecycle gate permissions)
         allow create: if hasRole(['super_admin', 'services_admin']) ||
-                         (isRole('services_user') && request.auth.uid in get(/databases/$(database)/documents/services/$(serviceId)).data.personnel_user_ids);
+                         (isRole('services_user') && request.auth.uid in get(/databases/$(database)/documents/services/$(serviceId)).data.personnel_user_ids) ||
+                         // Quick 260627-kg0: assigned cross-dept operations_user may append audit_log.
+                         (isRole('operations_user') && request.auth.uid in get(/databases/$(database)/documents/services/$(serviceId)).data.personnel_user_ids);
         allow update: if false;
         allow delete: if false;
       }
@@ -715,8 +722,11 @@ service cloud.firestore {
       allow read: if isActiveUser();
 
       // Create: admins or operations_user assigned to this project
+      // Quick 260627-kg0: assigned cross-dept services_user gets the same member-write.
       allow create: if hasRole(['super_admin', 'operations_admin']) ||
                        (isRole('operations_user') &&
+                        isAssignedToProject(request.resource.data.project_code)) ||
+                       (isRole('services_user') &&
                         isAssignedToProject(request.resource.data.project_code));
 
       // Update — two-tier:
@@ -726,7 +736,9 @@ service cloud.firestore {
       allow update: if (
         // Tier 1: full edit
         hasRole(['super_admin', 'operations_admin']) ||
-        (isRole('operations_user') && isAssignedToProject(resource.data.project_code))
+        (isRole('operations_user') && isAssignedToProject(resource.data.project_code)) ||
+        // Quick 260627-kg0: assigned cross-dept services_user gets Tier-1 edit too.
+        (isRole('services_user') && isAssignedToProject(resource.data.project_code))
       ) || (
         // Tier 2: progress-only update — request changes ONLY 'progress' + 'updated_at'
         // D-15 + D-14: only operations_user (or admins) may write progress; finance/services/procurement
@@ -736,12 +748,19 @@ service cloud.firestore {
          (isRole('operations_user') &&
           resource.data.keys().hasAny(['assignees']) &&
           resource.data.assignees is list &&
+          request.auth.uid in resource.data.assignees) ||
+         // Quick 260627-kg0: assigned cross-dept services_user in assignees may write progress-only.
+         (isRole('services_user') &&
+          resource.data.keys().hasAny(['assignees']) &&
+          resource.data.assignees is list &&
           request.auth.uid in resource.data.assignees))
       );
 
       // Delete: admins or operations_user assigned to this project (D-14)
+      // Quick 260627-kg0: assigned cross-dept services_user may delete too.
       allow delete: if hasRole(['super_admin', 'operations_admin']) ||
-                       (isRole('operations_user') && isAssignedToProject(resource.data.project_code));
+                       (isRole('operations_user') && isAssignedToProject(resource.data.project_code)) ||
+                       (isRole('services_user') && isAssignedToProject(resource.data.project_code));
     }
 
     // =============================================
@@ -774,8 +793,11 @@ service cloud.firestore {
       allow read: if isActiveUser();
 
       // Create: admins or services_user assigned to this service
+      // Quick 260627-kg0: assigned cross-dept operations_user gets the same member-write.
       allow create: if hasRole(['super_admin', 'services_admin']) ||
                        (isRole('services_user') &&
+                        isAssignedToService(request.resource.data.service_code)) ||
+                       (isRole('operations_user') &&
                         isAssignedToService(request.resource.data.service_code));
 
       // Update — two-tier:
@@ -785,7 +807,9 @@ service cloud.firestore {
       allow update: if (
         // Tier 1: full edit
         hasRole(['super_admin', 'services_admin']) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code))
+        (isRole('services_user') && isAssignedToService(resource.data.service_code)) ||
+        // Quick 260627-kg0: assigned cross-dept operations_user gets Tier-1 edit too.
+        (isRole('operations_user') && isAssignedToService(resource.data.service_code))
       ) || (
         // Tier 2: progress-only update — request changes ONLY 'progress' + 'updated_at'
         // services_user (or admins) may write progress; finance/operations/procurement
@@ -795,12 +819,19 @@ service cloud.firestore {
          (isRole('services_user') &&
           resource.data.keys().hasAny(['assignees']) &&
           resource.data.assignees is list &&
+          request.auth.uid in resource.data.assignees) ||
+         // Quick 260627-kg0: assigned cross-dept operations_user in assignees may write progress-only.
+         (isRole('operations_user') &&
+          resource.data.keys().hasAny(['assignees']) &&
+          resource.data.assignees is list &&
           request.auth.uid in resource.data.assignees))
       );
 
       // Delete: admins or services_user assigned to this service
+      // Quick 260627-kg0: assigned cross-dept operations_user may delete too.
       allow delete: if hasRole(['super_admin', 'services_admin']) ||
-                       (isRole('services_user') && isAssignedToService(resource.data.service_code));
+                       (isRole('services_user') && isAssignedToService(resource.data.service_code)) ||
+                       (isRole('operations_user') && isAssignedToService(resource.data.service_code));
     }
 
     // =============================================
@@ -858,16 +889,18 @@ service cloud.firestore {
         hasRole(['super_admin', 'operations_admin'])
         && request.resource.data.created_by == request.auth.uid
       ) || (
-        // BRANCH B — Assigned operations_user: parent_collection is 'projects' (default),
-        //            caller must be in project's personnel_user_ids, created_by pinned.
-        isRole('operations_user')
+        // BRANCH B — Assigned *_user on a PROJECT-parented proposal (Quick 260627-kg0: role-agnostic
+        //            for operations_user OR services_user; parent_collection 'projects' (default),
+        //            caller must be in project's personnel_user_ids, created_by pinned).
+        (isRole('operations_user') || isRole('services_user'))
         && request.resource.data.get('parent_collection', 'projects') == 'projects'
         && request.auth.uid in get(/databases/$(database)/documents/projects/$(request.resource.data.project_id)).data.personnel_user_ids
         && request.resource.data.created_by == request.auth.uid
       ) || (
-        // BRANCH B — Assigned services_user: parent_collection must be 'services',
-        //            caller must be in service's personnel_user_ids, created_by pinned.
-        isRole('services_user')
+        // BRANCH B — Assigned *_user on a SERVICE-parented proposal (Quick 260627-kg0: role-agnostic
+        //            for services_user OR operations_user; parent_collection must be 'services',
+        //            caller must be in service's personnel_user_ids, created_by pinned).
+        (isRole('operations_user') || isRole('services_user'))
         && request.resource.data.get('parent_collection', 'projects') == 'services'
         && request.auth.uid in get(/databases/$(database)/documents/services/$(request.resource.data.project_id)).data.personnel_user_ids
         && request.resource.data.created_by == request.auth.uid
@@ -906,14 +939,16 @@ service cloud.firestore {
             && (
               // Operations branch: parent_collection is 'projects' (defaults when absent).
               (
-                isRole('operations_user')
+                // Quick 260627-kg0: role-agnostic for *_user on a PROJECT-parented proposal.
+                (isRole('operations_user') || isRole('services_user'))
                 && (!('parent_collection' in resource.data) || resource.data.parent_collection == 'projects')
                 && request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids
               )
               ||
               // Services branch: parent_collection is 'services' (explicit).
               (
-                isRole('services_user')
+                // Quick 260627-kg0: role-agnostic for *_user on a SERVICE-parented proposal.
+                (isRole('operations_user') || isRole('services_user'))
                 && 'parent_collection' in resource.data
                 && resource.data.parent_collection == 'services'
                 && request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.project_id)).data.personnel_user_ids
