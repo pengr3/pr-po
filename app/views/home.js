@@ -45,9 +45,11 @@ let _proposalListener = null; // onSnapshot unsubscribe handle for proposals col
  */
 function getDashboardMode() {
     const role = window.getCurrentUser?.()?.role || '';
-    if (['operations_admin', 'operations_user'].includes(role)) return 'projects';
-    if (['services_admin', 'services_user'].includes(role)) return 'services';
-    return 'both'; // super_admin, finance, procurement_staff, unknown
+    // Quick 260627-kg0: only department ADMINS stay single-department; *_user roles surface BOTH
+    // departments' dashboards because they may hold cross-department assignments.
+    if (role === 'operations_admin') return 'projects';
+    if (role === 'services_admin') return 'services';
+    return 'both'; // super_admin, finance, procurement, operations_user, services_user, unknown
 }
 
 /**
@@ -76,12 +78,15 @@ function getHomeSubTabConfig() {
 function filterProposalsForUser(allProposals) {
     const role = window.getCurrentUser?.()?.role || '';
     if (role === 'super_admin') return allProposals;
-    if (role === 'operations_admin' || role === 'operations_user') {
+    if (role === 'operations_admin') {
         return allProposals.filter(p => (p.parent_collection || 'projects') === 'projects');
     }
-    if (role === 'services_admin' || role === 'services_user') {
+    if (role === 'services_admin') {
         return allProposals.filter(p => (p.parent_collection || 'projects') === 'services');
     }
+    // Quick 260627-kg0: *_user roles see BOTH departments' proposals here (visibility only — per-proposal
+    // drive/approve is still gated by assignment + parent_collection in the proposal modal).
+    if (role === 'operations_user' || role === 'services_user') return allProposals;
     return [];
 }
 

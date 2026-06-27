@@ -790,29 +790,22 @@ function applyFilters() {
     const clientFilter = document.getElementById('clientFilter')?.value || '';
 
     // Phase 7: Scope to assigned projects for operations_user
-    // getAssignedProjectCodes() returns null (no filter) for all roles except
-    // operations_user without all_projects. Returns [] if zero assignments.
-    //
-    // Debug: services-user-access-scoping (2026-06-15). Services roles have no project domain
-    // (their assignments are service_codes), yet the Projects tab is granted view-only by their
-    // role_template — so the page was showing ALL projects. Scope services roles to their (empty)
-    // project assignments so the portfolio is empty for them, mirroring the operations_user scope.
-    const role = window.getCurrentUser?.()?.role || '';
+    // Quick 260627-kg0: assignment-driven scope, single path for all roles. getAssignedProjectCodes()
+    // now returns assigned codes for BOTH operations_user and services_user, [] for a *_user with no
+    // project assignments, and null (no filter) for super_admin / dept admins / finance / procurement.
+    // So a services_user assigned to a project sees exactly that project here; services_admin gets
+    // null = all projects, matching its existing view-only Projects-tab grant (admins aren't scoped, D-1).
+    const assignedCodes = window.getAssignedProjectCodes?.();
     let scopedProjects;
-    if (role === 'services_user' || role === 'services_admin') {
-        scopedProjects = [];
+    if (assignedCodes !== null) {
+        // Filter to assigned projects only. Defensively include any project that
+        // lacks a project_code field (legacy pre-Phase-4 data) so they are never
+        // accidentally hidden.
+        scopedProjects = allProjects.filter(project =>
+            !project.project_code || assignedCodes.includes(project.project_code)
+        );
     } else {
-        const assignedCodes = window.getAssignedProjectCodes?.();
-        if (assignedCodes !== null) {
-            // Filter to assigned projects only. Defensively include any project that
-            // lacks a project_code field (legacy pre-Phase-4 data) so they are never
-            // accidentally hidden.
-            scopedProjects = allProjects.filter(project =>
-                !project.project_code || assignedCodes.includes(project.project_code)
-            );
-        } else {
-            scopedProjects = allProjects;
-        }
+        scopedProjects = allProjects;
     }
 
     filteredProjects = scopedProjects.filter(project => {

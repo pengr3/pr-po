@@ -1232,7 +1232,7 @@ async function saveServiceField(fieldName, newValue) {
     }
     // Role check: matches Firestore services update rule (prevents misleading permission-denied errors)
     const _saveUser = window.getCurrentUser?.();
-    if (!['super_admin', 'services_admin', 'services_user'].includes(_saveUser?.role)) {
+    if (!['super_admin', 'services_admin', 'services_user', 'operations_user'].includes(_saveUser?.role)) { // Quick 260627-kg0: assigned cross-dept operations_user (rule enforces isAssignedToService)
         showToast('Your role does not permit editing services', 'error');
         return false;
     }
@@ -1361,7 +1361,7 @@ async function toggleServiceDetailActive(newValue) {
     }
     // Role check: matches Firestore services update rule
     const _toggleUser = window.getCurrentUser?.();
-    if (!['super_admin', 'services_admin', 'services_user'].includes(_toggleUser?.role)) {
+    if (!['super_admin', 'services_admin', 'services_user', 'operations_user'].includes(_toggleUser?.role)) { // Quick 260627-kg0: assigned cross-dept operations_user (rule enforces isAssignedToService)
         showToast('Your role does not permit editing services', 'error');
         return;
     }
@@ -2215,7 +2215,9 @@ function _canAdvanceServiceStatus(service, currentUser, targetStatus) {
     const role = currentUser.role || '';
     if (['super_admin', 'services_admin'].includes(role)) return true;
     if (targetStatus === 'Completed') return false;
-    if (role === 'services_user') {
+    // services_user OR (Quick 260627-kg0) an assigned cross-dept operations_user drives every
+    // NON-Completed gate (the Completed exclusion above applies to both — services_admin-only).
+    if (role === 'services_user' || role === 'operations_user') {
         const ids = Array.isArray(service.personnel_user_ids) ? service.personnel_user_ids : [];
         return ids.includes(currentUser.uid);
     }
@@ -2508,7 +2510,7 @@ function buildServiceLifecycleTrack(service) {
 // grants only to super_admin/operations_admin/assigned services_user — so a services_admin
 // PATH A Loss fails CLEANLY (atomic batch, friendly toast) until that rule is widened (rules+deploy).
 const LOSS_ADMIN_ROLES = ['super_admin', 'services_admin'];
-const LOSS_ASSIGNED_ROLES = ['services_user'];
+const LOSS_ASSIGNED_ROLES = ['services_user', 'operations_user']; // Quick 260627-kg0: assigned cross-dept member
 let _lossSubmitInFlight = false;  // double-submit guard (module scope; reset in finally)
 function canDriveServiceLoss(service, currentUser) {
     const uid = currentUser?.uid;

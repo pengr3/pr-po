@@ -401,8 +401,10 @@ export async function init(activeTab = 'form') {
 
         // Role-based dropdown visibility (MRF-01, MRF-02, MRF-03)
         const role = user?.role || '';
-        const showProjects = ['super_admin', 'finance', 'procurement', 'operations_admin', 'operations_user'].includes(role);
-        const showServices = ['super_admin', 'finance', 'procurement', 'services_admin', 'services_user'].includes(role);
+        // Quick 260627-kg0: both pickers available to both *_user roles (assignment-scoped downstream by
+        // loadProjects/loadServices, which filter by assigned codes). Department admins stay single-picker.
+        const showProjects = ['super_admin', 'finance', 'procurement', 'operations_admin', 'operations_user', 'services_user'].includes(role);
+        const showServices = ['super_admin', 'finance', 'procurement', 'services_admin', 'services_user', 'operations_user'].includes(role);
 
         // Phase 79-02: Store role flags BEFORE loading data so rebuildPSOptions() applies the correct filter
         psShowProjects = showProjects;

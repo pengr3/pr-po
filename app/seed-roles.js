@@ -65,7 +65,7 @@ const defaultRoleTemplates = [
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: false },
                 projects: { access: true, edit: true },
-                services: { access: true, edit: false },
+                services: { access: true, edit: true },
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: false },
                 finance: { access: false, edit: false },
@@ -104,7 +104,7 @@ const defaultRoleTemplates = [
             tabs: {
                 dashboard: { access: true, edit: false },
                 clients: { access: true, edit: false },
-                projects: { access: true, edit: false },
+                projects: { access: true, edit: true },
                 services: { access: true, edit: true },
                 mrf_form: { access: true, edit: true },
                 procurement: { access: true, edit: false },

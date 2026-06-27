@@ -2770,7 +2770,7 @@ function buildLifecycleTrack(project) {
 // field-masked branch) AND the proposals update rule (same set) both govern the loss write.
 // Showing the button to any role outside this set produces a raw PERMISSION_DENIED.
 const LOSS_ADMIN_ROLES = ['super_admin', 'operations_admin'];
-const LOSS_ASSIGNED_ROLES = ['operations_user'];
+const LOSS_ASSIGNED_ROLES = ['operations_user', 'services_user']; // Quick 260627-kg0: assigned cross-dept member
 let _lossSubmitInFlight = false;  // double-submit guard (module scope; reset in finally)
 function canDriveProjectLoss(project, currentUser) {
     const uid = currentUser?.uid;
@@ -2859,8 +2859,9 @@ function _canAdvanceProjectStatus(project, currentUser, targetStatus) {
     if (!currentUser || !project) return false;
     const role = currentUser.role || '';
     if (['super_admin', 'operations_admin'].includes(role)) return true;
-    // operations_user assigned to the project may perform all gate transitions including Completed
-    if (role === 'operations_user') {
+    // operations_user OR (Quick 260627-kg0) an assigned cross-dept services_user may perform all gate
+    // transitions including Completed (the project side has no Completion exclusion).
+    if (role === 'operations_user' || role === 'services_user') {
         const ids = Array.isArray(project.personnel_user_ids) ? project.personnel_user_ids : [];
         return ids.includes(currentUser.uid);
     }

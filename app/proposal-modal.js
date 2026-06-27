@@ -181,7 +181,8 @@ function _isCallerAttachedToProposalParent(proposal) {
         if (role === 'operations_admin') {
             canApprove = true;
             canDrive   = true;
-        } else if (role === 'operations_user' && isAssigned) {
+        } else if ((role === 'operations_user' || role === 'services_user') && isAssigned) {
+            // Quick 260627-kg0: an assigned cross-dept services_user drives a project-parented proposal.
             canApprove = false;
             canDrive   = true;
         }
@@ -189,7 +190,8 @@ function _isCallerAttachedToProposalParent(proposal) {
         if (role === 'services_admin') {
             canApprove = true;
             canDrive   = true;
-        } else if (role === 'services_user' && isAssigned) {
+        } else if ((role === 'services_user' || role === 'operations_user') && isAssigned) {
+            // Quick 260627-kg0: an assigned cross-dept operations_user drives a service-parented proposal.
             canApprove = false;
             canDrive   = true;
         }
