@@ -2892,18 +2892,19 @@ async function loadServicesForNewMRF() {
         return; // Use cached data
     }
     try {
-        // operations_user is project-scoped — no service types in their MRF form
+        // Quick 260627-kg0: service-MRF availability is assignment-driven, not role-literal.
+        // A scoped user (services_user OR an operations_user assigned to services) loads only their
+        // assigned services; an operations_user with no service assignments early-returns just below.
         const assignedServiceCodes = window.getAssignedServiceCodes?.();
         if (assignedServiceCodes !== null && assignedServiceCodes.length === 0) return;
 
         let q;
         if (assignedServiceCodes !== null) {
-            // services_user: scope to assigned codes (mirrors mrf-form.js loadServices pattern)
+            // Scoped (services_user or cross-dept operations_user): scope to assigned codes
+            // (mirrors mrf-form.js loadServices pattern).
             q = query(collection(db, 'services'), where('service_code', 'in', assignedServiceCodes));
         } else {
-            // Admin/finance/procurement/operations_user with list access: unscoped active filter
-            const user = window.getCurrentUser?.();
-            if (user?.role === 'operations_user') return;
+            // Exempt roles (admin/finance/procurement): unscoped active filter.
             q = query(collection(db, 'services'), where('active', '==', true));
         }
         const snapshot = await getDocs(q);
@@ -2958,6 +2959,29 @@ async function loadProjects() {
 // ========================================
 
 /**
+ * Quick 260627-kg0: shared UNION (OR) scope predicate for MRF/PR/PO record lists.
+ *
+ * Returns true when a record is visible to the current user. Replaces the old sequential
+ * project-then-service filtering, which was an implicit logical AND: once the helpers became
+ * assignment-driven and a cross-dept user has BOTH scopes non-null, the sequential AND dropped
+ * the user's OWN-department records (a project MRF has an empty service_code, so the service
+ * filter removed it). This OR is the correct union.
+ *
+ * No-leak (quick 260615-nlj) preserved STRUCTURALLY: a record is visible only when its code is IN
+ * an assigned-codes array, so an uncoded/cross-dept item ('' or absent code) matches neither scope
+ * and stays hidden. For a single-department user (exactly one non-null scope) the OR collapses to
+ * that one scope — visible-record set is identical to before this change.
+ */
+function isMrfInAssignedScope(mrf) {
+    const projScope = window.getAssignedProjectCodes?.();   // null = no project filter (exempt role)
+    const svcScope  = window.getAssignedServiceCodes?.();   // null = no service filter (exempt role)
+    if (projScope === null && svcScope === null) return true; // exempt role: no filtering at all
+    const matchesProject = projScope !== null && projScope.includes(mrf.project_code);
+    const matchesService = svcScope  !== null && svcScope.includes(mrf.service_code);
+    return matchesProject || matchesService;
+}
+
+/**
  * Load MRFs with real-time updates
  */
 async function loadMRFs() {
@@ -2985,19 +3009,8 @@ async function loadMRFs() {
         cachedAllMRFs = [...allMRFs];
 
         // Scope MRF list to assigned projects/services before material/transport split.
-        const assignedCodes = window.getAssignedProjectCodes?.();
-        let scopedMRFs = allMRFs;
-        if (assignedCodes !== null) {
-            scopedMRFs = allMRFs.filter(mrf =>
-                assignedCodes.includes(mrf.project_code)
-            );
-        }
-        const assignedServiceCodes = window.getAssignedServiceCodes?.();
-        if (assignedServiceCodes !== null) {
-            scopedMRFs = scopedMRFs.filter(mrf =>
-                assignedServiceCodes.includes(mrf.service_code)
-            );
-        }
+        // Quick 260627-kg0: union (project OR service) so a cross-dept member sees BOTH depts' records.
+        const scopedMRFs = allMRFs.filter(isMrfInAssignedScope);
 
         // Separate by request type
         const materialMRFs = scopedMRFs.filter(m => m.request_type !== 'service');
@@ -3058,19 +3071,8 @@ async function loadRejectedTRs() {
  * create duplicate Firestore listeners.
  */
 function reFilterAndRenderMRFs() {
-    const assignedCodes = window.getAssignedProjectCodes?.();
-    let scopedMRFs = cachedAllMRFs;
-    if (assignedCodes !== null) {
-        scopedMRFs = cachedAllMRFs.filter(mrf =>
-            assignedCodes.includes(mrf.project_code)
-        );
-    }
-    const assignedServiceCodes = window.getAssignedServiceCodes?.();
-    if (assignedServiceCodes !== null) {
-        scopedMRFs = scopedMRFs.filter(mrf =>
-            assignedServiceCodes.includes(mrf.service_code)
-        );
-    }
+    // Quick 260627-kg0: union (project OR service) scope — see isMrfInAssignedScope.
+    const scopedMRFs = cachedAllMRFs.filter(isMrfInAssignedScope);
 
     const materialMRFs = scopedMRFs.filter(m => m.request_type !== 'service');
     const transportMRFs = scopedMRFs.filter(m => m.request_type === 'service');
@@ -3089,20 +3091,8 @@ function reFilterAndRenderMRFs() {
 
 // Phase 91 — re-scope MRF Records on assignmentsChanged without a Firestore round-trip.
 function reFilterAndRenderPRPORecords() {
-    const assignedCodes = window.getAssignedProjectCodes?.();
-    const assignedServiceCodes = window.getAssignedServiceCodes?.();
-    let scoped = [...cachedAllPRPORecords];
-    if (assignedCodes !== null) {
-        scoped = scoped.filter(mrf =>
-            assignedCodes.includes(mrf.project_code)
-        );
-    }
-    if (assignedServiceCodes !== null) {
-        scoped = scoped.filter(mrf =>
-            assignedServiceCodes.includes(mrf.service_code)
-        );
-    }
-    allPRPORecords = scoped;
+    // Quick 260627-kg0: union (project OR service) scope — see isMrfInAssignedScope.
+    allPRPORecords = cachedAllPRPORecords.filter(isMrfInAssignedScope);
     // Phase 91 UAT Bug 3 — keep the PO scoreboards in sync with the re-scoped
     // MRF set so assignment changes refresh the visible counts without a
     // Firestore round-trip. Set is built from mrf.mrf_id (human-readable
@@ -5348,16 +5338,8 @@ async function loadPRPORecords(force = false) {
     // If records are cached and fresh, render from cache (no Firestore fetch, no loading overlay)
     if (!force && cachedAllPRPORecords.length > 0 && (Date.now() - _prpoRecordsCachedAt) < CACHE_TTL_MS) {
         // Re-apply scope filters from cache so stale assignment data does not leak
-        const assignedCodes = window.getAssignedProjectCodes?.();
-        const assignedServiceCodes = window.getAssignedServiceCodes?.();
-        let scoped = [...cachedAllPRPORecords];
-        if (assignedCodes !== null) {
-            scoped = scoped.filter(mrf => assignedCodes.includes(mrf.project_code));
-        }
-        if (assignedServiceCodes !== null) {
-            scoped = scoped.filter(mrf => assignedServiceCodes.includes(mrf.service_code));
-        }
-        allPRPORecords = scoped;
+        // Quick 260627-kg0: union (project OR service) scope — see isMrfInAssignedScope.
+        allPRPORecords = cachedAllPRPORecords.filter(isMrfInAssignedScope);
         filterPRPORecords();
         return;
     }
@@ -5402,19 +5384,9 @@ async function loadPRPORecords(force = false) {
         // Phase 91 — cache raw set before applying project-scope filter
         cachedAllPRPORecords = [...allPRPORecords];
 
-        // Apply project-scope for operations_user; service-scope for services_user
-        const assignedCodes = window.getAssignedProjectCodes?.();
-        if (assignedCodes !== null) {
-            allPRPORecords = allPRPORecords.filter(mrf =>
-                assignedCodes.includes(mrf.project_code)
-            );
-        }
-        const assignedServiceCodes = window.getAssignedServiceCodes?.();
-        if (assignedServiceCodes !== null) {
-            allPRPORecords = allPRPORecords.filter(mrf =>
-                assignedServiceCodes.includes(mrf.service_code)
-            );
-        }
+        // Quick 260627-kg0: union (project OR service) scope — see isMrfInAssignedScope.
+        // (cachedAllPRPORecords above retains the raw set for re-scoping on assignmentsChanged.)
+        allPRPORecords = allPRPORecords.filter(isMrfInAssignedScope);
 
         // Fetch all POs for scoreboard
         const posRef = collection(db, 'pos');

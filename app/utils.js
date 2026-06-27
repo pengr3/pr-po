@@ -308,23 +308,30 @@ export async function generateProjectCode(clientCode, year = null) {
     }
 }
 
+// Quick 260627-kg0: roles EXEMPT from assignment scoping — they see everything (null = "no filter").
+// Platform admins + cross-department staff. Any *_user role (operations_user, services_user) is
+// assignment-scoped instead, which is what makes access assignment-driven, not department-role-driven.
+const SCOPE_EXEMPT_ROLES = ['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement'];
+
 /**
  * Get the set of project codes the current user is allowed to see.
- * Returns null if no filtering should be applied (all roles except operations_user,
- * or operations_user with all_projects flag set).
- * Returns an array of project_code strings if the user is scoped to specific projects.
- * Returns an empty array if the user is operations_user with no assignments at all.
+ * Quick 260627-kg0: ASSIGNMENT-DRIVEN — returns assigned_project_codes for BOTH operations_user AND
+ * services_user (a services_user assigned to a project is scoped-IN to it). Returns null ("no filter")
+ * only for the scope-exempt set (super_admin / dept admins / finance / procurement) or when the
+ * all_projects escape-hatch flag is set. Returns an empty array if a scoped user has zero project
+ * assignments.
  *
  * @returns {string[]|null} Array of allowed project_codes, or null for "no filter"
  */
 export function getAssignedProjectCodes() {
     const user = window.getCurrentUser?.();
-    if (!user) return null;                          // Not logged in -- no filter
-    if (user.role !== 'operations_user') return null; // Only operations_user is scoped
+    if (!user) return null;                              // Not logged in -- no filter
+    if (SCOPE_EXEMPT_ROLES.includes(user.role)) return null; // Admins/finance/procurement: no filter
 
-    if (user.all_projects === true) return null;     // "All projects" escape hatch
+    if (user.all_projects === true) return null;         // "All projects" escape hatch (no-op for a services_user)
 
-    // Return the array if present, otherwise empty array (zero assignments)
+    // Any non-exempt role (operations_user, services_user, or unknown/future) is scoped to its
+    // assigned_project_codes. Missing array => [] = sees nothing (deliberate FAIL-CLOSED default).
     return Array.isArray(user.assigned_project_codes) ? user.assigned_project_codes : [];
 }
 
@@ -386,21 +393,22 @@ export async function generateServiceCode(clientCode, year = null) {
 
 /**
  * Get the set of service codes the current user is allowed to see.
- * Returns null if no filtering should be applied (all roles except services_user,
- * or services_user with all_services flag set).
- * Returns an array of service_code strings if the user is scoped to specific services.
- * Returns an empty array if the user is services_user with no assignments at all.
+ * Quick 260627-kg0: ASSIGNMENT-DRIVEN — returns assigned_service_codes for BOTH services_user AND
+ * operations_user (an operations_user assigned to a service is scoped-IN to it). Returns null
+ * ("no filter") only for the scope-exempt set (super_admin / dept admins / finance / procurement)
+ * or when the all_services escape-hatch flag is set. Returns an empty array if a scoped user has
+ * zero service assignments.
  *
  * @returns {string[]|null} Array of allowed service_codes, or null for "no filter"
  */
 export function getAssignedServiceCodes() {
     const user = window.getCurrentUser?.();
-    if (!user) return null;                           // Not logged in -- no filter
-    if (user.role !== 'services_user') return null;  // Only services_user is scoped
+    if (!user) return null;                              // Not logged in -- no filter
+    if (SCOPE_EXEMPT_ROLES.includes(user.role)) return null; // Admins/finance/procurement: no filter
 
-    if (user.all_services === true) return null;      // "All services" escape hatch
+    if (user.all_services === true) return null;         // "All services" escape hatch (no-op for an operations_user)
 
-    // Return the array if present, otherwise empty array (zero assignments)
+    // Any non-exempt role is scoped to its assigned_service_codes (FAIL-CLOSED: missing => [] = sees nothing).
     return Array.isArray(user.assigned_service_codes) ? user.assigned_service_codes : [];
 }
 
