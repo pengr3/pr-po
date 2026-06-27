@@ -813,6 +813,14 @@ function renderServiceDetail() {
     const user = window.getCurrentUser?.();
     const canEditPersonnel = showEditControls && (user?.role === 'super_admin' || user?.role === 'services_admin');
 
+    // Quick 260627-kg0 follow-up: the view-only banner must reflect ACTUAL per-service capability,
+    // not the blanket services.edit tab flag. An assigned member (uid in personnel_user_ids) can
+    // drive this service's lifecycle/proposals even when canEditTab('services') is false — so they
+    // are NOT view-only. Show the banner only for users with no write path to THIS service.
+    const _isAssignedServiceMember = !!user?.uid && Array.isArray(currentService.personnel_user_ids)
+        && currentService.personnel_user_ids.includes(user.uid);
+    const isServiceViewOnly = canEdit === false && !_isAssignedServiceMember;
+
     const focusedField = document.activeElement?.dataset?.field;
 
     // ----- Phase 87.3 D-07: proposalInlineCard always rendered; loadProposalCard handles all branching -----
@@ -822,7 +830,7 @@ function renderServiceDetail() {
 
     container.innerHTML = `
         <div class="container" style="margin-top: 1rem;">
-            ${canEdit === false ? `
+            ${isServiceViewOnly ? `
                 <div class="view-only-notice">
                     <span class="notice-icon">👁</span>
                     <span>You have view-only access to this section.</span>

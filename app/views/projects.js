@@ -146,9 +146,16 @@ export function render(activeTab = null) {
     const user = window.getCurrentUser?.();
     const canCreateProject = user?.role === 'super_admin' || user?.role === 'operations_admin';
 
+    // Quick 260627-kg0 follow-up: a *_user assigned to projects can edit those projects from the
+    // detail page, so the blanket "view-only" banner is misleading for them. Suppress it when they
+    // hold ≥1 project assignment; pure viewers (no assignments) still see it.
+    const _assignedProjectCodes = window.getAssignedProjectCodes?.();
+    const _hasProjectAssignments = Array.isArray(_assignedProjectCodes) && _assignedProjectCodes.length > 0;
+    const showProjectsViewOnlyNotice = canEdit === false && !_hasProjectAssignments;
+
     return `
         <div class="container" style="margin-top: 2rem;">
-            ${canEdit === false ? `
+            ${showProjectsViewOnlyNotice ? `
                 <div class="view-only-notice">
                     <span class="notice-icon">👁</span>
                     <span>You have view-only access to this section.</span>

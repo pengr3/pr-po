@@ -138,12 +138,19 @@ export function render(activeTab = null) {
     const user = window.getCurrentUser?.();
     const canCreateService = user?.role === 'super_admin' || user?.role === 'services_admin';
 
+    // Quick 260627-kg0 follow-up: a *_user assigned to services can edit those services from the
+    // detail page, so the blanket "view-only" banner is misleading for them. Suppress it when they
+    // hold ≥1 service assignment; pure viewers (no assignments) still see it.
+    const _assignedServiceCodes = window.getAssignedServiceCodes?.();
+    const _hasServiceAssignments = Array.isArray(_assignedServiceCodes) && _assignedServiceCodes.length > 0;
+    const showServicesViewOnlyNotice = canEdit === false && !_hasServiceAssignments;
+
     // Default service_type for add form based on active sub-tab
     const defaultServiceType = currentActiveTab === 'recurring' ? 'recurring' : 'one-time';
 
     return `
         <div class="container" style="margin-top: 2rem;">
-            ${canEdit === false ? `
+            ${showServicesViewOnlyNotice ? `
                 <div class="view-only-notice">
                     <span class="notice-icon">👁</span>
                     <span>You have view-only access to this section.</span>

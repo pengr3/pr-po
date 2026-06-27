@@ -605,6 +605,14 @@ function renderProjectDetail() {
     const user = window.getCurrentUser?.();
     const canEditPersonnel = showEditControls && (user?.role === 'super_admin' || user?.role === 'operations_admin');
 
+    // Quick 260627-kg0 follow-up: the view-only banner must reflect ACTUAL per-project capability,
+    // not the blanket projects.edit tab flag. An assigned member (uid in personnel_user_ids) can
+    // drive this project's lifecycle/proposals even when canEditTab('projects') is false — so they
+    // are NOT view-only. Show the banner only for users with no write path to THIS project.
+    const _isAssignedProjectMember = !!user?.uid && Array.isArray(currentProject.personnel_user_ids)
+        && currentProject.personnel_user_ids.includes(user.uid);
+    const isProjectViewOnly = canEdit === false && !_isAssignedProjectMember;
+
     const focusedField = document.activeElement?.dataset?.field;
 
     // Plan visible from 'For Proposal' onwards; hidden for pre-proposal and loss stages
@@ -616,7 +624,7 @@ function renderProjectDetail() {
 
     container.innerHTML = `
         <div class="container" style="margin-top: 1rem;">
-            ${canEdit === false ? `
+            ${isProjectViewOnly ? `
                 <div class="view-only-notice">
                     <span class="notice-icon">👁</span>
                     <span>You have view-only access to this section.</span>
