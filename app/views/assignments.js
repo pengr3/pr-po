@@ -253,15 +253,20 @@ function renderUsersTable() {
         return;
     }
 
-    // Filter users by sub-tab role scope
+    // Filter users by sub-tab. Native department roles always show; plus (Quick 260627-kg0)
+    // a cross-department *_user who HOLDS assignments in this department stays visible + manageable
+    // here, so their assignments survive a role/department change instead of being orphaned in the
+    // admin grid (the underlying assigned_*_codes + personnel_user_ids are never wiped on role change).
     let filteredUsers;
     if (activeSubTab === 'projects') {
         filteredUsers = usersData.filter(u =>
-            u.role === 'operations_user' || u.role === 'operations_admin'
+            u.role === 'operations_user' || u.role === 'operations_admin' ||
+            (u.role === 'services_user' && Array.isArray(u.assigned_project_codes) && u.assigned_project_codes.length > 0)
         );
     } else {
         filteredUsers = usersData.filter(u =>
-            u.role === 'services_user' || u.role === 'services_admin'
+            u.role === 'services_user' || u.role === 'services_admin' ||
+            (u.role === 'operations_user' && Array.isArray(u.assigned_service_codes) && u.assigned_service_codes.length > 0)
         );
     }
 
