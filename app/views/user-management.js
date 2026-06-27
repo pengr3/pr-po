@@ -1443,20 +1443,25 @@ async function handleEditRole(userId) {
         // Get current user for audit trail
         const currentUser = window.getCurrentUser?.();
 
-        // Build role-specific fields for the new role
+        // Build role-specific fields for the new role.
+        // Quick 260627-kg0 follow-up: assignments (assigned_project_codes / assigned_service_codes)
+        // PERSIST across role changes — access is assignment-driven and personnel_user_ids on the
+        // project/service docs is the source of truth (untouched here). We only (re)set BOTH
+        // "see-everything" flags per role, so a demotion or cross-department switch always strips
+        // unrestricted access and never leaves a stale all_* flag from a previous admin role.
         const roleSpecificFields = {};
         if (newRole === 'services_admin') {
             roleSpecificFields.all_services = true;
-            roleSpecificFields.assigned_service_codes = [];
+            roleSpecificFields.all_projects = false;
         } else if (newRole === 'services_user') {
             roleSpecificFields.all_services = false;
-            roleSpecificFields.assigned_service_codes = [];
+            roleSpecificFields.all_projects = false;
         } else if (newRole === 'operations_admin') {
             roleSpecificFields.all_projects = true;
-            roleSpecificFields.assigned_project_codes = [];
+            roleSpecificFields.all_services = false;
         } else if (newRole === 'operations_user') {
             roleSpecificFields.all_projects = false;
-            roleSpecificFields.assigned_project_codes = [];
+            roleSpecificFields.all_services = false;
         }
 
         // Update user document
