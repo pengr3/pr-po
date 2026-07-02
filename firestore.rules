@@ -1000,5 +1000,22 @@ service cloud.firestore {
 
       allow delete: if isActiveUser() && resource.data.user_id == request.auth.uid;
     }
+
+    // =============================================
+    // client_errors collection (diagnostics — evidence capture)
+    // =============================================
+    // Append-only client-side diagnostic events for transient auth/permission
+    // failures (the overnight "access denied" investigation). Any signed-in user
+    // records ONLY their own events (uid pinned to the caller, like notifications'
+    // actor_id anti-impersonation). Never read by the app at runtime; super_admin
+    // reviews and prunes. Relaxed to isSignedIn() (not isActiveUser()) on purpose:
+    // the failures we want to catch are exactly when the token/role read is failing.
+    match /client_errors/{docId} {
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid;
+      allow read, list: if hasRole(['super_admin']);
+      allow update: if false;
+      allow delete: if hasRole(['super_admin']);
+    }
   }
 }

@@ -204,7 +204,7 @@ export function initAuthObserver() {
             // any collection listener starts. Without this, listeners that use
             // getUserData() in security rules fail on the first onAuthStateChanged
             // event (which fires with the cached, unvalidated token).
-            try { await user.getIdToken(true); } catch (e) { /* token refresh failed, continue */ }
+            try { await user.getIdToken(true); } catch (e) { window.logDiag?.('token_refresh_failed', { error: e, phase: 'bootstrap' }); /* token refresh failed, continue */ }
 
             // Use a single onSnapshot for both initial load and real-time updates.
             // getDoc() internally creates an onSnapshot without an error callback,
@@ -351,6 +351,9 @@ export function initAuthObserver() {
                     // be refreshed (revoked token, network failure during a long session).
                     // Without this handler, the user stays in the authenticated UI with no data —
                     // a broken state. Force logout so they can re-authenticate cleanly.
+                    // DIAG: capture BEFORE the forced logout — this is the prime suspect for the
+                    // overnight reconnect "access denied" reports.
+                    window.logDiag?.('auth_listener_error', { error, phase: 'user_doc_listener' });
                     console.error('[Auth] User document listener error — forcing logout for security:', error);
                     if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
                     signOut(auth).then(() => {
