@@ -286,6 +286,14 @@ export async function navigate(path, tab = null, param = null) {
         // - undefined = not loaded yet (allow, pending state)
         // - true = has permission (allow)
         if (hasAccess === false) {
+            // DIAG: capture the sticky Access Denied gate — records whether permissions were
+            // even loaded when it fired (a transient/empty-perms hit vs a genuine role denial).
+            window.logDiag?.('access_denied', {
+                code: 'router_gate',
+                path,
+                permission_key: permissionKey,
+                perms_loaded: !!window.getCurrentPermissions?.()
+            });
             console.warn('[Router] Access denied to:', path);
             showAccessDenied();
             return;

@@ -109,6 +109,9 @@ export async function initPermissionsObserver(user) {
             }
         },
         (error) => {
+            // DIAG: role-template read failing (often permission-denied on a stale token)
+            // leaves currentPermissions=null with no retry — a contributor to the overnight issue.
+            window.logDiag?.('perms_listener_error', { error, role: user.role });
             console.error('[Permissions] Error listening to role template:', error);
 
             // Handle permission-denied errors gracefully

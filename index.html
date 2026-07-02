@@ -251,6 +251,10 @@
         // Import Firebase service (initializes Firebase)
         import './app/firebase.js';
 
+        // Client diagnostics — passive evidence capture (registers window.logDiag
+        // BEFORE auth/router run so their failure paths can record events).
+        import { initDiagnostics } from './app/diagnostics.js';
+
         // Import and initialize auth observer
         import { initAuthObserver } from './app/auth.js';
 
@@ -276,11 +280,13 @@
         // Initialize auth and router when DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
+                initDiagnostics();
                 initAuthObserver();
                 initRouter();
                 startUpdateCheck();
             });
         } else {
+            initDiagnostics();
             initAuthObserver();
             initRouter();
             startUpdateCheck();
