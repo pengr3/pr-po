@@ -372,6 +372,8 @@ export async function destroy() {
     delete window.lcServiceAttachLink;
     delete window.lcServiceAttachFile;
     delete window.lcRemoveServiceDoc;
+    delete window.lcServiceRecoverFiles;
+    delete window.lcServiceFileHint;
     delete window.lcServiceSwitchTab;
     delete window.lcAdvanceServiceToForProposal;
     delete window.lcStartServiceMobilization;
@@ -1940,6 +1942,19 @@ function getDlpState(service, collectibleDocs) {
     return 'in-dlp';
 }
 
+// quick 260705-s7c — lifecycle-gate files are "archived" (hidden until recovered) once a
+// service is Completed AND its warranty is over. Pure derivation (mirror project-detail).
+function isLcFilesArchived(service) {
+    if (!service || service.files_recovered) return false;
+    if (service.project_status !== 'Completed') return false;
+    const dlp = getDlpState(service, currentCollectibleDocs);
+    if (dlp === 'in-dlp') return false;                         // still under warranty → keep hot
+    if (dlp === 'expired' || dlp === 'released') return true;   // warranty lapsed / retention released
+    // dlp === 'active' → no DLP configured: grace window after completion
+    const doneMs = service.project_completed_at ? new Date(service.project_completed_at).getTime() : 0;
+    return !!doneMs && (Date.now() - doneMs) > LC_FILES_ARCHIVE_GRACE_DAYS * 86400000;
+}
+
 // 4-state DLP-aware finance bar (active / in-dlp / expired / released). Reads currentService + currentCollectibleDocs.
 function renderServiceDlpFinanceBar() {
     const service = currentService;
@@ -2251,8 +2266,11 @@ const LC_DOC_KEYS = {
 };
 
 // quick 260704 — lifecycle gate file uploads (Firebase Storage)
-const LC_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+const LC_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;   // quick 260705-s7c: 10 MB → 5 MB
 const LC_UPLOAD_ALLOWED_EXT = ['pdf', 'doc', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg'];
+// quick 260705-s7c — completed service with NO DLP archives (hides) its lifecycle files
+// this many days after completion; services WITH a DLP archive when the DLP expires.
+const LC_FILES_ARCHIVE_GRACE_DAYS = 365;
 
 function buildAttachZone(service, which, label, simFilename) {
     const dk = LC_DOC_KEYS[which];
@@ -2264,6 +2282,18 @@ function buildAttachZone(service, which, label, simFilename) {
         const name = escapeHTML(service[dk.prefix + '_filename'] || service[dk.prefix + '_url'] || '');
         const url = escapeHTML(service[dk.prefix + '_url'] || '');
         const icon = kind === 'file' ? '📄' : '🔗';
+        // quick 260705-s7c — Completed + warranty-over: hide the file behind an archived chip.
+        if (isLcFilesArchived(service)) {
+            return `<div class="az az-ok" style="opacity:0.72;">
+                <div class="az-doc">
+                    <span class="az-doc-icon">📦</span>
+                    <div class="az-doc-info">
+                        <div class="az-doc-name" style="color:#64748b;">${name}</div>
+                        <div class="az-doc-kind">archived to conserve storage</div>
+                    </div>
+                </div>
+            </div>`;
+        }
         return `<div class="az az-ok">
             <div class="az-doc">
                 <span class="az-doc-icon">${icon}</span>
@@ -2286,9 +2316,10 @@ function buildAttachZone(service, which, label, simFilename) {
             <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcServiceAttachLink('${which}')">Attach</button>
         </div>
         <div class="az-row" id="az${L}FileP" style="display:none;">
-            <input class="az-input" id="az${L}File" type="file" accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg" style="padding:5px;">
+            <input class="az-input" id="az${L}File" type="file" accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg" style="padding:5px;" onchange="window.lcServiceFileHint('${L}')">
             <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcServiceAttachFile('${which}')">Upload</button>
         </div>
+        <div class="az-hint" id="az${L}Hint" style="font-size:11px;color:#94a3b8;margin-top:4px;">Max 5 MB · PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG</div>
     </div>`;
 }
 
@@ -2447,15 +2478,18 @@ function buildServiceLifecycleBody(service, currentUser) {
     }
     if (status === 'Completed') {
         const cell = (lbl, val) => `<div class="comp-cell"><div class="comp-cell-lbl">${lbl}</div><div class="comp-cell-val">${escapeHTML(val || '—')}</div></div>`;
+        const archived = isLcFilesArchived(service);   // quick 260705-s7c
+        const docVal = (fn, url) => archived ? '📦 archived' : (fn || url);
         return wrap('Project Closed', `
             <div class="comp-grid">
-                ${cell('NTP / PO', service.ntp_document_filename || service.ntp_document_url)}
+                ${cell('NTP / PO', docVal(service.ntp_document_filename, service.ntp_document_url))}
                 ${cell('Mobilized', service.mobilization_started_at)}
                 ${cell('Project Started', service.project_started_at)}
                 ${cell('Completed At', service.project_completed_at)}
-                ${cell('Completion Report', service.completion_report_filename || service.completion_report_url)}
-                ${cell('Cert. of Completion', service.certificate_of_completion_filename || service.certificate_of_completion_url)}
+                ${cell('Completion Report', docVal(service.completion_report_filename, service.completion_report_url))}
+                ${cell('Cert. of Completion', docVal(service.certificate_of_completion_filename, service.certificate_of_completion_url))}
             </div>
+            ${archived ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:11px 13px;font-size:12px;color:#475569;line-height:1.6;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><strong>📦 Files archived</strong> — this service's uploaded lifecycle documents are hidden to conserve storage.</span><button class="btn btn-sm btn-primary" style="font-size:12px;white-space:nowrap;" onclick="window.lcServiceRecoverFiles()">♻ Recover files</button></div>` : ''}
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:11px 13px;font-size:12px;color:#1e40af;line-height:1.65;margin-bottom:12px;"><strong>📊 COC → Finance</strong> — The COC on this project is the reference Finance uses when filing remaining billing tranches, including retention.</div>`);
     }
     if (status === 'Loss') {
@@ -3460,7 +3494,7 @@ function attachWindowFunctions() {
         const file = fileInput?.files?.[0];
         if (!file) { showToast('Please choose a file to upload.', 'error'); return; }
         if (file.size > LC_UPLOAD_MAX_BYTES) {
-            showToast('File exceeds the 10 MB limit. Please use a link instead.', 'error');
+            showToast('File exceeds the 5 MB limit. Please use a link instead.', 'error');
             return;
         }
         const ext = (file.name.split('.').pop() || '').toLowerCase();
@@ -3537,6 +3571,45 @@ function attachWindowFunctions() {
             buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
             showToast('Failed to remove document. Please try again.', 'error');
         }
+    };
+    // quick 260705-s7c — un-hide a completed service's archived lifecycle files (service-level).
+    window.lcServiceRecoverFiles = async function() {
+        if (!currentService) return;
+        if (window.canEditTab?.('services') === false) {
+            showToast('You do not have permission to recover files.', 'error');
+            return;
+        }
+        const prev = currentService.files_recovered;
+        currentService.files_recovered = true;
+        buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+        try {
+            await updateDoc(doc(db, 'services', currentServiceDocId), {
+                files_recovered: true,
+                files_recovered_at: serverTimestamp(),
+                files_recovered_by: window.getCurrentUser?.()?.uid || window.getCurrentUser?.()?.email || null,
+                updated_at: serverTimestamp(),
+            });
+            const cu = window.getCurrentUser?.();
+            await addServiceAuditEntry(currentServiceDocId, 'LC_FILES_RECOVERED', cu?.uid, cu?.full_name, '');
+            showToast('Files recovered.', 'success');
+        } catch (err) {
+            console.error('[ServiceDetail] lcServiceRecoverFiles failed:', err);
+            currentService.files_recovered = prev;
+            buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+            showToast('Failed to recover files. Please try again.', 'error');
+        }
+    };
+    // quick 260705-s7c — live filename + size readout under the file picker (5 MB cap cue).
+    window.lcServiceFileHint = function(L) {
+        const input = document.getElementById('az' + L + 'File');
+        const hint = document.getElementById('az' + L + 'Hint');
+        if (!input || !hint) return;
+        const f = input.files && input.files[0];
+        if (!f) { hint.textContent = 'Max 5 MB · PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG'; hint.style.color = '#94a3b8'; return; }
+        const over = f.size > LC_UPLOAD_MAX_BYTES;
+        const sizeStr = f.size >= 1024 * 1024 ? (f.size / (1024 * 1024)).toFixed(1) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB';
+        hint.textContent = `${f.name} — ${sizeStr}${over ? ' · exceeds 5 MB limit' : ''}`;
+        hint.style.color = over ? '#dc2626' : '#059669';
     };
     window.lcServiceSwitchTab = function(L, tab) {
         const lp = document.getElementById('az' + L + 'LinkP');
