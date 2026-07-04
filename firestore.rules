@@ -230,11 +230,13 @@ service cloud.firestore {
           'loss_reason',
           // Phase 103.1 D-02/D-03 — stage-duration + activity-recency clocks (denormalized feed signals)
           'status_changed_at', 'last_activity_at',
-          'inspection_report_url', 'inspection_report_kind', 'inspection_report_filename',
-          'ntp_document_url', 'ntp_document_kind', 'ntp_document_filename',
+          // quick 260704 — *_storage_path added for in-app file uploads (Firebase Storage).
+          // Services has no field-mask on the assigned-user branch, so only projects needs these.
+          'inspection_report_url', 'inspection_report_kind', 'inspection_report_filename', 'inspection_report_storage_path',
+          'ntp_document_url', 'ntp_document_kind', 'ntp_document_filename', 'ntp_document_storage_path',
           'mobilization_started_at', 'project_started_at',
-          'completion_report_url', 'completion_report_kind', 'completion_report_filename',
-          'certificate_of_completion_url', 'certificate_of_completion_kind', 'certificate_of_completion_filename',
+          'completion_report_url', 'completion_report_kind', 'completion_report_filename', 'completion_report_storage_path',
+          'certificate_of_completion_url', 'certificate_of_completion_kind', 'certificate_of_completion_filename', 'certificate_of_completion_storage_path',
           'project_completed_at',
           'dlp_months', 'dlp_start_date', 'dlp_expires_at',
           'retention_percentage', 'retention_amount', 'retention_released_at',
@@ -242,7 +244,10 @@ service cloud.firestore {
           // (project-detail.js saveTrancheEditor writes collection_tranches + updated_at).
           // Advisory billing schedule only — the authoritative collectible amounts are
           // re-derived by Finance at approval time (mirrors billing_requests posture).
-          'collection_tranches'
+          'collection_tranches',
+          // quick 260705-s7c — files_recovered flag un-hides a completed project's
+          // archived lifecycle files (app-level storage archive). Assigned ops user may recover.
+          'files_recovered', 'files_recovered_at', 'files_recovered_by'
         ])
       ) || (
         // Phase 102 Plan 04 — Finance records the retention release (field-masked; allowed even on a code-locked project)

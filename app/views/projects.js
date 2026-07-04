@@ -3,7 +3,7 @@
    Project management with CRUD operations
    ======================================== */
 
-import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
+import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, purgeStoragePrefix } from '../firebase.js';
 import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, formatCurrency } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 import { createEngagement } from '../engagement-create.js';
@@ -1468,6 +1468,9 @@ async function deleteProject(projectId, projectName) {
 
     try {
         await deleteDoc(doc(db, 'projects', projectId));
+        // quick 260705-s7c — purge this project's lifecycle-gate Storage objects (best-effort).
+        try { await purgeStoragePrefix('projects/' + projectId); }
+        catch (e) { console.error('[Projects] storage purge failed:', e); }
         showToast(`Project "${projectName}" deleted`, 'success');
     } catch (error) {
         console.error('[Projects] Error deleting project:', error);

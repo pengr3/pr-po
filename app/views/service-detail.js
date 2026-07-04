@@ -5,6 +5,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count, addDoc, serverTimestamp, orderBy, limit, arrayUnion } from '../firebase.js';
+import { storage, ref, uploadBytes, getDownloadURL, deleteObject } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML, getRFPFees } from '../utils.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
@@ -371,6 +372,8 @@ export async function destroy() {
     delete window.lcServiceAttachLink;
     delete window.lcServiceAttachFile;
     delete window.lcRemoveServiceDoc;
+    delete window.lcServiceRecoverFiles;
+    delete window.lcServiceFileHint;
     delete window.lcServiceSwitchTab;
     delete window.lcAdvanceServiceToForProposal;
     delete window.lcStartServiceMobilization;
@@ -1939,6 +1942,19 @@ function getDlpState(service, collectibleDocs) {
     return 'in-dlp';
 }
 
+// quick 260705-s7c — lifecycle-gate files are "archived" (hidden until recovered) once a
+// service is Completed AND its warranty is over. Pure derivation (mirror project-detail).
+function isLcFilesArchived(service) {
+    if (!service || service.files_recovered) return false;
+    if (service.project_status !== 'Completed') return false;
+    const dlp = getDlpState(service, currentCollectibleDocs);
+    if (dlp === 'in-dlp') return false;                         // still under warranty → keep hot
+    if (dlp === 'expired' || dlp === 'released') return true;   // warranty lapsed / retention released
+    // dlp === 'active' → no DLP configured: grace window after completion
+    const doneMs = service.project_completed_at ? new Date(service.project_completed_at).getTime() : 0;
+    return !!doneMs && (Date.now() - doneMs) > LC_FILES_ARCHIVE_GRACE_DAYS * 86400000;
+}
+
 // 4-state DLP-aware finance bar (active / in-dlp / expired / released). Reads currentService + currentCollectibleDocs.
 function renderServiceDlpFinanceBar() {
     const service = currentService;
@@ -2249,6 +2265,13 @@ const LC_DOC_KEYS = {
     coc:        { prefix: 'certificate_of_completion', L: 'O' },
 };
 
+// quick 260704 — lifecycle gate file uploads (Firebase Storage)
+const LC_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;   // quick 260705-s7c: 10 MB → 5 MB
+const LC_UPLOAD_ALLOWED_EXT = ['pdf', 'doc', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg'];
+// quick 260705-s7c — completed service with NO DLP archives (hides) its lifecycle files
+// this many days after completion; services WITH a DLP archive when the DLP expires.
+const LC_FILES_ARCHIVE_GRACE_DAYS = 365;
+
 function buildAttachZone(service, which, label, simFilename) {
     const dk = LC_DOC_KEYS[which];
     if (!dk) return '';
@@ -2259,11 +2282,23 @@ function buildAttachZone(service, which, label, simFilename) {
         const name = escapeHTML(service[dk.prefix + '_filename'] || service[dk.prefix + '_url'] || '');
         const url = escapeHTML(service[dk.prefix + '_url'] || '');
         const icon = kind === 'file' ? '📄' : '🔗';
+        // quick 260705-s7c — Completed + warranty-over: hide the file behind an archived chip.
+        if (isLcFilesArchived(service)) {
+            return `<div class="az az-ok" style="opacity:0.72;">
+                <div class="az-doc">
+                    <span class="az-doc-icon">📦</span>
+                    <div class="az-doc-info">
+                        <div class="az-doc-name" style="color:#64748b;">${name}</div>
+                        <div class="az-doc-kind">archived to conserve storage</div>
+                    </div>
+                </div>
+            </div>`;
+        }
         return `<div class="az az-ok">
             <div class="az-doc">
                 <span class="az-doc-icon">${icon}</span>
                 <div class="az-doc-info">
-                    <div class="az-doc-name">${name}</div>
+                    <div class="az-doc-name">${url ? `<a href="${url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">${name}</a>` : name}</div>
                     <div class="az-doc-kind">${kind}</div>
                 </div>
                 <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;font-size:11px;cursor:pointer;" onclick="window.lcRemoveServiceDoc('${which}')">✕ Remove</button>
@@ -2272,10 +2307,19 @@ function buildAttachZone(service, which, label, simFilename) {
     }
     return `<div class="az">
         <div class="az-lbl">${escapeHTML(label)}</div>
-        <div class="az-row">
+        <div class="az-tabs">
+            <button type="button" class="az-tab active" id="az${L}TabL" onclick="window.lcServiceSwitchTab('${L}','link')">🔗 Link</button>
+            <button type="button" class="az-tab" id="az${L}TabF" onclick="window.lcServiceSwitchTab('${L}','file')">📄 Upload</button>
+        </div>
+        <div class="az-row" id="az${L}LinkP">
             <input class="az-input" id="az${L}Link" type="url" placeholder="https://drive.google.com/...">
             <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcServiceAttachLink('${which}')">Attach</button>
         </div>
+        <div class="az-row" id="az${L}FileP" style="display:none;">
+            <input class="az-input" id="az${L}File" type="file" accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg" style="padding:5px;" onchange="window.lcServiceFileHint('${L}')">
+            <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcServiceAttachFile('${which}')">Upload</button>
+        </div>
+        <div class="az-hint" id="az${L}Hint" style="font-size:11px;color:#94a3b8;margin-top:4px;">Max 5 MB · PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG</div>
     </div>`;
 }
 
@@ -2434,15 +2478,18 @@ function buildServiceLifecycleBody(service, currentUser) {
     }
     if (status === 'Completed') {
         const cell = (lbl, val) => `<div class="comp-cell"><div class="comp-cell-lbl">${lbl}</div><div class="comp-cell-val">${escapeHTML(val || '—')}</div></div>`;
+        const archived = isLcFilesArchived(service);   // quick 260705-s7c
+        const docVal = (fn, url) => archived ? '📦 archived' : (fn || url);
         return wrap('Project Closed', `
             <div class="comp-grid">
-                ${cell('NTP / PO', service.ntp_document_filename || service.ntp_document_url)}
+                ${cell('NTP / PO', docVal(service.ntp_document_filename, service.ntp_document_url))}
                 ${cell('Mobilized', service.mobilization_started_at)}
                 ${cell('Project Started', service.project_started_at)}
                 ${cell('Completed At', service.project_completed_at)}
-                ${cell('Completion Report', service.completion_report_filename || service.completion_report_url)}
-                ${cell('Cert. of Completion', service.certificate_of_completion_filename || service.certificate_of_completion_url)}
+                ${cell('Completion Report', docVal(service.completion_report_filename, service.completion_report_url))}
+                ${cell('Cert. of Completion', docVal(service.certificate_of_completion_filename, service.certificate_of_completion_url))}
             </div>
+            ${archived ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:11px 13px;font-size:12px;color:#475569;line-height:1.6;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><strong>📦 Files archived</strong> — this service's uploaded lifecycle documents are hidden to conserve storage.</span><button class="btn btn-sm btn-primary" style="font-size:12px;white-space:nowrap;" onclick="window.lcServiceRecoverFiles()">♻ Recover files</button></div>` : ''}
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:11px 13px;font-size:12px;color:#1e40af;line-height:1.65;margin-bottom:12px;"><strong>📊 COC → Finance</strong> — The COC on this project is the reference Finance uses when filing remaining billing tranches, including retention.</div>`);
     }
     if (status === 'Loss') {
@@ -3410,73 +3457,159 @@ function attachWindowFunctions() {
             return;
         }
         const prev = {
-            [dk.prefix + '_url']:      currentService[dk.prefix + '_url'],
-            [dk.prefix + '_kind']:     currentService[dk.prefix + '_kind'],
-            [dk.prefix + '_filename']: currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_url']:          currentService[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:         currentService[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']:     currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_storage_path']: currentService[dk.prefix + '_storage_path'],
         };
+        const oldPath = (currentService[dk.prefix + '_kind'] === 'file')
+            ? (currentService[dk.prefix + '_storage_path'] || null) : null;
         currentService[dk.prefix + '_url'] = url;
         currentService[dk.prefix + '_kind'] = 'link';
         currentService[dk.prefix + '_filename'] = null;
+        currentService[dk.prefix + '_storage_path'] = null;
         buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
         try {
             await _attachDocumentToService(currentServiceDocId, {
                 [dk.prefix + '_url']: url,
                 [dk.prefix + '_kind']: 'link',
                 [dk.prefix + '_filename']: null,
+                [dk.prefix + '_storage_path']: null,
             });
+            // Switched an uploaded file → link: clean up the orphaned storage object.
+            if (oldPath) {
+                try { await deleteObject(ref(storage, oldPath)); }
+                catch (delErr) { console.error('[ServiceDetail] deleteObject(replaced-by-link lifecycle doc) failed:', delErr); }
+            }
         } catch (err) {
             Object.assign(currentService, prev);
             buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
             showToast('Failed to save document. Please try again.', 'error');
         }
     };
-    window.lcServiceAttachFile = async function(which, filename) {
+    window.lcServiceAttachFile = async function(which) {
         const dk = LC_DOC_KEYS[which];
         if (!dk || !currentService) return;
+        const fileInput = document.getElementById('az' + dk.L + 'File');
+        const file = fileInput?.files?.[0];
+        if (!file) { showToast('Please choose a file to upload.', 'error'); return; }
+        if (file.size > LC_UPLOAD_MAX_BYTES) {
+            showToast('File exceeds the 5 MB limit. Please use a link instead.', 'error');
+            return;
+        }
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        if (!LC_UPLOAD_ALLOWED_EXT.includes(ext)) {
+            showToast('Unsupported file type. Allowed: PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG.', 'error');
+            return;
+        }
         const prev = {
-            [dk.prefix + '_url']:      currentService[dk.prefix + '_url'],
-            [dk.prefix + '_kind']:     currentService[dk.prefix + '_kind'],
-            [dk.prefix + '_filename']: currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_url']:          currentService[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:         currentService[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']:     currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_storage_path']: currentService[dk.prefix + '_storage_path'],
         };
-        currentService[dk.prefix + '_url'] = filename;
-        currentService[dk.prefix + '_kind'] = 'file';
-        currentService[dk.prefix + '_filename'] = filename;
-        buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+        const oldPath = (currentService[dk.prefix + '_kind'] === 'file')
+            ? (currentService[dk.prefix + '_storage_path'] || null) : null;
+        const storagePath = `services/${currentServiceDocId}/${dk.prefix}.${ext}`;
+        showToast('Uploading…', 'info');
         try {
+            const uploadResult = await uploadBytes(ref(storage, storagePath), file);
+            const downloadURL = await getDownloadURL(uploadResult.ref);
+            currentService[dk.prefix + '_url'] = downloadURL;
+            currentService[dk.prefix + '_kind'] = 'file';
+            currentService[dk.prefix + '_filename'] = file.name;
+            currentService[dk.prefix + '_storage_path'] = storagePath;
+            buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
             await _attachDocumentToService(currentServiceDocId, {
-                [dk.prefix + '_url']: filename,
+                [dk.prefix + '_url']: downloadURL,
                 [dk.prefix + '_kind']: 'file',
-                [dk.prefix + '_filename']: filename,
+                [dk.prefix + '_filename']: file.name,
+                [dk.prefix + '_storage_path']: storagePath,
             });
+            // Best-effort delete of a previous file at a DIFFERENT path (e.g. changed extension)
+            if (oldPath && oldPath !== storagePath) {
+                try { await deleteObject(ref(storage, oldPath)); }
+                catch (delErr) { console.error('[ServiceDetail] deleteObject(old lifecycle doc) failed:', delErr); }
+            }
+            showToast('File uploaded.', 'success');
         } catch (err) {
+            console.error('[ServiceDetail] lcServiceAttachFile upload failed:', err);
             Object.assign(currentService, prev);
             buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
-            showToast('Failed to save document. Please try again.', 'error');
+            showToast(err?.message || 'Upload failed. Please try again.', 'error');
         }
     };
     window.lcRemoveServiceDoc = async function(which) {
         const dk = LC_DOC_KEYS[which];
         if (!dk || !currentService) return;
         const prev = {
-            [dk.prefix + '_url']:      currentService[dk.prefix + '_url'],
-            [dk.prefix + '_kind']:     currentService[dk.prefix + '_kind'],
-            [dk.prefix + '_filename']: currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_url']:          currentService[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:         currentService[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']:     currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_storage_path']: currentService[dk.prefix + '_storage_path'],
         };
+        const oldPath = (currentService[dk.prefix + '_kind'] === 'file')
+            ? (currentService[dk.prefix + '_storage_path'] || null) : null;
         currentService[dk.prefix + '_url'] = null;
         currentService[dk.prefix + '_kind'] = null;
         currentService[dk.prefix + '_filename'] = null;
+        currentService[dk.prefix + '_storage_path'] = null;
         buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
         try {
             await _attachDocumentToService(currentServiceDocId, {
                 [dk.prefix + '_url']: null,
                 [dk.prefix + '_kind']: null,
                 [dk.prefix + '_filename']: null,
+                [dk.prefix + '_storage_path']: null,
             });
+            if (oldPath) {
+                try { await deleteObject(ref(storage, oldPath)); }
+                catch (delErr) { console.error('[ServiceDetail] deleteObject(removed lifecycle doc) failed:', delErr); }
+            }
         } catch (err) {
             Object.assign(currentService, prev);
             buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
             showToast('Failed to remove document. Please try again.', 'error');
         }
+    };
+    // quick 260705-s7c — un-hide a completed service's archived lifecycle files (service-level).
+    window.lcServiceRecoverFiles = async function() {
+        if (!currentService) return;
+        if (window.canEditTab?.('services') === false) {
+            showToast('You do not have permission to recover files.', 'error');
+            return;
+        }
+        const prev = currentService.files_recovered;
+        currentService.files_recovered = true;
+        buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+        try {
+            await updateDoc(doc(db, 'services', currentServiceDocId), {
+                files_recovered: true,
+                files_recovered_at: serverTimestamp(),
+                files_recovered_by: window.getCurrentUser?.()?.uid || window.getCurrentUser?.()?.email || null,
+                updated_at: serverTimestamp(),
+            });
+            const cu = window.getCurrentUser?.();
+            await addServiceAuditEntry(currentServiceDocId, 'LC_FILES_RECOVERED', cu?.uid, cu?.full_name, '');
+            showToast('Files recovered.', 'success');
+        } catch (err) {
+            console.error('[ServiceDetail] lcServiceRecoverFiles failed:', err);
+            currentService.files_recovered = prev;
+            buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+            showToast('Failed to recover files. Please try again.', 'error');
+        }
+    };
+    // quick 260705-s7c — live filename + size readout under the file picker (5 MB cap cue).
+    window.lcServiceFileHint = function(L) {
+        const input = document.getElementById('az' + L + 'File');
+        const hint = document.getElementById('az' + L + 'Hint');
+        if (!input || !hint) return;
+        const f = input.files && input.files[0];
+        if (!f) { hint.textContent = 'Max 5 MB · PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG'; hint.style.color = '#94a3b8'; return; }
+        const over = f.size > LC_UPLOAD_MAX_BYTES;
+        const sizeStr = f.size >= 1024 * 1024 ? (f.size / (1024 * 1024)).toFixed(1) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB';
+        hint.textContent = `${f.name} — ${sizeStr}${over ? ' · exceeds 5 MB limit' : ''}`;
+        hint.style.color = over ? '#dc2626' : '#059669';
     };
     window.lcServiceSwitchTab = function(L, tab) {
         const lp = document.getElementById('az' + L + 'LinkP');
