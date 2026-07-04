@@ -5,6 +5,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count, addDoc, serverTimestamp, orderBy, limit, arrayUnion } from '../firebase.js';
+import { storage, ref, uploadBytes, getDownloadURL, deleteObject } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML, getRFPFees } from '../utils.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
@@ -2249,6 +2250,10 @@ const LC_DOC_KEYS = {
     coc:        { prefix: 'certificate_of_completion', L: 'O' },
 };
 
+// quick 260704 — lifecycle gate file uploads (Firebase Storage)
+const LC_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+const LC_UPLOAD_ALLOWED_EXT = ['pdf', 'doc', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg'];
+
 function buildAttachZone(service, which, label, simFilename) {
     const dk = LC_DOC_KEYS[which];
     if (!dk) return '';
@@ -2263,7 +2268,7 @@ function buildAttachZone(service, which, label, simFilename) {
             <div class="az-doc">
                 <span class="az-doc-icon">${icon}</span>
                 <div class="az-doc-info">
-                    <div class="az-doc-name">${name}</div>
+                    <div class="az-doc-name">${url ? `<a href="${url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">${name}</a>` : name}</div>
                     <div class="az-doc-kind">${kind}</div>
                 </div>
                 <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;font-size:11px;cursor:pointer;" onclick="window.lcRemoveServiceDoc('${which}')">✕ Remove</button>
@@ -2272,9 +2277,17 @@ function buildAttachZone(service, which, label, simFilename) {
     }
     return `<div class="az">
         <div class="az-lbl">${escapeHTML(label)}</div>
-        <div class="az-row">
+        <div class="az-tabs">
+            <button type="button" class="az-tab active" id="az${L}TabL" onclick="window.lcServiceSwitchTab('${L}','link')">🔗 Link</button>
+            <button type="button" class="az-tab" id="az${L}TabF" onclick="window.lcServiceSwitchTab('${L}','file')">📄 Upload</button>
+        </div>
+        <div class="az-row" id="az${L}LinkP">
             <input class="az-input" id="az${L}Link" type="url" placeholder="https://drive.google.com/...">
             <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcServiceAttachLink('${which}')">Attach</button>
+        </div>
+        <div class="az-row" id="az${L}FileP" style="display:none;">
+            <input class="az-input" id="az${L}File" type="file" accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg" style="padding:5px;">
+            <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcServiceAttachFile('${which}')">Upload</button>
         </div>
     </div>`;
 }
@@ -3410,68 +3423,115 @@ function attachWindowFunctions() {
             return;
         }
         const prev = {
-            [dk.prefix + '_url']:      currentService[dk.prefix + '_url'],
-            [dk.prefix + '_kind']:     currentService[dk.prefix + '_kind'],
-            [dk.prefix + '_filename']: currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_url']:          currentService[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:         currentService[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']:     currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_storage_path']: currentService[dk.prefix + '_storage_path'],
         };
+        const oldPath = (currentService[dk.prefix + '_kind'] === 'file')
+            ? (currentService[dk.prefix + '_storage_path'] || null) : null;
         currentService[dk.prefix + '_url'] = url;
         currentService[dk.prefix + '_kind'] = 'link';
         currentService[dk.prefix + '_filename'] = null;
+        currentService[dk.prefix + '_storage_path'] = null;
         buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
         try {
             await _attachDocumentToService(currentServiceDocId, {
                 [dk.prefix + '_url']: url,
                 [dk.prefix + '_kind']: 'link',
                 [dk.prefix + '_filename']: null,
+                [dk.prefix + '_storage_path']: null,
             });
+            // Switched an uploaded file → link: clean up the orphaned storage object.
+            if (oldPath) {
+                try { await deleteObject(ref(storage, oldPath)); }
+                catch (delErr) { console.error('[ServiceDetail] deleteObject(replaced-by-link lifecycle doc) failed:', delErr); }
+            }
         } catch (err) {
             Object.assign(currentService, prev);
             buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
             showToast('Failed to save document. Please try again.', 'error');
         }
     };
-    window.lcServiceAttachFile = async function(which, filename) {
+    window.lcServiceAttachFile = async function(which) {
         const dk = LC_DOC_KEYS[which];
         if (!dk || !currentService) return;
+        const fileInput = document.getElementById('az' + dk.L + 'File');
+        const file = fileInput?.files?.[0];
+        if (!file) { showToast('Please choose a file to upload.', 'error'); return; }
+        if (file.size > LC_UPLOAD_MAX_BYTES) {
+            showToast('File exceeds the 10 MB limit. Please use a link instead.', 'error');
+            return;
+        }
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        if (!LC_UPLOAD_ALLOWED_EXT.includes(ext)) {
+            showToast('Unsupported file type. Allowed: PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG.', 'error');
+            return;
+        }
         const prev = {
-            [dk.prefix + '_url']:      currentService[dk.prefix + '_url'],
-            [dk.prefix + '_kind']:     currentService[dk.prefix + '_kind'],
-            [dk.prefix + '_filename']: currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_url']:          currentService[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:         currentService[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']:     currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_storage_path']: currentService[dk.prefix + '_storage_path'],
         };
-        currentService[dk.prefix + '_url'] = filename;
-        currentService[dk.prefix + '_kind'] = 'file';
-        currentService[dk.prefix + '_filename'] = filename;
-        buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+        const oldPath = (currentService[dk.prefix + '_kind'] === 'file')
+            ? (currentService[dk.prefix + '_storage_path'] || null) : null;
+        const storagePath = `services/${currentServiceDocId}/${dk.prefix}.${ext}`;
+        showToast('Uploading…', 'info');
         try {
+            const uploadResult = await uploadBytes(ref(storage, storagePath), file);
+            const downloadURL = await getDownloadURL(uploadResult.ref);
+            currentService[dk.prefix + '_url'] = downloadURL;
+            currentService[dk.prefix + '_kind'] = 'file';
+            currentService[dk.prefix + '_filename'] = file.name;
+            currentService[dk.prefix + '_storage_path'] = storagePath;
+            buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
             await _attachDocumentToService(currentServiceDocId, {
-                [dk.prefix + '_url']: filename,
+                [dk.prefix + '_url']: downloadURL,
                 [dk.prefix + '_kind']: 'file',
-                [dk.prefix + '_filename']: filename,
+                [dk.prefix + '_filename']: file.name,
+                [dk.prefix + '_storage_path']: storagePath,
             });
+            // Best-effort delete of a previous file at a DIFFERENT path (e.g. changed extension)
+            if (oldPath && oldPath !== storagePath) {
+                try { await deleteObject(ref(storage, oldPath)); }
+                catch (delErr) { console.error('[ServiceDetail] deleteObject(old lifecycle doc) failed:', delErr); }
+            }
+            showToast('File uploaded.', 'success');
         } catch (err) {
+            console.error('[ServiceDetail] lcServiceAttachFile upload failed:', err);
             Object.assign(currentService, prev);
             buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
-            showToast('Failed to save document. Please try again.', 'error');
+            showToast(err?.message || 'Upload failed. Please try again.', 'error');
         }
     };
     window.lcRemoveServiceDoc = async function(which) {
         const dk = LC_DOC_KEYS[which];
         if (!dk || !currentService) return;
         const prev = {
-            [dk.prefix + '_url']:      currentService[dk.prefix + '_url'],
-            [dk.prefix + '_kind']:     currentService[dk.prefix + '_kind'],
-            [dk.prefix + '_filename']: currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_url']:          currentService[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:         currentService[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']:     currentService[dk.prefix + '_filename'],
+            [dk.prefix + '_storage_path']: currentService[dk.prefix + '_storage_path'],
         };
+        const oldPath = (currentService[dk.prefix + '_kind'] === 'file')
+            ? (currentService[dk.prefix + '_storage_path'] || null) : null;
         currentService[dk.prefix + '_url'] = null;
         currentService[dk.prefix + '_kind'] = null;
         currentService[dk.prefix + '_filename'] = null;
+        currentService[dk.prefix + '_storage_path'] = null;
         buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
         try {
             await _attachDocumentToService(currentServiceDocId, {
                 [dk.prefix + '_url']: null,
                 [dk.prefix + '_kind']: null,
                 [dk.prefix + '_filename']: null,
+                [dk.prefix + '_storage_path']: null,
             });
+            if (oldPath) {
+                try { await deleteObject(ref(storage, oldPath)); }
+                catch (delErr) { console.error('[ServiceDetail] deleteObject(removed lifecycle doc) failed:', delErr); }
+            }
         } catch (err) {
             Object.assign(currentService, prev);
             buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
