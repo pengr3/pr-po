@@ -4,6 +4,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count, addDoc, serverTimestamp, orderBy, limit, arrayUnion } from '../firebase.js';
+import { storage, ref, uploadBytes, getDownloadURL, deleteObject } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode, getRFPFees } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
@@ -2508,6 +2509,10 @@ const LC_DOC_KEYS = {
     coc:        { prefix: 'certificate_of_completion', L: 'O' },
 };
 
+// quick 260704 — lifecycle gate file uploads (Firebase Storage)
+const LC_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+const LC_UPLOAD_ALLOWED_EXT = ['pdf', 'doc', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg'];
+
 function buildAttachZone(project, which, label, simFilename) {
     const dk = LC_DOC_KEYS[which];
     if (!dk) return '';
@@ -2522,7 +2527,7 @@ function buildAttachZone(project, which, label, simFilename) {
             <div class="az-doc">
                 <span class="az-doc-icon">${icon}</span>
                 <div class="az-doc-info">
-                    <div class="az-doc-name">${name}</div>
+                    <div class="az-doc-name">${url ? `<a href="${url}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;">${name}</a>` : name}</div>
                     <div class="az-doc-kind">${kind}</div>
                 </div>
                 <button class="btn btn-sm" style="background:#fee2e2;color:#991b1b;border:none;font-size:11px;cursor:pointer;" onclick="window.lcRemoveDoc('${which}')">✕ Remove</button>
@@ -2531,9 +2536,17 @@ function buildAttachZone(project, which, label, simFilename) {
     }
     return `<div class="az">
         <div class="az-lbl">${escapeHTML(label)}</div>
-        <div class="az-row">
+        <div class="az-tabs">
+            <button type="button" class="az-tab active" id="az${L}TabL" onclick="window.lcSwitchTab('${L}','link')">🔗 Link</button>
+            <button type="button" class="az-tab" id="az${L}TabF" onclick="window.lcSwitchTab('${L}','file')">📄 Upload</button>
+        </div>
+        <div class="az-row" id="az${L}LinkP">
             <input class="az-input" id="az${L}Link" type="url" placeholder="https://drive.google.com/...">
             <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcAttachLink('${which}')">Attach</button>
+        </div>
+        <div class="az-row" id="az${L}FileP" style="display:none;">
+            <input class="az-input" id="az${L}File" type="file" accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg" style="padding:5px;">
+            <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcAttachFile('${which}')">Upload</button>
         </div>
     </div>`;
 }
@@ -3765,68 +3778,115 @@ function attachWindowFunctions() {
             return;
         }
         const prev = {
-            [dk.prefix + '_url']:      currentProject[dk.prefix + '_url'],
-            [dk.prefix + '_kind']:     currentProject[dk.prefix + '_kind'],
-            [dk.prefix + '_filename']: currentProject[dk.prefix + '_filename'],
+            [dk.prefix + '_url']:          currentProject[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:         currentProject[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']:     currentProject[dk.prefix + '_filename'],
+            [dk.prefix + '_storage_path']: currentProject[dk.prefix + '_storage_path'],
         };
+        const oldPath = (currentProject[dk.prefix + '_kind'] === 'file')
+            ? (currentProject[dk.prefix + '_storage_path'] || null) : null;
         currentProject[dk.prefix + '_url'] = url;
         currentProject[dk.prefix + '_kind'] = 'link';
         currentProject[dk.prefix + '_filename'] = null;
+        currentProject[dk.prefix + '_storage_path'] = null;
         buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
         try {
             await _attachDocumentToProject(currentProject.id, {
                 [dk.prefix + '_url']: url,
                 [dk.prefix + '_kind']: 'link',
                 [dk.prefix + '_filename']: null,
+                [dk.prefix + '_storage_path']: null,
             });
+            // Switched an uploaded file → link: clean up the orphaned storage object.
+            if (oldPath) {
+                try { await deleteObject(ref(storage, oldPath)); }
+                catch (delErr) { console.error('[ProjectDetail] deleteObject(replaced-by-link lifecycle doc) failed:', delErr); }
+            }
         } catch (err) {
             Object.assign(currentProject, prev);
             buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
             showToast('Failed to save document. Please try again.', 'error');
         }
     };
-    window.lcAttachFile = async function(which, filename) {
+    window.lcAttachFile = async function(which) {
         const dk = LC_DOC_KEYS[which];
         if (!dk || !currentProject) return;
+        const fileInput = document.getElementById('az' + dk.L + 'File');
+        const file = fileInput?.files?.[0];
+        if (!file) { showToast('Please choose a file to upload.', 'error'); return; }
+        if (file.size > LC_UPLOAD_MAX_BYTES) {
+            showToast('File exceeds the 10 MB limit. Please use a link instead.', 'error');
+            return;
+        }
+        const ext = (file.name.split('.').pop() || '').toLowerCase();
+        if (!LC_UPLOAD_ALLOWED_EXT.includes(ext)) {
+            showToast('Unsupported file type. Allowed: PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG.', 'error');
+            return;
+        }
         const prev = {
-            [dk.prefix + '_url']:      currentProject[dk.prefix + '_url'],
-            [dk.prefix + '_kind']:     currentProject[dk.prefix + '_kind'],
-            [dk.prefix + '_filename']: currentProject[dk.prefix + '_filename'],
+            [dk.prefix + '_url']:          currentProject[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:         currentProject[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']:     currentProject[dk.prefix + '_filename'],
+            [dk.prefix + '_storage_path']: currentProject[dk.prefix + '_storage_path'],
         };
-        currentProject[dk.prefix + '_url'] = filename;
-        currentProject[dk.prefix + '_kind'] = 'file';
-        currentProject[dk.prefix + '_filename'] = filename;
-        buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+        const oldPath = (currentProject[dk.prefix + '_kind'] === 'file')
+            ? (currentProject[dk.prefix + '_storage_path'] || null) : null;
+        const storagePath = `projects/${currentProject.id}/${dk.prefix}.${ext}`;
+        showToast('Uploading…', 'info');
         try {
+            const uploadResult = await uploadBytes(ref(storage, storagePath), file);
+            const downloadURL = await getDownloadURL(uploadResult.ref);
+            currentProject[dk.prefix + '_url'] = downloadURL;
+            currentProject[dk.prefix + '_kind'] = 'file';
+            currentProject[dk.prefix + '_filename'] = file.name;
+            currentProject[dk.prefix + '_storage_path'] = storagePath;
+            buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
             await _attachDocumentToProject(currentProject.id, {
-                [dk.prefix + '_url']: filename,
+                [dk.prefix + '_url']: downloadURL,
                 [dk.prefix + '_kind']: 'file',
-                [dk.prefix + '_filename']: filename,
+                [dk.prefix + '_filename']: file.name,
+                [dk.prefix + '_storage_path']: storagePath,
             });
+            // Best-effort delete of a previous file at a DIFFERENT path (e.g. changed extension)
+            if (oldPath && oldPath !== storagePath) {
+                try { await deleteObject(ref(storage, oldPath)); }
+                catch (delErr) { console.error('[ProjectDetail] deleteObject(old lifecycle doc) failed:', delErr); }
+            }
+            showToast('File uploaded.', 'success');
         } catch (err) {
+            console.error('[ProjectDetail] lcAttachFile upload failed:', err);
             Object.assign(currentProject, prev);
             buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
-            showToast('Failed to save document. Please try again.', 'error');
+            showToast(err?.message || 'Upload failed. Please try again.', 'error');
         }
     };
     window.lcRemoveDoc = async function(which) {
         const dk = LC_DOC_KEYS[which];
         if (!dk || !currentProject) return;
         const prev = {
-            [dk.prefix + '_url']:      currentProject[dk.prefix + '_url'],
-            [dk.prefix + '_kind']:     currentProject[dk.prefix + '_kind'],
-            [dk.prefix + '_filename']: currentProject[dk.prefix + '_filename'],
+            [dk.prefix + '_url']:          currentProject[dk.prefix + '_url'],
+            [dk.prefix + '_kind']:         currentProject[dk.prefix + '_kind'],
+            [dk.prefix + '_filename']:     currentProject[dk.prefix + '_filename'],
+            [dk.prefix + '_storage_path']: currentProject[dk.prefix + '_storage_path'],
         };
+        const oldPath = (currentProject[dk.prefix + '_kind'] === 'file')
+            ? (currentProject[dk.prefix + '_storage_path'] || null) : null;
         currentProject[dk.prefix + '_url'] = null;
         currentProject[dk.prefix + '_kind'] = null;
         currentProject[dk.prefix + '_filename'] = null;
+        currentProject[dk.prefix + '_storage_path'] = null;
         buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
         try {
             await _attachDocumentToProject(currentProject.id, {
                 [dk.prefix + '_url']: null,
                 [dk.prefix + '_kind']: null,
                 [dk.prefix + '_filename']: null,
+                [dk.prefix + '_storage_path']: null,
             });
+            if (oldPath) {
+                try { await deleteObject(ref(storage, oldPath)); }
+                catch (delErr) { console.error('[ProjectDetail] deleteObject(removed lifecycle doc) failed:', delErr); }
+            }
         } catch (err) {
             Object.assign(currentProject, prev);
             buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
