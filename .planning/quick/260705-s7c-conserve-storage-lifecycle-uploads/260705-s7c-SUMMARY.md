@@ -65,8 +65,9 @@ assigned-user `hasOnly()` field-mask (services' assigned branch has no mask → 
 
 ## Punch list (operator — not code)
 
-1. **Redeploy rules** to dev **then** prod (CLI active project is PROD — pass `--project dev`
-   for the dev deploy): `firebase deploy --only storage,firestore:rules`.
+1. **Redeploy rules** to dev **then** prod: `firebase deploy --only storage,firestore:rules`.
+   ✅ **DEV DONE 2026-07-05** (`--project dev` → clmc-procurement-dev; both files compiled +
+   released). ⏳ PROD still pending (rides the `v4.1` → main ship).
 2. **Bucket cold-rule** (the GB-cost lever) on BOTH default buckets
    (`clmc-procurement-dev.firebasestorage.app`, `clmc-procurement.firebasestorage.app`):
    `gcloud storage buckets update gs://<bucket> --lifecycle-file=lifecycle.json`
