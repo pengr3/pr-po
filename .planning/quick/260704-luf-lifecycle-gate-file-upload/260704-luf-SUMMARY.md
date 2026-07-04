@@ -1,7 +1,8 @@
 ---
 quick_id: 260704-luf
-status: complete-pending-uat
+status: complete
 date: 2026-07-04
+completed: 2026-07-05
 branch: v4.1
 commits:
   - 83e39e78  # storage infra + rules
@@ -54,14 +55,18 @@ commits:
 - Firestore field-mask gap caught & closed (projects `hasOnly` would otherwise
   reject `_storage_path` for assigned non-admin users → silent save failure).
 
-## NOT done (see punch list in .planning/.continue-here.md)
+## Closeout (2026-07-05)
 
-1. **Enable Blaze billing** on `clmc-procurement` (prod) AND `clmc-procurement-dev`
-   — Firebase console step; only the account owner can do it. Uploads fail until then.
-2. **Deploy rules to both projects**: `firebase deploy --only storage,firestore:rules`
-   for dev and prod (`--project`). Not deployed from here (billing-gated + prod caution).
-3. **Browser UAT** — pending in a real browser (upload/open/replace/remove across a
-   project and a service; test as an assigned non-admin user to exercise the field-mask).
+1. ✅ **Blaze billing** — resolved (both accounts were `open:false` delinquent; user
+   reactivated). Default buckets created (`clmc-procurement-dev` / `clmc-procurement`).
+2. ✅ **Rules deployed** — `firestore:rules` + `storage.rules` to **dev + prod**
+   (compiled OK); dev object write+delete smoke test passed (200/204).
+3. ✅ **Browser UAT approved** — upload/open/replace/remove verified on a project and a
+   service, assigned non-admin (field-mask), and 🔗 Link fallback still works.
+4. ✅ **Pushed** — `v4.1` → origin (`6e2966c4..654ae3a2`), in sync.
+
+**Remaining (separate decision, not part of this quick task):** merge `v4.1` → `main`
+(Netlify auto-deploys prod on push to main).
 
 ## Notes
 
