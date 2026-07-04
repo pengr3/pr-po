@@ -49,7 +49,8 @@ import {
     ref,
     uploadBytes,
     getDownloadURL,
-    deleteObject
+    deleteObject,
+    listAll
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 // Runtime environment detection
 const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -92,6 +93,22 @@ const db = initializeFirestore(app, {
 });
 const auth = getAuth(app);
 const storage = getStorage(app);
+
+// Best-effort recursive delete of every object under a Storage prefix (quick 260705-s7c).
+// Called when a project/service doc is deleted, to purge its lifecycle-gate files
+// (projects/{id}/* or services/{id}/*) so no orphaned objects linger in the bucket.
+// Never throws — a Storage failure must not block the Firestore delete the user requested.
+async function purgeStoragePrefix(prefix) {
+    try {
+        const res = await listAll(ref(storage, prefix));
+        // Deterministic flat layout (one object per doc type, no sub-folders) → res.items covers all.
+        await Promise.all(res.items.map(item => deleteObject(item).catch(() => {})));
+        return res.items.length;
+    } catch (e) {
+        console.error('[Firebase] purgeStoragePrefix failed for', prefix, e);
+        return 0;
+    }
+}
 
 // Set auth persistence to local (1-day session)
 setPersistence(auth, browserLocalPersistence);
@@ -147,7 +164,8 @@ export {
 };
 
 // Export Firebase Storage methods (lifecycle gate document uploads — quick 260704)
-export { getStorage, ref, uploadBytes, getDownloadURL, deleteObject };
+// + listAll & purgeStoragePrefix (delete-cascade storage cleanup — quick 260705-s7c)
+export { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, listAll, purgeStoragePrefix };
 
 // Also expose to window for backward compatibility with onclick handlers
 window.db = db;
@@ -183,7 +201,7 @@ window.firebaseAuth = {
     signOut,
     onAuthStateChanged
 };
-window.firebaseStorage = { getStorage, ref, uploadBytes, getDownloadURL, deleteObject };
+window.firebaseStorage = { getStorage, ref, uploadBytes, getDownloadURL, deleteObject, listAll, purgeStoragePrefix };
 // Initialize auth observer after auth is set up
 import('./auth.js').then(module => {
     if (module.initAuthObserver) {

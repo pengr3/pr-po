@@ -244,7 +244,10 @@ service cloud.firestore {
           // (project-detail.js saveTrancheEditor writes collection_tranches + updated_at).
           // Advisory billing schedule only — the authoritative collectible amounts are
           // re-derived by Finance at approval time (mirrors billing_requests posture).
-          'collection_tranches'
+          'collection_tranches',
+          // quick 260705-s7c — files_recovered flag un-hides a completed project's
+          // archived lifecycle files (app-level storage archive). Assigned ops user may recover.
+          'files_recovered', 'files_recovered_at', 'files_recovered_by'
         ])
       ) || (
         // Phase 102 Plan 04 — Finance records the retention release (field-masked; allowed even on a code-locked project)
