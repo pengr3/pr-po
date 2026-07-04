@@ -54,6 +54,26 @@ assigned-user `hasOnly()` field-mask (services' assigned branch has no mask → 
   3× per file = assign + delete + one onclick/onchange reference.
 - CSP already allows the Storage endpoint (unchanged since 260704-luf).
 
+## Automated UAT (2026-07-05, against dev)
+
+Ran everything verifiable without a browser session (scratchpad scripts):
+
+- **Archive decision-logic** — `isLcFilesArchived` truth table (verbatim source + real
+  `getDlpState`), **10/10 PASS**: not-Completed, files_recovered override, in-DLP,
+  DLP-expired, retention-released, no-DLP+400d, no-DLP+10d (grace), no completed_at.
+- **Deployed dev rulesets** (Firebase Rules API) — storage ruleset **HAS 5 MB cap / NO
+  10 MB**; firestore ruleset **HAS `files_recovered`** field-mask. PASS.
+- **Purge sweep mechanics** on the real dev bucket — seed 3 objects under
+  `projects/__uat_s7c__/` → `list(prefix)` returns 3 → delete each (204) → prefix empty.
+  Mirrors `purgeStoragePrefix` exactly. PASS (test objects self-cleaned).
+
+**Still needs a human browser (structurally — no browser-automation tool + owner API token
+BYPASSES Security Rules, so rules ENFORCEMENT for a real end-user can't be scripted):**
+visual 📦 chip / Recover button / caption+live-size rendering; actually clicking Upload
+(client 5 MB guard) and Recover; and the assigned-non-admin *allow/deny* path (rule source
+is confirmed deployed; the per-user evaluation needs a logged-in session or the Java rules
+emulator, which is absent).
+
 ## Design notes
 
 - **App hide ≠ GB savings.** T1–T5 give the hide/recover UX and stop the leak. The actual
