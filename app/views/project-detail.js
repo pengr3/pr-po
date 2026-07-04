@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count, addDoc, serverTimestamp, orderBy, limit, arrayUnion } from '../firebase.js';
-import { storage, ref, uploadBytes, getDownloadURL, deleteObject } from '../firebase.js';
+import { storage, ref, uploadBytes, getDownloadURL, deleteObject, purgeStoragePrefix } from '../firebase.js';
 import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode, getRFPFees } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
@@ -475,6 +475,8 @@ export async function destroy() {
     delete window.lcAttachLink;
     delete window.lcAttachFile;
     delete window.lcRemoveDoc;
+    delete window.lcRecoverFiles;
+    delete window.lcFileHint;
     delete window.lcSwitchTab;
     delete window.lcAdvanceToForProposal;
     delete window.lcStartMobilization;
@@ -953,6 +955,21 @@ function getDlpState(project, collectibleDocs) {
     if (isRetentionCollected(project, collectibleDocs)) return 'released';
     if (Date.now() > new Date(project.dlp_expires_at).getTime()) return 'expired';
     return 'in-dlp';
+}
+
+// quick 260705-s7c — lifecycle-gate files are "archived" (hidden until recovered) once a
+// project is Completed AND its warranty is over. Pure derivation (no background job / no
+// auto-write): keys off getDlpState + project_completed_at. files_recovered=true is an
+// explicit override that forces the files back on from then on.
+function isLcFilesArchived(project) {
+    if (!project || project.files_recovered) return false;
+    if (project.project_status !== 'Completed') return false;
+    const dlp = getDlpState(project, currentCollectibleDocs);
+    if (dlp === 'in-dlp') return false;                         // still under warranty → keep hot
+    if (dlp === 'expired' || dlp === 'released') return true;   // warranty lapsed / retention released
+    // dlp === 'active' → no DLP configured: grace window after completion
+    const doneMs = project.project_completed_at ? new Date(project.project_completed_at).getTime() : 0;
+    return !!doneMs && (Date.now() - doneMs) > LC_FILES_ARCHIVE_GRACE_DAYS * 86400000;
 }
 
 // Compute dlp_expires_at (YYYY-MM-DD) + retention_amount from gate inputs (D-13).
@@ -1899,7 +1916,12 @@ async function confirmDelete() {
 
     showLoading(true);
     try {
-        await deleteDoc(doc(db, 'projects', currentProject.id));
+        const _delId = currentProject.id;
+        await deleteDoc(doc(db, 'projects', _delId));
+        // quick 260705-s7c — best-effort purge of this project's lifecycle-gate Storage
+        // objects so nothing is orphaned in the bucket. Never blocks the delete.
+        try { await purgeStoragePrefix('projects/' + _delId); }
+        catch (e) { console.error('[ProjectDetail] storage purge failed:', e); }
         showToast('Project deleted', 'success');
         window.location.hash = '#/projects';
     } catch (error) {
@@ -2510,8 +2532,11 @@ const LC_DOC_KEYS = {
 };
 
 // quick 260704 — lifecycle gate file uploads (Firebase Storage)
-const LC_UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
+const LC_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;   // quick 260705-s7c: 10 MB → 5 MB
 const LC_UPLOAD_ALLOWED_EXT = ['pdf', 'doc', 'docx', 'pptx', 'xlsx', 'png', 'jpg', 'jpeg'];
+// quick 260705-s7c — a Completed project with NO DLP archives (hides) its lifecycle files
+// this many days after completion; projects WITH a DLP archive when the DLP expires.
+const LC_FILES_ARCHIVE_GRACE_DAYS = 365;
 
 function buildAttachZone(project, which, label, simFilename) {
     const dk = LC_DOC_KEYS[which];
@@ -2523,6 +2548,19 @@ function buildAttachZone(project, which, label, simFilename) {
         const name = escapeHTML(project[dk.prefix + '_filename'] || project[dk.prefix + '_url'] || '');
         const url = escapeHTML(project[dk.prefix + '_url'] || '');
         const icon = kind === 'file' ? '📄' : '🔗';
+        // quick 260705-s7c — Completed + warranty-over: hide the file behind an archived chip
+        // (no live link, no remove). Recover from the "Project Closed" panel restores it.
+        if (isLcFilesArchived(project)) {
+            return `<div class="az az-ok" style="opacity:0.72;">
+                <div class="az-doc">
+                    <span class="az-doc-icon">📦</span>
+                    <div class="az-doc-info">
+                        <div class="az-doc-name" style="color:#64748b;">${name}</div>
+                        <div class="az-doc-kind">archived to conserve storage</div>
+                    </div>
+                </div>
+            </div>`;
+        }
         return `<div class="az az-ok">
             <div class="az-doc">
                 <span class="az-doc-icon">${icon}</span>
@@ -2545,9 +2583,10 @@ function buildAttachZone(project, which, label, simFilename) {
             <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcAttachLink('${which}')">Attach</button>
         </div>
         <div class="az-row" id="az${L}FileP" style="display:none;">
-            <input class="az-input" id="az${L}File" type="file" accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg" style="padding:5px;">
+            <input class="az-input" id="az${L}File" type="file" accept=".pdf,.doc,.docx,.pptx,.xlsx,.png,.jpg,.jpeg" style="padding:5px;" onchange="window.lcFileHint('${L}')">
             <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" onclick="window.lcAttachFile('${which}')">Upload</button>
         </div>
+        <div class="az-hint" id="az${L}Hint" style="font-size:11px;color:#94a3b8;margin-top:4px;">Max 5 MB · PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG</div>
     </div>`;
 }
 
@@ -2707,15 +2746,18 @@ function buildLifecycleBody(project, currentUser) {
     }
     if (status === 'Completed') {
         const cell = (lbl, val) => `<div class="comp-cell"><div class="comp-cell-lbl">${lbl}</div><div class="comp-cell-val">${escapeHTML(val || '—')}</div></div>`;
+        const archived = isLcFilesArchived(project);   // quick 260705-s7c
+        const docVal = (fn, url) => archived ? '📦 archived' : (fn || url);
         return wrap('Project Closed', `
             <div class="comp-grid">
-                ${cell('NTP / PO', project.ntp_document_filename || project.ntp_document_url)}
+                ${cell('NTP / PO', docVal(project.ntp_document_filename, project.ntp_document_url))}
                 ${cell('Mobilized', project.mobilization_started_at)}
                 ${cell('Project Started', project.project_started_at)}
                 ${cell('Completed At', project.project_completed_at)}
-                ${cell('Completion Report', project.completion_report_filename || project.completion_report_url)}
-                ${cell('Cert. of Completion', project.certificate_of_completion_filename || project.certificate_of_completion_url)}
+                ${cell('Completion Report', docVal(project.completion_report_filename, project.completion_report_url))}
+                ${cell('Cert. of Completion', docVal(project.certificate_of_completion_filename, project.certificate_of_completion_url))}
             </div>
+            ${archived ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:11px 13px;font-size:12px;color:#475569;line-height:1.6;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><strong>📦 Files archived</strong> — this project's uploaded lifecycle documents are hidden to conserve storage.</span><button class="btn btn-sm btn-primary" style="font-size:12px;white-space:nowrap;" onclick="window.lcRecoverFiles()">♻ Recover files</button></div>` : ''}
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:11px 13px;font-size:12px;color:#1e40af;line-height:1.65;margin-bottom:12px;"><strong>📊 COC → Finance</strong> — The COC on this project is the reference Finance uses when filing remaining billing tranches, including retention.</div>`);
     }
     if (status === 'Loss') {
@@ -3815,7 +3857,7 @@ function attachWindowFunctions() {
         const file = fileInput?.files?.[0];
         if (!file) { showToast('Please choose a file to upload.', 'error'); return; }
         if (file.size > LC_UPLOAD_MAX_BYTES) {
-            showToast('File exceeds the 10 MB limit. Please use a link instead.', 'error');
+            showToast('File exceeds the 5 MB limit. Please use a link instead.', 'error');
             return;
         }
         const ext = (file.name.split('.').pop() || '').toLowerCase();
@@ -3892,6 +3934,45 @@ function attachWindowFunctions() {
             buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
             showToast('Failed to remove document. Please try again.', 'error');
         }
+    };
+    // quick 260705-s7c — un-hide a completed project's archived lifecycle files (project-level).
+    window.lcRecoverFiles = async function() {
+        if (!currentProject) return;
+        if (window.canEditTab?.('projects') === false) {
+            showToast('You do not have permission to recover files.', 'error');
+            return;
+        }
+        const prev = currentProject.files_recovered;
+        currentProject.files_recovered = true;
+        buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+        try {
+            await updateDoc(doc(db, 'projects', currentProject.id), {
+                files_recovered: true,
+                files_recovered_at: serverTimestamp(),
+                files_recovered_by: window.getCurrentUser?.()?.uid || window.getCurrentUser?.()?.email || null,
+                updated_at: serverTimestamp(),
+            });
+            const cu = window.getCurrentUser?.();
+            await addProjectAuditEntry(currentProject.id, 'LC_FILES_RECOVERED', cu?.uid, cu?.full_name, '');
+            showToast('Files recovered.', 'success');
+        } catch (err) {
+            console.error('[ProjectDetail] lcRecoverFiles failed:', err);
+            currentProject.files_recovered = prev;
+            buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+            showToast('Failed to recover files. Please try again.', 'error');
+        }
+    };
+    // quick 260705-s7c — live filename + size readout under the file picker (5 MB cap cue).
+    window.lcFileHint = function(L) {
+        const input = document.getElementById('az' + L + 'File');
+        const hint = document.getElementById('az' + L + 'Hint');
+        if (!input || !hint) return;
+        const f = input.files && input.files[0];
+        if (!f) { hint.textContent = 'Max 5 MB · PDF, DOC, DOCX, PPTX, XLSX, PNG, JPG'; hint.style.color = '#94a3b8'; return; }
+        const over = f.size > LC_UPLOAD_MAX_BYTES;
+        const sizeStr = f.size >= 1024 * 1024 ? (f.size / (1024 * 1024)).toFixed(1) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB';
+        hint.textContent = `${f.name} — ${sizeStr}${over ? ' · exceeds 5 MB limit' : ''}`;
+        hint.style.color = over ? '#dc2626' : '#059669';
     };
     window.lcSwitchTab = function(L, tab) {
         const lp = document.getElementById('az' + L + 'LinkP');
