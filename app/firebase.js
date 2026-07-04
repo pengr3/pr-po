@@ -44,6 +44,13 @@ import {
     setPersistence,
     browserLocalPersistence
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import {
+    getStorage,
+    ref,
+    uploadBytes,
+    getDownloadURL,
+    deleteObject
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js';
 // Runtime environment detection
 const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
@@ -84,6 +91,7 @@ const db = initializeFirestore(app, {
     })
 });
 const auth = getAuth(app);
+const storage = getStorage(app);
 
 // Set auth persistence to local (1-day session)
 setPersistence(auth, browserLocalPersistence);
@@ -99,8 +107,8 @@ if (isLocal) {
     });
 }
 
-// Export database and auth instances
-export { db, auth };
+// Export database, auth, and storage instances
+export { db, auth, storage };
 
 // Export Firestore methods
 export {
@@ -138,6 +146,9 @@ export {
     sendPasswordResetEmail
 };
 
+// Export Firebase Storage methods (lifecycle gate document uploads — quick 260704)
+export { getStorage, ref, uploadBytes, getDownloadURL, deleteObject };
+
 // Also expose to window for backward compatibility with onclick handlers
 window.db = db;
 window.auth = auth;
@@ -172,6 +183,7 @@ window.firebaseAuth = {
     signOut,
     onAuthStateChanged
 };
+window.firebaseStorage = { getStorage, ref, uploadBytes, getDownloadURL, deleteObject };
 // Initialize auth observer after auth is set up
 import('./auth.js').then(module => {
     if (module.initAuthObserver) {
