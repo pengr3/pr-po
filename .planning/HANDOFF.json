@@ -1,36 +1,41 @@
 {
   "version": "1.0",
-  "timestamp": "2026-07-03T11:11:18Z",
+  "timestamp": "2026-07-04T00:00:00Z",
   "phase": null,
-  "phase_name": "v4.1-milestone-definition (in questioning/discussion)",
-  "phase_dir": ".planning",
-  "plan": null,
+  "phase_name": "quick-260704-luf-lifecycle-gate-file-upload",
+  "phase_dir": ".planning/quick/260704-luf-lifecycle-gate-file-upload",
+  "plan": "260704-luf-PLAN.md",
   "task": null,
-  "total_tasks": null,
-  "status": "paused",
-  "context": "milestone-definition",
-  "milestone": "v4.1",
-  "milestone_goal": "Revamp project lifecycle gates: turn Inspection Report, Certificate of Completion (COC), and Completion Report from external link attachments into in-app GENERATED documents (like PRs/POs). Discussing document contents before locking requirements.",
+  "total_tasks": 4,
+  "status": "code_complete_pending_deploy_and_uat",
+  "context": "quick-task",
+  "milestone": "v4.1 (superseded — doc-generation replaced by file-upload)",
+  "milestone_goal": "User revised v4.1 from 'in-app GENERATED lifecycle documents' to the minimal 'add a file upload option on the Inspection/Completion/COC gates (link stays as fallback).' Built as quick task 260704-luf.",
   "completed_tasks": [
-    {"id": 1, "name": "Created branch v4.1 off main (f9a141d)", "status": "done", "commit": "f9a141d"},
-    {"id": 2, "name": "Mapped current lifecycle gates + the 3 documents' current mechanism (code exploration)", "status": "done"},
-    {"id": 3, "name": "Mapped PR/PO in-app document generation pattern to mirror (code exploration)", "status": "done"},
-    {"id": 4, "name": "Facilitated document-contents discussion; user answered 4 of the design decisions", "status": "done"}
+    {"id": 1, "name": "Re-wire Firebase Storage in firebase.js + storage.rules + firebase.json + firestore.rules field-mask", "status": "done", "commit": "83e39e78"},
+    {"id": 2, "name": "project-detail.js: Link/Upload tabs + real lcAttachFile upload + storage_path cleanup + clickable name", "status": "done", "commit": "36c97bff"},
+    {"id": 3, "name": "service-detail.js: parity mirror of project-detail file upload", "status": "done", "commit": "7fd4edb9"},
+    {"id": 4, "name": "Quick-task PLAN + SUMMARY + handoff update", "status": "done"}
   ],
   "remaining_tasks": [
-    {"id": 5, "name": "Answer 3 pending content questions (photos/annex; Completion Report optional sections; signatory model) — AskUserQuestion was interrupted, UNANSWERED", "status": "not_started"},
-    {"id": 6, "name": "Approve/adjust the COC certification statement wording", "status": "not_started"},
-    {"id": 7, "name": "Finalize per-document contents, then run remainder of /gsd-new-milestone: PROJECT.md update, STATE.md reset (state.milestone-switch), REQUIREMENTS.md with REQ-IDs, ROADMAP (continue numbering from phase 106)", "status": "not_started"}
+    {"id": 5, "name": "Enable Blaze billing on clmc-procurement (prod) AND clmc-procurement-dev — Firebase console, account owner only. Uploads fail until done.", "status": "not_started", "owner": "user"},
+    {"id": 6, "name": "Deploy rules to both projects: firebase deploy --only storage,firestore:rules --project <dev|prod>", "status": "not_started"},
+    {"id": 7, "name": "Browser UAT: upload/open/replace/remove on a project and a service; test as assigned non-admin (field-mask); confirm link option still works", "status": "not_started"},
+    {"id": 8, "name": "Push v4.1 to origin (3 code commits + doc commit)", "status": "not_started"}
   ],
-  "blockers": [],
-  "human_actions_pending": [],
+  "blockers": [
+    {"blocker": "Firebase Storage requires the Blaze plan on both projects; not yet enabled. This is an account/console action only the user can take.", "severity": "blocks-runtime"}
+  ],
+  "human_actions_pending": [
+    "Enable Blaze billing on both Firebase projects (Storage upgrade in console)."
+  ],
   "decisions": [
-    {"decision": "Content capture = Form-fill at generation", "rationale": "A generate modal collects narrative/table fields, saves them onto the project/service doc so the document is regenerable and consistent; mirrors PO promptPODocument pattern", "milestone": "v4.1"},
-    {"decision": "Signatures = All internal only", "rationale": "No client-acceptance blocks on any of the 3 docs; COC becomes a CLMC-issued certificate (not a countersigned turnover doc)", "milestone": "v4.1"},
-    {"decision": "Scope = Both projects AND services (parity)", "rationale": "Build generators into project-detail.js AND service-detail.js together; strongest reason to extract a shared app/document-gen.js so it isn't written twice", "milestone": "v4.1"},
-    {"decision": "Gate rule = Generate OR attach link", "rationale": "Gate check becomes '<doc>_url present OR <doc> generated'; the existing external-URL box stays as a fallback rather than being removed", "milestone": "v4.1"}
+    {"decision": "Backend = Firebase Storage (not base64-in-Firestore)", "rationale": "base64 caps ~750 KB, too small for real report PDFs; Storage is the honest implementation. Blaze free tier makes real cost ~zero for this volume.", "quick": "260704-luf"},
+    {"decision": "Re-add exactly what 260511-k4f stripped, scoped to lifecycle docs", "rationale": "Proven pattern (Phase 87 proposals) — SDK wiring, 10 MB cap, ext allowlist, deleteObject cleanup — reused rather than reinvented.", "quick": "260704-luf"},
+    {"decision": "Store <docKey>_storage_path + add to projects hasOnly() field-mask", "rationale": "Reliable deleteObject on replace/remove; projects assigned-user branch is field-masked (would reject a new field) — services branch is not.", "quick": "260704-luf"},
+    {"decision": "Gate-pass logic unchanged", "rationale": "Gates already key off <docKey>_url; a file upload sets that URL, so 'generate OR attach link' collapses to 'link OR upload' with no gate change.", "quick": "260704-luf"}
   ],
-  "uncommitted_files": [],
-  "next_action": "Resume the contents discussion by re-asking the 3 pending questions (photos/annex, Completion Report optional sections, signatory model) and getting COC wording approval. Then complete /gsd-new-milestone (requirements -> roadmap from phase 106).",
-  "context_notes": "This is a clean pause mid-discussion during /gsd-new-milestone for v4.1. No code edits, no planning-file writes yet other than this handoff. The full code map is preserved in .continue-here.md so the resuming agent does NOT need to re-run the two exploration passes. Branch v4.1 pushed to origin."
+  "uncommitted_files": ["(doc commit pending: .planning quick task + handoff)"],
+  "next_action": "User: enable Blaze on both projects. Then deploy storage+firestore rules to dev and prod, run browser UAT, and push v4.1.",
+  "context_notes": "Pivot from paused v4.1 milestone-definition. Code complete + committed on v4.1; runtime blocked only on Blaze billing (console step) + rule deploy. The superseded doc-generation discussion (3 open questions) lives in git at 6e2966c4 if ever revived."
 }
