@@ -5,7 +5,7 @@
    and personnel assignment pill UI
    ======================================== */
 
-import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot } from '../firebase.js';
+import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, purgeStoragePrefix } from '../firebase.js';
 import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML, formatCurrency } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 import { createEngagement } from '../engagement-create.js';
@@ -1530,6 +1530,9 @@ async function deleteService(serviceId, serviceName) {
 
     try {
         await deleteDoc(doc(db, 'services', serviceId));
+        // quick 260705-s7c — purge this service's lifecycle-gate Storage objects (best-effort).
+        try { await purgeStoragePrefix('services/' + serviceId); }
+        catch (e) { console.error('[Services] storage purge failed:', e); }
         showToast(`Service "${serviceName}" deleted`, 'success');
     } catch (error) {
         console.error('[Services] Error deleting service:', error);
