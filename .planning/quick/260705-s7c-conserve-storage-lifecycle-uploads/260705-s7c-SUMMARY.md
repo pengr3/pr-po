@@ -85,14 +85,14 @@ emulator, which is absent).
 
 ## Punch list (operator — not code)
 
-1. **Redeploy rules** to dev **then** prod: `firebase deploy --only storage,firestore:rules`.
-   ✅ **DEV DONE 2026-07-05** (`--project dev` → clmc-procurement-dev; both files compiled +
-   released). ⏳ PROD still pending (rides the `v4.1` → main ship).
-2. **Bucket cold-rule** (the GB-cost lever) on BOTH default buckets
-   (`clmc-procurement-dev.firebasestorage.app`, `clmc-procurement.firebasestorage.app`):
-   `gcloud storage buckets update gs://<bucket> --lifecycle-file=lifecycle.json`
-   (ready file: this folder's `lifecycle.json` — Coldline@90d, Archive@365d, no delete).
-   Verify: `gcloud storage buckets describe gs://<bucket> --format="default(lifecycle)"`.
+1. **Redeploy rules** to dev + prod: `firebase deploy --only storage,firestore:rules`.
+   ✅ **DEV + PROD DONE 2026-07-05** (both compiled + released to clmc-procurement-dev and
+   clmc-procurement). Deployed-ruleset assertion confirmed the live 5 MB cap + field-mask.
+2. **Bucket cold-rule** (the GB-cost lever) on BOTH default buckets.
+   ✅ **DONE 2026-07-05** — applied Coldline@90d / Archive@365d (no delete) to
+   `clmc-procurement-dev.firebasestorage.app` + `clmc-procurement.firebasestorage.app` via
+   the GCS JSON API (equivalent to `gcloud storage buckets update --lifecycle-file`); read
+   back + verified on both. Ready file kept: this folder's `lifecycle.json`.
 3. **Orphan backfill (optional, low priority)** — pre-T5 deletes: `gsutil ls
    gs://<bucket>/projects/` & `.../services/` → diff vs live collections → `gsutil -m rm -r`
    the orphan id-prefixes. Near-zero expected (upload feature shipped 2026-07-04).
@@ -101,7 +101,15 @@ emulator, which is absent).
    reload; assigned non-admin can Recover; repeat on a service; delete a throwaway project
    (both list + detail) and a service → `projects|services/{id}/*` gone from the bucket.
 
-## Not done here
+## Shipped (2026-07-05)
 
-- Rules deploy / bucket lifecycle rule / UAT (punch list — operator/user actions).
-- `v4.1` not pushed to origin yet (awaiting go-ahead).
+- Prod + dev rules deployed; GCS cold-rule live on both buckets (verified).
+- `v4.1` pushed; **PR #77 merged to `main`** (merge `355303ed`) → Netlify auto-deploys prod
+  JS per [[project_netlify_deployment_facts]]. This ship also carries 260704-luf.
+
+## Remaining (optional / non-blocking)
+
+- **Browser confirmation** of the visual/interactive + per-user rules-enforcement path (the
+  parts an owner API token can't exercise) — low-risk given automated coverage.
+- **Orphan backfill** (punch-list item 3) — one-time `gsutil` sweep of pre-T5 orphans;
+  near-zero expected.
