@@ -476,6 +476,7 @@ export async function destroy() {
     delete window.lcAttachFile;
     delete window.lcRemoveDoc;
     delete window.lcRecoverFiles;
+    delete window.lcArchiveFiles;
     delete window.lcFileHint;
     delete window.lcSwitchTab;
     delete window.lcAdvanceToForProposal;
@@ -957,19 +958,23 @@ function getDlpState(project, collectibleDocs) {
     return 'in-dlp';
 }
 
-// quick 260705-s7c — lifecycle-gate files are "archived" (hidden until recovered) once a
-// project is Completed AND its warranty is over. Pure derivation (no background job / no
-// auto-write): keys off getDlpState + project_completed_at. files_recovered=true is an
-// explicit override that forces the files back on from then on.
-function isLcFilesArchived(project) {
-    if (!project || project.files_recovered) return false;
-    if (project.project_status !== 'Completed') return false;
+// quick 260705-s7c — archiving APPLIES once a project is Completed AND its warranty is over.
+// Pure derivation (no background job / no auto-write): keys off getDlpState + project_completed_at.
+// quick 260705-rar — split out from isLcFilesArchived so Recover/Re-archive can toggle the
+// files_recovered override on top of a stable, monotonic eligibility test.
+function isLcArchiveEligible(project) {
+    if (!project || project.project_status !== 'Completed') return false;
     const dlp = getDlpState(project, currentCollectibleDocs);
     if (dlp === 'in-dlp') return false;                         // still under warranty → keep hot
     if (dlp === 'expired' || dlp === 'released') return true;   // warranty lapsed / retention released
     // dlp === 'active' → no DLP configured: grace window after completion
     const doneMs = project.project_completed_at ? new Date(project.project_completed_at).getTime() : 0;
     return !!doneMs && (Date.now() - doneMs) > LC_FILES_ARCHIVE_GRACE_DAYS * 86400000;
+}
+// Archived (hidden) = eligible AND NOT the files_recovered override. Recover sets the
+// override true; Re-archive (quick 260705-rar) clears it back to false.
+function isLcFilesArchived(project) {
+    return isLcArchiveEligible(project) && !project?.files_recovered;
 }
 
 // Compute dlp_expires_at (YYYY-MM-DD) + retention_amount from gate inputs (D-13).
@@ -2746,7 +2751,9 @@ function buildLifecycleBody(project, currentUser) {
     }
     if (status === 'Completed') {
         const cell = (lbl, val) => `<div class="comp-cell"><div class="comp-cell-lbl">${lbl}</div><div class="comp-cell-val">${escapeHTML(val || '—')}</div></div>`;
-        const archived = isLcFilesArchived(project);   // quick 260705-s7c
+        const eligible = isLcArchiveEligible(project);                 // quick 260705-rar
+        const archived = eligible && !project.files_recovered;         // hidden (=== isLcFilesArchived)
+        const recovered = eligible && !!project.files_recovered;       // shown, but re-archivable
         const docVal = (fn, url) => archived ? '📦 archived' : (fn || url);
         return wrap('Project Closed', `
             <div class="comp-grid">
@@ -2758,6 +2765,7 @@ function buildLifecycleBody(project, currentUser) {
                 ${cell('Cert. of Completion', docVal(project.certificate_of_completion_filename, project.certificate_of_completion_url))}
             </div>
             ${archived ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:11px 13px;font-size:12px;color:#475569;line-height:1.6;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><strong>📦 Files archived</strong> — this project's uploaded lifecycle documents are hidden to conserve storage.</span><button class="btn btn-sm btn-primary" style="font-size:12px;white-space:nowrap;" onclick="window.lcRecoverFiles()">♻ Recover files</button></div>` : ''}
+            ${recovered ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:11px 13px;font-size:12px;color:#166534;line-height:1.6;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><strong>✓ Files recovered</strong> — visible again. Re-archive to hide them and conserve storage.</span><button class="btn btn-sm" style="font-size:12px;white-space:nowrap;background:#e2e8f0;color:#475569;border:none;cursor:pointer;" onclick="window.lcArchiveFiles()">📦 Re-archive</button></div>` : ''}
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:11px 13px;font-size:12px;color:#1e40af;line-height:1.65;margin-bottom:12px;"><strong>📊 COC → Finance</strong> — The COC on this project is the reference Finance uses when filing remaining billing tranches, including retention.</div>`);
     }
     if (status === 'Loss') {
@@ -3960,6 +3968,33 @@ function attachWindowFunctions() {
             currentProject.files_recovered = prev;
             buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
             showToast('Failed to recover files. Please try again.', 'error');
+        }
+    };
+    // quick 260705-rar — re-hide a recovered project's files (clears the files_recovered override).
+    window.lcArchiveFiles = async function() {
+        if (!currentProject) return;
+        if (window.canEditTab?.('projects') === false) {
+            showToast('You do not have permission to re-archive files.', 'error');
+            return;
+        }
+        const prev = currentProject.files_recovered;
+        currentProject.files_recovered = false;
+        buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+        try {
+            await updateDoc(doc(db, 'projects', currentProject.id), {
+                files_recovered: false,
+                files_recovered_at: null,
+                files_recovered_by: null,
+                updated_at: serverTimestamp(),
+            });
+            const cu = window.getCurrentUser?.();
+            await addProjectAuditEntry(currentProject.id, 'LC_FILES_REARCHIVED', cu?.uid, cu?.full_name, '');
+            showToast('Files re-archived.', 'success');
+        } catch (err) {
+            console.error('[ProjectDetail] lcArchiveFiles failed:', err);
+            currentProject.files_recovered = prev;
+            buildLifecycleBodyInPlace(currentProject, window.getCurrentUser?.() || null);
+            showToast('Failed to re-archive files. Please try again.', 'error');
         }
     };
     // quick 260705-s7c — live filename + size readout under the file picker (5 MB cap cue).

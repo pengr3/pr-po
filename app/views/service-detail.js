@@ -373,6 +373,7 @@ export async function destroy() {
     delete window.lcServiceAttachFile;
     delete window.lcRemoveServiceDoc;
     delete window.lcServiceRecoverFiles;
+    delete window.lcServiceArchiveFiles;
     delete window.lcServiceFileHint;
     delete window.lcServiceSwitchTab;
     delete window.lcAdvanceServiceToForProposal;
@@ -1942,17 +1943,20 @@ function getDlpState(service, collectibleDocs) {
     return 'in-dlp';
 }
 
-// quick 260705-s7c — lifecycle-gate files are "archived" (hidden until recovered) once a
-// service is Completed AND its warranty is over. Pure derivation (mirror project-detail).
-function isLcFilesArchived(service) {
-    if (!service || service.files_recovered) return false;
-    if (service.project_status !== 'Completed') return false;
+// quick 260705-s7c — archiving APPLIES once a service is Completed AND its warranty is over.
+// quick 260705-rar — split out so Recover/Re-archive can toggle the files_recovered override
+// (mirror project-detail).
+function isLcArchiveEligible(service) {
+    if (!service || service.project_status !== 'Completed') return false;
     const dlp = getDlpState(service, currentCollectibleDocs);
     if (dlp === 'in-dlp') return false;                         // still under warranty → keep hot
     if (dlp === 'expired' || dlp === 'released') return true;   // warranty lapsed / retention released
     // dlp === 'active' → no DLP configured: grace window after completion
     const doneMs = service.project_completed_at ? new Date(service.project_completed_at).getTime() : 0;
     return !!doneMs && (Date.now() - doneMs) > LC_FILES_ARCHIVE_GRACE_DAYS * 86400000;
+}
+function isLcFilesArchived(service) {
+    return isLcArchiveEligible(service) && !service?.files_recovered;
 }
 
 // 4-state DLP-aware finance bar (active / in-dlp / expired / released). Reads currentService + currentCollectibleDocs.
@@ -2478,7 +2482,9 @@ function buildServiceLifecycleBody(service, currentUser) {
     }
     if (status === 'Completed') {
         const cell = (lbl, val) => `<div class="comp-cell"><div class="comp-cell-lbl">${lbl}</div><div class="comp-cell-val">${escapeHTML(val || '—')}</div></div>`;
-        const archived = isLcFilesArchived(service);   // quick 260705-s7c
+        const eligible = isLcArchiveEligible(service);                 // quick 260705-rar
+        const archived = eligible && !service.files_recovered;         // hidden (=== isLcFilesArchived)
+        const recovered = eligible && !!service.files_recovered;       // shown, but re-archivable
         const docVal = (fn, url) => archived ? '📦 archived' : (fn || url);
         return wrap('Project Closed', `
             <div class="comp-grid">
@@ -2490,6 +2496,7 @@ function buildServiceLifecycleBody(service, currentUser) {
                 ${cell('Cert. of Completion', docVal(service.certificate_of_completion_filename, service.certificate_of_completion_url))}
             </div>
             ${archived ? `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:11px 13px;font-size:12px;color:#475569;line-height:1.6;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><strong>📦 Files archived</strong> — this service's uploaded lifecycle documents are hidden to conserve storage.</span><button class="btn btn-sm btn-primary" style="font-size:12px;white-space:nowrap;" onclick="window.lcServiceRecoverFiles()">♻ Recover files</button></div>` : ''}
+            ${recovered ? `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:11px 13px;font-size:12px;color:#166534;line-height:1.6;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;"><span><strong>✓ Files recovered</strong> — visible again. Re-archive to hide them and conserve storage.</span><button class="btn btn-sm" style="font-size:12px;white-space:nowrap;background:#e2e8f0;color:#475569;border:none;cursor:pointer;" onclick="window.lcServiceArchiveFiles()">📦 Re-archive</button></div>` : ''}
             <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:11px 13px;font-size:12px;color:#1e40af;line-height:1.65;margin-bottom:12px;"><strong>📊 COC → Finance</strong> — The COC on this project is the reference Finance uses when filing remaining billing tranches, including retention.</div>`);
     }
     if (status === 'Loss') {
@@ -3597,6 +3604,33 @@ function attachWindowFunctions() {
             currentService.files_recovered = prev;
             buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
             showToast('Failed to recover files. Please try again.', 'error');
+        }
+    };
+    // quick 260705-rar — re-hide a recovered service's files (clears the files_recovered override).
+    window.lcServiceArchiveFiles = async function() {
+        if (!currentService) return;
+        if (window.canEditTab?.('services') === false) {
+            showToast('You do not have permission to re-archive files.', 'error');
+            return;
+        }
+        const prev = currentService.files_recovered;
+        currentService.files_recovered = false;
+        buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+        try {
+            await updateDoc(doc(db, 'services', currentServiceDocId), {
+                files_recovered: false,
+                files_recovered_at: null,
+                files_recovered_by: null,
+                updated_at: serverTimestamp(),
+            });
+            const cu = window.getCurrentUser?.();
+            await addServiceAuditEntry(currentServiceDocId, 'LC_FILES_REARCHIVED', cu?.uid, cu?.full_name, '');
+            showToast('Files re-archived.', 'success');
+        } catch (err) {
+            console.error('[ServiceDetail] lcServiceArchiveFiles failed:', err);
+            currentService.files_recovered = prev;
+            buildServiceLifecycleBodyInPlace(currentService, window.getCurrentUser?.() || null);
+            showToast('Failed to re-archive files. Please try again.', 'error');
         }
     };
     // quick 260705-s7c — live filename + size readout under the file picker (5 MB cap cue).
