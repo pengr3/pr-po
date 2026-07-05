@@ -54,6 +54,7 @@ leaves `recovered`; only an explicit Re-archive does. R=false ≡ R-absent (idem
 
 ## Status
 
-- Committed on `v4.1`. **NOT merged to main** (per user — held for review/UAT).
-- Browser UAT pending (toggle Recover ⇄ Re-archive on a Completed past-DLP project + a service;
-  confirm persistence on reload). Rules/infra already live from s7c — no deploy needed to ship.
+- Committed on `v4.1` (`e84583e3`, pushed to origin). **NOT merged to main** (held per user).
+- ✅ **Browser UAT — re-archive confirmed by user 2026-07-05** ("was now able to rearchive
+  files"). Rules/infra already live from s7c → shipping is JS merge only, no deploy.
+- Remaining: merge `v4.1` → main to ship (awaiting user go).
