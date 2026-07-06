@@ -2960,25 +2960,31 @@ async function loadProjects() {
 
 /**
  * Quick 260627-kg0: shared UNION (OR) scope predicate for MRF/PR/PO record lists.
+ * Quick 260706-mco: DEPARTMENT-KEYED null handling. A null scope dimension now matches every
+ * record of THAT dimension's department, instead of contributing false to the union. This is
+ * what makes a cross-dept admin's HOME department (a null, see-all dimension) visible again once
+ * its OTHER dimension becomes a non-null assigned-codes array — under the old "null = false"
+ * union, a cross-dept admin with one null + one non-null scope would see ONLY the non-null
+ * dimension's assigned codes, silently losing its own home department.
  *
- * Returns true when a record is visible to the current user. Replaces the old sequential
- * project-then-service filtering, which was an implicit logical AND: once the helpers became
- * assignment-driven and a cross-dept user has BOTH scopes non-null, the sequential AND dropped
- * the user's OWN-department records (a project MRF has an empty service_code, so the service
- * filter removed it). This OR is the correct union.
+ * The record's department is resolved via the established codebase idiom (procurement.js
+ * mrfDept, ~5499) rather than raw `mrf.department`, because legacy MRFs lack the field and a
+ * codeless/legacy PROJECT MRF must NOT be wrongly hidden from operations_admin (its home dept):
+ *   dept = mrf.department || (mrf.service_code ? 'services' : 'projects')
  *
- * No-leak (quick 260615-nlj) preserved STRUCTURALLY: a record is visible only when its code is IN
- * an assigned-codes array, so an uncoded/cross-dept item ('' or absent code) matches neither scope
- * and stays hidden. For a single-department user (exactly one non-null scope) the OR collapses to
- * that one scope — visible-record set is identical to before this change.
+ * No-leak (quick 260615-nlj) preserved STRUCTURALLY: a cross-dept admin's cross dimension is
+ * always a non-null assigned-codes array (never null), so an unassigned OR codeless cross-dept
+ * item matches neither branch and stays hidden. For a single-department *_user (both scopes
+ * non-null arrays) this is unchanged from before: assigned-only, no-leak.
  */
 function isMrfInAssignedScope(mrf) {
-    const projScope = window.getAssignedProjectCodes?.();   // null = no project filter (exempt role)
-    const svcScope  = window.getAssignedServiceCodes?.();   // null = no service filter (exempt role)
+    const projScope = window.getAssignedProjectCodes?.();   // null = no project filter (see-all role/home dept)
+    const svcScope  = window.getAssignedServiceCodes?.();   // null = no service filter (see-all role/home dept)
     if (projScope === null && svcScope === null) return true; // exempt role: no filtering at all
-    const matchesProject = projScope !== null && projScope.includes(mrf.project_code);
-    const matchesService = svcScope  !== null && svcScope.includes(mrf.service_code);
-    return matchesProject || matchesService;
+    const dept = mrf.department || (mrf.service_code ? 'services' : 'projects'); // legacy-department fallback
+    const projOk = (projScope === null) ? (dept === 'projects') : projScope.includes(mrf.project_code);
+    const svcOk  = (svcScope  === null) ? (dept === 'services')  : svcScope.includes(mrf.service_code);
+    return projOk || svcOk;
 }
 
 /**
