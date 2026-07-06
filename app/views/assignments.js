@@ -261,12 +261,16 @@ function renderUsersTable() {
     if (activeSubTab === 'projects') {
         filteredUsers = usersData.filter(u =>
             u.role === 'operations_user' || u.role === 'operations_admin' ||
-            (u.role === 'services_user' && Array.isArray(u.assigned_project_codes) && u.assigned_project_codes.length > 0)
+            (u.role === 'services_user' && Array.isArray(u.assigned_project_codes) && u.assigned_project_codes.length > 0) ||
+            // Quick 260706-mco: cross-dept services_admin stays manageable once it holds project codes.
+            (u.role === 'services_admin' && Array.isArray(u.assigned_project_codes) && u.assigned_project_codes.length > 0)
         );
     } else {
         filteredUsers = usersData.filter(u =>
             u.role === 'services_user' || u.role === 'services_admin' ||
-            (u.role === 'operations_user' && Array.isArray(u.assigned_service_codes) && u.assigned_service_codes.length > 0)
+            (u.role === 'operations_user' && Array.isArray(u.assigned_service_codes) && u.assigned_service_codes.length > 0) ||
+            // Quick 260706-mco: cross-dept operations_admin stays manageable once it holds service codes.
+            (u.role === 'operations_admin' && Array.isArray(u.assigned_service_codes) && u.assigned_service_codes.length > 0)
         );
     }
 

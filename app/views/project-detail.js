@@ -2479,8 +2479,12 @@ async function loadProposalCard(parentDocId, parentCollection) {
         const user = window.getCurrentUser?.();
         const uid = user?.uid;
         const role = user?.role;
-        const adminRoles = ['super_admin', 'operations_admin', 'services_admin'];
-        const assignedRoles = ['operations_user', 'services_user'];
+        // Quick 260706-mco: services_admin moved from adminRoles (blanket) to assignedRoles —
+        // an assigned cross-dept services_admin drives project proposals ONLY when its uid is
+        // in personnel_user_ids (matches proposals BRANCH B/2). operations_admin stays blanket
+        // (home admin).
+        const adminRoles = ['super_admin', 'operations_admin'];
+        const assignedRoles = ['operations_user', 'services_user', 'services_admin'];
         const parentPersonnel = currentProject?.personnel_user_ids || [];
         const canDrive = adminRoles.includes(role)
             || (assignedRoles.includes(role) && uid && parentPersonnel.includes(uid));
@@ -2841,7 +2845,7 @@ function buildLifecycleTrack(project) {
 // field-masked branch) AND the proposals update rule (same set) both govern the loss write.
 // Showing the button to any role outside this set produces a raw PERMISSION_DENIED.
 const LOSS_ADMIN_ROLES = ['super_admin', 'operations_admin'];
-const LOSS_ASSIGNED_ROLES = ['operations_user', 'services_user']; // Quick 260627-kg0: assigned cross-dept member
+const LOSS_ASSIGNED_ROLES = ['operations_user', 'services_user', 'services_admin']; // Quick 260627-kg0 + 260706-mco: assigned cross-dept member
 let _lossSubmitInFlight = false;  // double-submit guard (module scope; reset in finally)
 function canDriveProjectLoss(project, currentUser) {
     const uid = currentUser?.uid;
@@ -2930,9 +2934,10 @@ function _canAdvanceProjectStatus(project, currentUser, targetStatus) {
     if (!currentUser || !project) return false;
     const role = currentUser.role || '';
     if (['super_admin', 'operations_admin'].includes(role)) return true;
-    // operations_user OR (Quick 260627-kg0) an assigned cross-dept services_user may perform all gate
-    // transitions including Completed (the project side has no Completion exclusion).
-    if (role === 'operations_user' || role === 'services_user') {
+    // operations_user OR (Quick 260627-kg0) an assigned cross-dept services_user, OR (Quick 260706-mco)
+    // an assigned cross-dept services_admin, may perform all gate transitions including Completed
+    // (the project side has no Completion exclusion).
+    if (role === 'operations_user' || role === 'services_user' || role === 'services_admin') {
         const ids = Array.isArray(project.personnel_user_ids) ? project.personnel_user_ids : [];
         return ids.includes(currentUser.uid);
     }
