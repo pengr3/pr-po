@@ -118,8 +118,8 @@ if (isLocal) {
     document.addEventListener('DOMContentLoaded', () => {
         const banner = document.createElement('div');
         banner.id = 'dev-env-banner';
-        banner.textContent = 'DEV ENVIRONMENT — clmc-procurement-dev';
-        banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#f59e0b;color:#1e293b;text-align:center;padding:4px 8px;font-size:0.75rem;font-weight:600;z-index:9999;pointer-events:none;';
+        banner.textContent = 'lintel.build';
+        banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1e293b;color:#f8fafc;text-align:center;padding:4px 8px;font-size:0.75rem;font-weight:600;z-index:9999;pointer-events:none;';
         document.body.appendChild(banner);
     });
 }
