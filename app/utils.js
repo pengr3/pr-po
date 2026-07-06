@@ -308,25 +308,32 @@ export async function generateProjectCode(clientCode, year = null) {
     }
 }
 
-// Quick 260627-kg0: roles EXEMPT from assignment scoping — they see everything (null = "no filter").
-// Platform admins + cross-department staff. Any *_user role (operations_user, services_user) is
-// assignment-scoped instead, which is what makes access assignment-driven, not department-role-driven.
-const SCOPE_EXEMPT_ROLES = ['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement'];
+// Quick 260627-kg0 (superseded by quick 260706-mco below): roles EXEMPT from assignment scoping.
+// Quick 260706-mco: SPLIT per department. operations_admin (home = projects) sees ALL projects
+// but is now assignment-scoped on services (mirrors kg0's operations_user cross-to-services rights);
+// services_admin (home = services) sees ALL services but is now assignment-scoped on projects
+// (mirrors kg0's services_user cross-to-projects rights). Platform admins + finance/procurement
+// remain exempt on BOTH dimensions. Any *_user role (operations_user, services_user) stays
+// assignment-scoped on both, which is what makes access assignment-driven, not department-role-driven.
+const PROJECT_SEE_ALL_ROLES = ['super_admin', 'finance', 'procurement', 'operations_admin']; // projects = operations home dept
+const SERVICE_SEE_ALL_ROLES = ['super_admin', 'finance', 'procurement', 'services_admin'];   // services = services home dept
 
 /**
  * Get the set of project codes the current user is allowed to see.
  * Quick 260627-kg0: ASSIGNMENT-DRIVEN — returns assigned_project_codes for BOTH operations_user AND
- * services_user (a services_user assigned to a project is scoped-IN to it). Returns null ("no filter")
- * only for the scope-exempt set (super_admin / dept admins / finance / procurement) or when the
- * all_projects escape-hatch flag is set. Returns an empty array if a scoped user has zero project
- * assignments.
+ * services_user (a services_user assigned to a project is scoped-IN to it).
+ * Quick 260706-mco: returns null ("no filter") only for PROJECT_SEE_ALL_ROLES (super_admin / finance /
+ * procurement / operations_admin — its HOME department) or when the all_projects escape-hatch flag is
+ * set. services_admin is intentionally NOT in PROJECT_SEE_ALL_ROLES, so it falls through to the
+ * all_projects check and the fail-closed assigned_project_codes default like any cross-dept *_user.
+ * Returns an empty array if a scoped user has zero project assignments.
  *
  * @returns {string[]|null} Array of allowed project_codes, or null for "no filter"
  */
 export function getAssignedProjectCodes() {
     const user = window.getCurrentUser?.();
     if (!user) return null;                              // Not logged in -- no filter
-    if (SCOPE_EXEMPT_ROLES.includes(user.role)) return null; // Admins/finance/procurement: no filter
+    if (PROJECT_SEE_ALL_ROLES.includes(user.role)) return null; // Home-dept admins/finance/procurement: no filter
 
     if (user.all_projects === true) return null;         // "All projects" escape hatch (no-op for a services_user)
 
@@ -394,17 +401,19 @@ export async function generateServiceCode(clientCode, year = null) {
 /**
  * Get the set of service codes the current user is allowed to see.
  * Quick 260627-kg0: ASSIGNMENT-DRIVEN — returns assigned_service_codes for BOTH services_user AND
- * operations_user (an operations_user assigned to a service is scoped-IN to it). Returns null
- * ("no filter") only for the scope-exempt set (super_admin / dept admins / finance / procurement)
- * or when the all_services escape-hatch flag is set. Returns an empty array if a scoped user has
- * zero service assignments.
+ * operations_user (an operations_user assigned to a service is scoped-IN to it).
+ * Quick 260706-mco: returns null ("no filter") only for SERVICE_SEE_ALL_ROLES (super_admin / finance /
+ * procurement / services_admin — its HOME department) or when the all_services escape-hatch flag is
+ * set. operations_admin is intentionally NOT in SERVICE_SEE_ALL_ROLES, so it falls through to the
+ * all_services check and the fail-closed assigned_service_codes default like any cross-dept *_user.
+ * Returns an empty array if a scoped user has zero service assignments.
  *
  * @returns {string[]|null} Array of allowed service_codes, or null for "no filter"
  */
 export function getAssignedServiceCodes() {
     const user = window.getCurrentUser?.();
     if (!user) return null;                              // Not logged in -- no filter
-    if (SCOPE_EXEMPT_ROLES.includes(user.role)) return null; // Admins/finance/procurement: no filter
+    if (SERVICE_SEE_ALL_ROLES.includes(user.role)) return null; // Home-dept admins/finance/procurement: no filter
 
     if (user.all_services === true) return null;         // "All services" escape hatch (no-op for an operations_user)
 
