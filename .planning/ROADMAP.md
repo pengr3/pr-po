@@ -145,4 +145,4 @@ Earlier milestones (v1.0–v3.2) are archived under `.planning/milestones/`.
 
 ## Next
 
-🚧 **v4.2 in progress** — Phases 106–112 are defined and 43/43 requirements are mapped. Start with **Phase 106: Data-Layer Audit — Findings Report** via `/gsd-plan-phase 106`. Phase numbering continues from 105 (never reset).
+🚧 **v4.2 in progress** — Phases 106–112 are defined and 43/43 requirements are mapped. ✅ **Phase 106 (Data-Layer Audit — Findings Report) complete** — `106-FINDINGS.md` holds 25 severity-ranked findings (5 High · 14 Medium · 6 Low); one human-action follow-up (read-only prod data-pass) tracked to Phase 112. Next: **Phase 107: Home Command Center (Shell & Feed Engine)** via `/gsd-plan-phase 107`. Phase numbering continues from 105 (never reset).

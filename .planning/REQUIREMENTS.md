@@ -70,11 +70,11 @@ Extend the existing `≤768px` card-layout pattern (Finance/MRF already done) to
 
 A report → fix pass over the Firestore SDK layer (the "API between frontend and DB"). Findings first, then remediation behind a review gate.
 
-- [ ] **AUDIT-01**: All Firestore reads/writes/listeners/queries across the views are inventoried and audited, producing a severity-ranked findings report
-- [ ] **AUDIT-02**: Integrity — denormalized-field consistency (`project_code` / `project_name` / `department` across MRFs·PRs·POs·TRs·RFPs), orphaned references, and status-derivation correctness are verified
-- [ ] **AUDIT-03**: Security-rule coverage is verified against actual access patterns (every collection covered; no over- or under-permissioning)
-- [ ] **AUDIT-04**: Correctness — listener lifecycle (no leaks), read/write error handling, and legacy-safe field handling are verified
-- [ ] **AUDIT-05**: Efficiency — N+1 query patterns, redundant listeners/reads, client-side filtering that should be queries, and caching opportunities are identified
+- [x] **AUDIT-01**: All Firestore reads/writes/listeners/queries across the views are inventoried and audited, producing a severity-ranked findings report *(Phase 106: 106-INVENTORY.md + 106-FINDINGS.md, 25 findings F-001–F-025)*
+- [x] **AUDIT-02**: Integrity — denormalized-field consistency (`project_code` / `project_name` / `department` across MRFs·PRs·POs·TRs·RFPs), orphaned references, and status-derivation correctness are verified *(static code audit ✓ — F-001–F-004 etc.; live data-pass PENDING serviceAccountKey.json → carried to Phase 112)*
+- [x] **AUDIT-03**: Security-rule coverage is verified against actual access patterns (every collection covered; no over- or under-permissioning) *(Phase 106: 33 rule blocks ↔ 28 code-accessed collections reconciled; F-005 over-perm, F-019 under-perm)*
+- [x] **AUDIT-04**: Correctness — listener lifecycle (no leaks), read/write error handling, and legacy-safe field handling are verified *(Phase 106: 61-listener ledger; F-006–F-009, F-011)*
+- [x] **AUDIT-05**: Efficiency — N+1 query patterns, redundant listeners/reads, client-side filtering that should be queries, and caching opportunities are identified *(Phase 106: 136-getDocs ledger; F-010, F-012–F-018, F-024–F-025)*
 - [ ] **AUDIT-06**: High/Medium findings are remediated behind a review gate; Low findings are recorded to a tracked deferral list
 - [ ] **AUDIT-07**: Production data found out-of-sync is corrected via one-time backfill scripts (built on `verify-integrity.js`) with dry-run + confirmation
 
@@ -112,7 +112,7 @@ Which phases cover which requirements. Roadmap created 2026-07-09.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUDIT-01 … AUDIT-05 | Phase 106 — Data-Layer Audit (Findings Report) | Pending |
+| AUDIT-01 … AUDIT-05 | Phase 106 — Data-Layer Audit (Findings Report) | Complete (report verified 4/4; AUDIT-02 live data-pass → Phase 112) |
 | HOME-01 … HOME-08 | Phase 107 — Home Command Center (Shell & Feed Engine) | Pending |
 | HOME-09 … HOME-13 | Phase 108 — Home Per-Role Attention Feeds | Pending |
 | DASH-01 … DASH-07 | Phase 109 — Home Executive Dashboard | Pending |

@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Polish, Home Revamp & Mobile
-status: executing
-stopped_at: Phase 106 executing — Wave 3 (synthesis → 106-FINDINGS.md)
-last_updated: "2026-07-09T09:45:00.000Z"
-last_activity: 2026-07-09 — Phase 106 Wave 2 complete (25 findings: 5 High · 14 Medium · 6 Low across 4 dimensions)
+status: in-progress
+stopped_at: Phase 106 COMPLETE (report verified 4/4); next Phase 107 — Home Command Center (Shell & Feed Engine)
+last_updated: "2026-07-09T10:00:00.000Z"
+last_activity: 2026-07-09 — Phase 106 complete — 106-FINDINGS.md (25 findings: 5 High · 14 Med · 6 Low); AUDIT-02 live data-pass pending creds → Phase 112
 progress:
   total_phases: 7
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 7
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-09 after v4.2 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** v4.2 Polish, Home Revamp & Mobile — Phase 106 planned (7 plans); next: execute Phase 106 (Data-Layer Audit — Findings Report)
+**Current focus:** v4.2 Polish, Home Revamp & Mobile — Phase 106 COMPLETE (Data-Layer Audit report: 25 findings F-001–F-025); next: Phase 107 (Home Command Center — Shell & Feed Engine)
 
 ## Current Position
 
-Phase: 106 — Data-Layer Audit (Findings Report) — executing
-Plan: 7 plans in 3 waves (W1: 01 data-pass + 02 inventory · W2: 03 integrity, 04 correctness, 05 efficiency, 06 security-rules · W3: 07 synthesis → 106-FINDINGS.md)
-Status: Phase 106 executing — Waves 1-2 done (6/7); Wave 3 starting (07 synthesis → 106-FINDINGS.md). 25 temp findings (5 High · 14 Medium · 6 Low)
-Last activity: 2026-07-09 — Phase 106 Wave 2 complete; 01 checkpoint still OUTSTANDING (prod data-pass pending serviceAccountKey.json)
+Phase: 106 — Data-Layer Audit (Findings Report) — ✅ COMPLETE (verified 4/4 success criteria)
+Plan: 7/7 plans complete across 3 waves (W1: 01 data-pass + 02 inventory · W2: 03 integrity, 04 correctness, 05 efficiency, 06 security-rules · W3: 07 synthesis → 106-FINDINGS.md)
+Status: Phase 106 COMPLETE — 106-FINDINGS.md holds 25 ranked findings (5 High · 14 Medium · 6 Low), verifier 4/4 + 6/6 spot-checked anchors real. Next: Phase 107.
+Last activity: 2026-07-09 — Phase 106 complete; 1 human-action follow-up tracked in 106-HUMAN-UAT.md (prod data-pass pending serviceAccountKey.json → Phase 112)
 
 **Milestone v4.2 "Polish, Home Revamp & Mobile"** — 6 workstreams:
 
