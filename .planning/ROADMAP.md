@@ -40,7 +40,22 @@ Started 2026-07-09. Numbering continues from v4.0 (last phase 105 — v4.1 shipp
   2. The report flags integrity issues — denormalized-field drift (`project_code` / `project_name` / `department` across MRFs·PRs·POs·TRs·RFPs), orphaned references, and status-derivation errors.
   3. The report states, per collection, whether security rules match actual access patterns, calling out any over- or under-permissioning.
   4. The report lists correctness issues (listener leaks, missing error handling, legacy-unsafe field reads) and efficiency issues (N+1, redundant reads/listeners, client-side filtering that should be queries, caching opportunities).
-**Plans**: TBD
+**Plans**: 7 plans in 3 waves
+
+**Wave 1 (foundation, parallel):**
+- [ ] 106-01-PLAN.md — Extend verify-integrity.js with read-only drift-across-chain check + `--project` flag; run dev→prod; capture real counts → 106-DATA-RESULTS.md (AUDIT-02) *(has checkpoint)*
+- [ ] 106-02-PLAN.md — Exhaustive file:line SDK call-site inventory across the 35-file surface → 106-INVENTORY.md (AUDIT-01)
+
+**Wave 2 (dimension audits, parallel — all blocked on Wave 1's 106-02 inventory; each carries a coverage ledger):**
+- [ ] 106-03-PLAN.md — Integrity audit: denorm-drift write-paths, orphan cascades, status-derivation, ID-race → 106-SCRATCH-integrity.md (AUDIT-02)
+- [ ] 106-04-PLAN.md — Correctness audit: listener lifecycle/leaks, error handling, legacy-unsafe reads → 106-SCRATCH-correctness.md (AUDIT-04)
+- [ ] 106-05-PLAN.md — Efficiency audit: N+1, client-side filtering, missing limit(), redundant reads, caching → 106-SCRATCH-efficiency.md (AUDIT-05)
+- [ ] 106-06-PLAN.md — Security-rule reconciliation: rules vs access, over/under-permissioning, dead rules → 106-SCRATCH-security.md (AUDIT-03)
+
+**Wave 3 (synthesis, blocked on Waves 1–2):**
+- [ ] 106-07-PLAN.md — Synthesize the single ranked 106-FINDINGS.md (F-00N IDs, summary-table index, no drops) (AUDIT-01)
+
+**Cross-cutting constraints** (truths shared across 2+ plans): all findings use the canonical D-07 schema (id/severity/category/collection/anchor/impact/recommendation/handling/target_phase) with the D-08 severity rubric; each dimension audit (03/04/05) must produce a per-item **coverage ledger** proving exhaustive surface coverage, not a sample; v4.0-collection *live* measurement is deferred to Phase 112 (D-04); the audit is read-only — no fixes, no prod writes (Phase 112 owns remediation).
 
 ### Phase 107: Home — Command Center Shell & Feed Engine
 **Goal**: Replace the thin landing page with a role-aware Command Center — a personalized greeting, a permission/assignment-scoped "Needs your attention" feed (severity-ranked, deep-linked, with a calm empty state), quick-KPI chips, a "Your work" panel, a "Recent activity" panel, and the five reachable area nav cards.
