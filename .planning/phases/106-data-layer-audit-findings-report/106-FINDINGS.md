@@ -1,5 +1,7 @@
 # Data-Layer Audit — Findings Report (Phase 106)
 
+<!-- reconciliation: 25 temp findings (integrity I-01..I-07 · correctness C-01..C-07 · efficiency E-01..E-09 · security S-01..S-02) → 25 F-IDs (F-001..F-025), 0 dropped, 0 merged. See § Reconciliation & Traceability. -->
+
 This is the single severity-ranked findings deliverable (**AUDIT-01**) for the Phase 106 data-layer audit of the entire `app/` Firestore SDK layer — **35 JavaScript files** (949 call-site anchors, see `106-INVENTORY.md`) plus **`firestore.rules`** (33 match blocks). It merges four dimension audits — **integrity** (AUDIT-02), **correctness** (AUDIT-04), **efficiency** (AUDIT-05), and **security-rule coverage** (AUDIT-03) — into **25 findings** ranked High → Low, each tagged with its category and carrying a stable `F-00N` id, a `file:line` anchor, an `impact`, a `recommendation`, a `handling` disposition (code-fix / backfill-script / defer), and a suggested `target_phase`. Every finding carries a `- was:` trace back to its dimension temp id (I-/C-/E-/S-) so no finding is silently lost. **This is a report, not fixes** — all remediation is Phase 112 (AUDIT-06/07), behind a review gate.
 
 > **Data-pass status:** the read-only real-data pass (`106-DATA-RESULTS.md`, D-03) is **PROD RUN PENDING** — no Firebase service-account key was available, so the live drift / orphan / collection-count numbers are **not yet measured**. The static findings below stand on code analysis; every place a finding would cite a *measured* count is annotated **"pending live measurement — see 106-DATA-RESULTS.md (PROD RUN PENDING)"**. No number has been invented. See [Data-Pass Results](#data-pass-results).
@@ -330,3 +332,95 @@ Caching opportunities, micro-optimizations, scale-only concerns, and cosmetic/la
 - handling: defer
 - target_phase: 112
 - was: E-09
+
+---
+
+## Inventory Summary
+
+The AUDIT-01 call-site inventory half. Full `file:line` index (949 anchors, grouped by operation) lives in **`106-INVENTORY.md`**; the totals below are lifted from its § Per-Operation Totals and § Per-Collection Access Map. All figures are `\bOP\(` **call sites**, not substrings (raw substring counts inflate: `onSnapshot` 144 substring → 61 call sites; `getDoc` 241 substring → 54 call sites).
+
+**Surface:** 35 app JS files touch Firestore (34 static `import … from firebase.js` + `diagnostics.js` via dynamic `import()`); 5 app JS files have zero Firestore access (`components.js`, `router.js`, `tranche-builder.js`, `update-check.js`, `views/admin.js`). **28 distinct collections** accessed — 22 top-level literals + 6 subcollections (`activity_entries`, `progress_updates`, `issues`, `baselines`, `audit_log`, `edit_history`), a clean **1:1 match** against the 28 collection surfaces in `firestore.rules` (33 match blocks counting both parent variants of each subcollection).
+
+**Per-operation call-site totals:**
+
+| Group | Operations | Total |
+|-------|-----------|------:|
+| Reads | getDoc 54 · getDocs 136 · onSnapshot 61 · getAggregateFromServer 11 | 262 |
+| Writes | addDoc 35 · setDoc 8 · updateDoc 137 · deleteDoc 28 · writeBatch 18 · **runTransaction 0** | 226 |
+| Query modifiers | **where 182** · orderBy 19 · **limit 12** | 213 |
+| Refs | collection(db, …) 241 · doc(db, …) 236 | 477 |
+
+**Two headline inventory facts (the standing LEADS that drove the findings):**
+
+1. **`runTransaction = 0` across all of `app/`.** No transaction or atomic counter anywhere. Sequential business IDs are minted by max-scan of existing docs → the concurrent-submit race behind **F-004** (integrity, High) and the whole-collection read cost behind **F-016** (efficiency).
+2. **`where` 182 vs `limit` 12 imbalance.** All **12** `limit()` calls sit on `notifications` (6) + journal subcollections (6× `limit(50)`); **zero** of the ~17 whole-collection business listeners are bounded → **F-012** (efficiency). `where` is heavily per-record `==`/`in`-chunk lookups, with some client-side filtering that should be an indexed query → **F-015**.
+
+---
+
+## Data-Pass Results
+
+> ## ⛔ PROD RUN PENDING — carried forward from `106-DATA-RESULTS.md`
+>
+> The read-only real-data pass (D-03) **has not executed**: no Firebase service-account key (`serviceAccountKey.json` / `serviceAccountKey.dev.json`) was present in the repo, so the extended `scripts/verify-integrity.js` (drift-chain check added in 106-01) could not connect to `clmc-procurement-dev` (validation) or `clmc-procurement` (prod). The `checkpoint:human-action` gate from Plan 106-01 Task 2 is **OUTSTANDING**. **No numbers have been invented** — the static findings above stand on code analysis alone; the live counts below remain to be measured.
+
+| Data-pass metric | Value | Feeds finding(s) |
+|------------------|-------|------------------|
+| Collection document counts (mrfs, prs, pos, transport_requests, rfps, suppliers, projects, services, users, clients, role_templates, invitation_codes, deleted_mrfs, deleted_users) | **PENDING** | context for all |
+| Referential-integrity errors (dangling PR→MRF / PO→PR / PO→MRF / TR→MRF) | **PENDING** | F-002, F-003 |
+| Schema warnings — missing-required-field | **PENDING** | — |
+| Schema warnings — invalid-status (false positives expected on the real MRF vocabulary) | **PENDING** | F-020 |
+| Schema warnings — `items_json` fails `JSON.parse()` | **PENDING** | F-011 |
+| Reference warnings — supplier not in `suppliers`; MRF `project_code`/`service_code` not in `projects`/`services` | **PENDING** | F-001, F-006 |
+| Orphan detection — Approved MRFs with no PRs; Finance-Approved PRs with no POs | **PENDING** | F-002, F-003 |
+| **Denormalization drift** (MRF→PR→PO→TR→RFP) — total + per-field `project_code`/`project_name`/`department` | **PENDING** | **F-001** |
+
+**When the run lands** (a human with the key runs `node scripts/verify-integrity.js --json` per `106-DATA-RESULTS.md` § How to fill this in), transcribe the measured counts into the rows above and update the PENDING annotations inside **F-001** (drift), **F-002/F-003** (orphans), **F-004** (duplicate IDs), **F-011** (`items_json`), and **F-020** (invalid-status warnings). Per **D-04**, *live* drift/orphan measurement for the v4.0 collections (proposals, collectibles, billing_requests, rfps orphans, baselines) is itself a **Phase 112** task — this pass covers only the existing 13 collections + `rfps` + the new drift chain.
+
+---
+
+## Phase 112 Hand-off
+
+The **Summary Table** above is the fix/defer index that **AUDIT-06** consumes. How Phase 112 reads this report:
+
+- **Remediation queue (behind the review gate) = High + Medium, `handling: code-fix` or `backfill-script`** — F-001 through F-019 (19 findings). These are the correctness/security/leak/N+1 items to fix or backfill in Phase 112 (AUDIT-06), each with a dry-run + typed confirmation. **F-001** is the sole `backfill-script` item (repair existing drift) and also carries a code-fix prevention leg.
+- **Deferral list = Low, `handling: defer`** — F-020, F-024, F-025 (and the low residuals folded into F-001's `*_code`/`department` note). These are tracked, not fixed now: cosmetic/latent inconsistencies and caching/scale-only opportunities. The remaining Low items (F-021, F-022, F-023) are `code-fix` but low-priority — small guards Phase 112 may batch opportunistically.
+- **Backfill scripts build on the drift-aware `verify-integrity.js`** — the 106-01 extension (`checkDenormDrift` + `--project` flag) is the tooling base for **AUDIT-07**; F-002/F-003 additionally want an RFP/subcollection orphan sweep added to the same script.
+- **Blocking dependency:** the fix/defer split is stable, but the *measured* drift/orphan counts that size F-001/F-002/F-003 are **PENDING** the read-only data pass (see § Data-Pass Results). Phase 112 must run that pass first (it is a read-only `.get()` run needing only the service-account key) before backfill scoping. Per **D-04**, live measurement of the v4.0 collections is explicitly a Phase 112 task.
+
+---
+
+## Reconciliation & Traceability
+
+**Result: 25 temp findings → 25 F-IDs · 0 dropped · 0 merged.** Distinct temp IDs across the four dimension scratch files = 7 (integrity) + 7 (correctness) + 9 (efficiency) + 2 (security-rules) = **25**; each is referenced by exactly one `- was:` line in a finding block above, and each finding block carries exactly one temp ID. The count reconciles both directions (no finding lost in the merge — mitigation for T-106-15).
+
+Mapping (temp ID → global F-ID), grouped by source dimension:
+
+| Temp ID | F-ID | Category | Severity | Handling |
+|---------|------|----------|----------|----------|
+| I-01 | F-001 | integrity | High | backfill-script |
+| I-02 | F-006 | integrity | Medium | code-fix |
+| I-03 | F-002 | integrity | High | code-fix |
+| I-04 | F-003 | integrity | High | code-fix |
+| I-05 | F-004 | integrity | High | code-fix |
+| I-06 | F-007 | integrity | Medium | code-fix |
+| I-07 | F-020 | integrity | Low | defer |
+| C-01 | F-008 | correctness | Medium | code-fix |
+| C-02 | F-009 | correctness | Medium | code-fix |
+| C-03 | F-010 | correctness | Medium | code-fix |
+| C-04 | F-021 | correctness | Low | code-fix |
+| C-05 | F-022 | correctness | Low | code-fix |
+| C-06 | F-011 | correctness | Medium | code-fix |
+| C-07 | F-023 | correctness | Low | code-fix |
+| E-01 | F-012 | efficiency | Medium | code-fix |
+| E-02 | F-013 | efficiency | Medium | code-fix |
+| E-03 | F-014 | efficiency | Medium | code-fix |
+| E-04 | F-015 | efficiency | Medium | code-fix |
+| E-05 | F-016 | efficiency | Medium | code-fix |
+| E-06 | F-017 | efficiency | Medium | code-fix |
+| E-07 | F-018 | efficiency | Medium | code-fix |
+| E-08 | F-024 | efficiency | Low | defer |
+| E-09 | F-025 | efficiency | Low | defer |
+| S-01 | F-005 | security-rules | High | code-fix |
+| S-02 | F-019 | security-rules | Medium | code-fix |
+
+*Source scratch files (Wave 1-2): `106-SCRATCH-integrity.md` (AUDIT-02), `106-SCRATCH-correctness.md` (AUDIT-04), `106-SCRATCH-efficiency.md` (AUDIT-05), `106-SCRATCH-security.md` (AUDIT-03). Inventory: `106-INVENTORY.md` (AUDIT-01). Data pass: `106-DATA-RESULTS.md` (D-03, PROD RUN PENDING).*
