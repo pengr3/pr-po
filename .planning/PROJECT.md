@@ -12,28 +12,32 @@ Projects tab must work — it's the foundation where project name and code origi
 
 **Latest shipped:** v4.0 Procurement → Full Management Portal (2026-06-16) — 53 phases, ~189 plans (phases 83–105), 51/51 active requirements delivered. Transformed CLMC from a procurement tool into a full management portal across five capability areas: native Gantt-based **Project Management** (`project_tasks`/`service_tasks`, dependencies, milestones, duration-weighted progress, baselines, iterations, PDF export, service parity), in-app **Notifications** (bell/dropdown/history + event triggers), manual **Collectibles Tracking** (auto-derived status, billing requests), end-to-end **Proposal Lifecycle** (internal approval, audit trail, client log, project/service status integration), and a Super-Admin **Management hub** (approval queue + create-engagement). Plus portfolio redesign, DLP/retention, project journal, and full project↔service parity. Audit verdict `tech_debt` (no code blockers; 86/87 verification gap + B3 formally accepted). Shipped via PR #75 (v3.3 → main, merge `34f65e36`); prod `firestore.rules` deployed + live.
 
-**Active milestone:** none — v4.0 shipped. Run `/gsd-new-milestone` to define the next version (phase numbering continues from 106).
+**Active milestone:** v4.2 Polish, Home Revamp & Mobile (started 2026-07-09) — defining requirements. Phase numbering continues from 106. (v4.1's file-upload / storage-conservation / cross-dept-admin work shipped informally as `quick/` tasks — never a formal milestone — so v4.2 is the next formal number.)
 
 **Carry-overs to v4.1+:** Phase 105.1 (service baseline + plan iterations); v3.2 deferreds Phase 68.1 (subcon scorecard) + Phase 70 rework (cancel-PR approval flow).
 
 See `.planning/MILESTONES.md` for full milestone history and `.planning/milestones/v4.0-MILESTONE-AUDIT.md` for the v4.0 audit + acceptances.
 
-## Current Milestone: v4.0 Procurement → Full Management Portal
+## Current Milestone: v4.2 Polish, Home Revamp & Mobile
 
-**Goal:** Transform CLMC from a procurement-focused system into a full management portal — adding native project management, in-app notifications, manual collectibles tracking, end-to-end proposal lifecycle, and a Super Admin management hub for approval queues and engagement creation.
+**Goal:** Make CLMC feel finished and genuinely usable on a phone — replace the thin landing page with a role-aware home, add an oversight dashboard, modernize create/edit flows, extend mobile coverage to the high-traffic views, and run a data-layer integrity/efficiency audit.
 
 **Target features:**
-- **Project Management (native Gantt/task tracker)** — task hierarchy, dependencies, % progress per task, milestone dates, anchored to existing project records
-- **Notification System (in-app)** — Firestore-backed notifications with bell/dropdown UI, triggered by approval events (proposal submitted, MRF approved, RFP filed, project status changes, user-registration approvals, etc.)
-- **Collectibles Tracking (manual entry)** — Operations Admin / Finance manually create collectibles against a project; PM acts as filter/context (auto-trigger from PM progress deferred)
-- **Proposal Tracking (full lifecycle)** — multi-step internal approval workflow with audit trail, document upload + versioning, proposal-specific dashboard/queue (lives inside Mgmt Tab), client communication log
-- **Management Tab (Super Admin only)** — centralized decision-making hub: proposal approval queue + project/service creation hub with auto-routing (one-time vs recurring)
+- **Home — Command Center** — role-aware landing with a permission/assignment-scoped "Needs your attention" feed (per-role: Super Admin, Ops/Services Admin, Ops/Services User, Finance, Procurement), quick-KPI chips, "your work", recent activity, and a nav rail; empty feed → calm "all caught up" state
+- **Home — Executive Dashboard** — role-gated "Dashboard" sub-tab on Home (Super Admin, Ops/Services Admin, Finance) with KPI tiles + status-breakdown / proposal-funnel / spend-trend charts + portfolio-health table, scoped per role/department (restores the Phase 77 charts)
+- **Entity modals** — convert Add and list-Edit for Client, Project, and Service from the inline `.add-form` toggle to modals (reusing the `components.js` modal pattern); detail-page inline auto-save untouched
+- **Mobile optimization (high-traffic)** — phone layouts for Home, Projects/Services lists & detail, Clients, Procurement (MRF Records), Proposals, and the new modals; admin / assignments / role-config deferred
+- **Gantt on mobile — view-only** — plan view renders readable + horizontally scrollable on phones; drag/resize/indent/inline-edit stay desktop-only
+- **Data-Layer Audit & Optimization** — report→fix pass over the Firestore SDK layer across all views: integrity (denormalized-field sync, orphaned refs, status-derivation, rule coverage), correctness (listener lifecycle, error handling, legacy-safe fields), efficiency (N+1, redundant listeners/reads, client-side filtering, caching); High/Medium fixed behind a review gate, Low deferred; prod-data out-of-sync fixes via one-time backfill scripts
 
 **Key context:**
-- Major version bump (procurement → management portal identity shift)
-- Phase numbering continues from 83 (no reset)
-- Notification email/push, ProjectLibre file import, per-task billing, collectibles auto-trigger from PM progress, and role-configurable Mgmt Tab access all explicitly deferred
-- v3.2 deferred items (Phase 68.1 subcon scorecard fix, Phase 70 cancel-PR rework) deferred to v4.1+ — kept v4.0 focused on the 5 portal-transformation features
+- Pure polish/UX + hygiene milestone — no new domain, no new collections expected
+- Phase numbering continues from 106 (no reset)
+- Home = Command Center (all roles); Executive Dashboard = role-gated Home sub-tab for oversight roles + Finance
+- Add/Edit modals cover create + edit for all three entities (Client, Project, Service)
+- Mobile scoped to high-traffic views; Gantt is view-only on mobile this milestone
+- Audit runs report → fix (severity-ranked; remediation behind a review gate)
+- Carry-overs NOT in scope: Phase 68.1 (subcon scorecard $0), Phase 70 rework (cancel-PR approval flow), Phase 105.1 (service baseline + plan-iterations parity)
 - Phase order to be determined by roadmapper based on dependency analysis
 
 ## Requirements
@@ -603,4 +607,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-16 — v4.0 Procurement → Full Management Portal SHIPPED (phases 83–105, 51/51 requirements). Merged v3.3 → main (PR #75, `34f65e36`); prod firestore.rules deployed + confirmed live. Audit `tech_debt`: B1/B2/C1 integration blockers fixed + UAT-passed; 86/87 verification gap + B3 (Management-as-Home-sub-tabs) formally accepted (audit §7). Milestone archived to .planning/milestones/v4.0-*. Next: /gsd-new-milestone (phase numbering continues from 106).*
+*Last updated: 2026-07-09 — v4.2 Polish, Home Revamp & Mobile STARTED (defining requirements). Home direction confirmed via mockup spike: Command Center landing + role-gated Executive Dashboard as a Home sub-tab. Scope = 6 workstreams (Home Command Center · Home Dashboard · entity Add/Edit modals · mobile high-traffic views · Gantt view-only mobile · Data-Layer Audit & Optimization). Phase numbering continues from 106. Deferred: Phase 68.1, Phase 70 rework, Phase 105.1. Next: define REQUIREMENTS.md → gsd-roadmapper.*
