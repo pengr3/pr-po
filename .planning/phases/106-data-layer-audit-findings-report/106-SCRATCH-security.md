@@ -92,4 +92,73 @@ _Note: `databases/{database}/documents` (firestore.rules:4) is the wrapper meta-
 
 ## Findings
 
-_S-0N findings, dead-rule resolution, and nesting reconciliation are populated in Task 2 below._
+### S-01 — invitation_codes public read + public update (`allow: if true`)
+- severity: High
+- category: security-rules
+- collection: invitation_codes
+- anchor: firestore.rules:185 (`allow read: if true`), firestore.rules:191 (`allow update: if true`); documented ACCEPTED RISK at firestore.rules:102 + block comment firestore.rules:174-182; code: app/auth.js:103 (mark used), app/views/user-management.js:1615 (create)
+- impact: The collection is world-readable AND world-writable with no auth (`if true`). Public READ is the milder half — a random UUID-like code only reveals existence, and registration still gates on Firebase Auth + admin approval (new users land `pending`), so a pre-auth read is plausibly required. Public **UPDATE** is the real exposure: any unauthenticated client can mutate ANY invitation_codes doc — mark valid codes `used` (denial-of-registration), flip `used`→unused, or overwrite code fields — with zero authentication (Information Disclosure + Tampering/Elevation, T-106-12).
+- recommendation: Re-evaluate in Phase 112. Keep `allow read: if true` ONLY if the register flow genuinely needs a pre-auth read (106-INVENTORY.md shows register.js does zero Firestore ops and the code read happens in auth.js *after* sign-in — if so, tighten read to `isSignedIn()` or a code-hash lookup). Replace `allow update: if true` with a single-use-transition mask, e.g. `resource.data.used == false && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used','used_by','used_at'])`, or move redemption behind an authenticated path.
+- handling: code-fix
+- target_phase: 112
+- note: **Flagged despite the documented ACCEPTED RISK (firestore.rules:102) — surfaced for re-evaluation, NOT as a fresh bug.** The open READ was a deliberate, recorded decision for the pre-auth register flow; the narrow ask is to re-tighten **public UPDATE** in particular (mark-used tampering) now that the single-use invariant can be expressed as a field-mask.
+
+### S-02 — edit_history (+ baselines) create-gate excludes assigned non-admin editors → silent audit-trail gap
+- severity: Medium
+- category: security-rules
+- collection: projects/*/edit_history + services/*/edit_history (same class: projects/*/baselines)
+- anchor: firestore.rules:268 (projects/edit_history create), firestore.rules:600 (services/edit_history create), firestore.rules:278 (baselines create); write path app/edit-history.js:90 (fire-and-forget `catch` :98-100); trigger app/views/project-detail.js:4181 (submitProjectLoss) + app/views/service-detail.js:3821; the parent-doc write the SAME role is allowed to make sits at firestore.rules:220-252 (assigned-user field-mask incl. `project_status`+`loss_reason`)
+- impact: `edit_history` is an append-only audit trail whose create gate is stricter than the parent write the code performs in the same flow. `projects/edit_history` create (268) = `[super_admin, operations_admin, services_admin, finance]` — **excludes operations_user and services_user**; `services/edit_history` create (600) = `[super_admin, services_admin, services_user, operations_admin]` — **excludes operations_user** (cross-dept assigned via 260706-mco). Yet an assigned `operations_user` may legitimately mutate the parent (mark a project **Loss** — rules 227-230 allow `project_status`+`loss_reason`; code writes it at project-detail.js:4172-4177) then calls `recordEditHistory(...)` at :4181. Because that helper is fire-and-forget (silent `catch`, edit-history.js:98-100), the edit_history create is **denied silently** — the Loss commits but the audit entry "Status → Loss by <user>" never lands. Net: gaps in an append-only accountability log (Repudiation surface, T-106-13), not a blocked flow or data exposure.
+- recommendation: Extend the `edit_history` create gate on BOTH parents to admit the assigned non-admin editors, mirroring what `audit_log` already does — firestore.rules:287-292 / 609-614 were expanded for kg0/mco assigned users, but edit_history (268/600) and baselines (278) were left behind. e.g. append `|| ((isRole('operations_user') || isRole('services_user')) && request.auth.uid in get(<parent>).data.personnel_user_ids)`. Also re-check `baselines` create (278, admin-only) against assigned-ops_user plan editing (project_tasks create at 741 already admits them) — same asymmetry class.
+- handling: code-fix
+- target_phase: 112
+- note: Severity **Medium not High** — D-08 rates under-permissioning High when it *blocks a user flow*, but here the denied write is a fire-and-forget audit sidecar (primary action commits), so impact is audit-trail completeness rather than blocked access/exposure. Escalate to High in Phase 112 if the lifecycle audit trail is deemed integrity-critical.
+
+## Dead / unreferenced rule leads — RESOLVED (zero dead rules)
+
+The two recon leads that do NOT show up in a naive `collection(db,'X')` grep are both **live**, via access paths the literal grep misses (D-10). Neither is dead; no rule block should be trimmed.
+
+| Lead | Rule block | Why grep-blind | Actual access | Resolution |
+|---|---|---|---|---|
+| deleted_users | firestore.rules:533 | accessed by **document reference** `doc(db,'deleted_users',uid)`, never `collection(db,'deleted_users')` | read auth.js:332 + login.js:157 (deactivation check); write setDoc user-management.js:1312 | **live → OK**, not dead |
+| audit_log | firestore.rules:284 (projects), :606 (services) | **nested subcollection** `collection(db,'<parent>',id,'audit_log')`, not a top-level literal | write project-detail.js:2949, service-detail.js:2679 | **live → OK**, not dead |
+
+**Homonym caution for Plan 07 / Phase 112:** `proposals.audit_log` is an **in-document array field** on each proposals doc (governed by the proposals block at firestore.rules:920) — a different thing from the `audit_log` **subcollection** under projects/services. The field needs no match block; the subcollection has its own (284/606). Do not conflate.
+
+**Conclusion: 0 dead/unreferenced rule blocks.** Every one of the 33 match blocks is exercised by code (22 top-level + 11 nested), consistent with the 1:1 surface match in 106-INVENTORY.md.
+
+## Subcollection nesting reconciliation (D-10)
+
+For every journal/audit subcollection, the rule nests under the SAME parent the code accesses it through — a top-level rule would NOT govern a nested path, so this confirms the gates actually apply. **All six confirmed nesting-OK:**
+
+| Subcollection | Rule nests under | Code accesses as | Match? |
+|---|---|---|---|
+| activity_entries | projects (firestore.rules:301) + services (firestore.rules:620) | `collection(db,'projects'/'services',id,'activity_entries')` — procurement.js:7955/7976, project-detail.js:3191, service-detail.js:2690 | yes |
+| progress_updates | projects (firestore.rules:312) + services (firestore.rules:628) | `collection(db,…,id,'progress_updates')` — project-detail.js:3347, service-detail.js:3041 | yes |
+| issues | projects (firestore.rules:325) + services (firestore.rules:639) | `collection(db,…,id,'issues')` — project-detail.js:3541, service-detail.js:3222 | yes |
+| baselines | projects only (firestore.rules:276) | `collection(db,'projects',id,'baselines')` — project-plan.js:3201/3246 (no services variant in code or rules) | yes |
+| audit_log | projects (firestore.rules:284) + services (firestore.rules:606) | `collection(db,…,id,'audit_log')` — project-detail.js:2949, service-detail.js:2679 | yes |
+| edit_history | projects (firestore.rules:263) + services (firestore.rules:596) | `collection(db, collectionName, id,'edit_history')`, `collectionName ∈ {'projects','services'}` — edit-history.js:90; callers pass `'projects'` (default) or `'services'` (services.js:1489/1566, service-detail.js:3821, engagement-create.js:126) | yes |
+
+**No nesting mismatch.** The `edit_history` dynamic parent (`collectionName`) resolves only to `projects` or `services` across all confirmed callers, both of which have a nested rule block. The edit_history problem is create-gate **role** coverage (S-02), not the nesting path.
+
+## Over-permissioning scan — other broad gates reviewed (not flagged)
+
+Beyond invitation_codes (S-01 — the only fully-public `if true`), the remaining broad gates are all **authenticated and documented-accepted**; reviewed and NOT raised as fresh findings:
+
+- **users.list = isActiveUser** (firestore.rules:127) — exposes full_name/email/role/status to any active user; documented-accepted (T-84.1-01) for notification fan-out; no PII beyond name/email. Note for 112 only.
+- **billing_requests.create = isActiveUser** (firestore.rules:706) — any active user files an *advisory* request; Finance re-derives the authoritative amount at approval (documented D-04). Authenticated; acceptable.
+- **notifications.create / client_errors.create = isSignedIn** (firestore.rules:1029 / 1059) — intentionally below isActiveUser so `pending` users can fire notifications/diagnostics; both **pin actor_id/uid == request.auth.uid** (anti-impersonation). Documented CR-04. Acceptable.
+- **activity_entries / progress_updates / issues create = isActiveUser** (firestore.rules:303/314/327 + services mirror) — journal is intentionally no-role-gated (spike-032 / D-15: any user with project access may post). By design.
+
+## Handoff to Plan 07 (106-FINDINGS.md)
+
+| Temp ID | Severity | Category | Collection | One-line |
+|---|---|---|---|---|
+| S-01 | High | security-rules | invitation_codes | Public read + **public update** (`if true`); re-evaluate public UPDATE despite documented acceptance |
+| S-02 | Medium | security-rules | projects/services edit_history (+ baselines) | Create-gate excludes assigned non-admin editors → fire-and-forget audit-trail gap |
+
+- **0** under-permissioned *unruled* collections (clean 1:1 surface match); the single UNDER finding (S-02) is a rule-stricter-than-access case, not a missing rule.
+- **0** dead/unreferenced rule blocks (both leads resolved live).
+- **6/6** subcollections nesting-OK (D-10).
+- Both actionable findings → **handling: code-fix, target_phase: 112** (rules-only; no backfill scripts). Low/accepted broad-gate notes flow to the AUDIT-06 deferral list.
