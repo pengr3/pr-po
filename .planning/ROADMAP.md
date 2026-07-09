@@ -43,8 +43,8 @@ Started 2026-07-09. Numbering continues from v4.0 (last phase 105 — v4.1 shipp
 **Plans**: 7 plans in 3 waves
 
 **Wave 1 (foundation, parallel):**
-- [ ] 106-01-PLAN.md — Extend verify-integrity.js with read-only drift-across-chain check + `--project` flag; run dev→prod; capture real counts → 106-DATA-RESULTS.md (AUDIT-02) *(has checkpoint)*
-- [ ] 106-02-PLAN.md — Exhaustive file:line SDK call-site inventory across the 35-file surface → 106-INVENTORY.md (AUDIT-01)
+- [x] 106-01-PLAN.md — Extend verify-integrity.js with read-only drift-across-chain check + `--project` flag; run dev→prod; capture real counts → 106-DATA-RESULTS.md (AUDIT-02) *(script done, read-only; ⚠ data-pass PENDING serviceAccountKey.json)*
+- [x] 106-02-PLAN.md — Exhaustive file:line SDK call-site inventory across the 35-file surface → 106-INVENTORY.md (AUDIT-01)
 
 **Wave 2 (dimension audits, parallel — all blocked on Wave 1's 106-02 inventory; each carries a coverage ledger):**
 - [ ] 106-03-PLAN.md — Integrity audit: denorm-drift write-paths, orphan cascades, status-derivation, ID-race → 106-SCRATCH-integrity.md (AUDIT-02)
