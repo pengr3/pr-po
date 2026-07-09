@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Polish, Home Revamp & Mobile
 status: executing
-stopped_at: Phase 106 executing — Wave 2 (dimension audits 03-06)
-last_updated: "2026-07-09T09:20:00.000Z"
-last_activity: 2026-07-09 — Phase 106 Wave 1 complete (02 inventory; 01 script done, data-pass pending creds)
+stopped_at: Phase 106 executing — Wave 3 (synthesis → 106-FINDINGS.md)
+last_updated: "2026-07-09T09:45:00.000Z"
+last_activity: 2026-07-09 — Phase 106 Wave 2 complete (25 findings: 5 High · 14 Medium · 6 Low across 4 dimensions)
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 7
-  completed_plans: 2
+  completed_plans: 6
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-07-09 after v4.2 milestone start)
 
 Phase: 106 — Data-Layer Audit (Findings Report) — executing
 Plan: 7 plans in 3 waves (W1: 01 data-pass + 02 inventory · W2: 03 integrity, 04 correctness, 05 efficiency, 06 security-rules · W3: 07 synthesis → 106-FINDINGS.md)
-Status: Phase 106 executing — Wave 1 done (2/7); Wave 2 starting (03 integrity · 04 correctness · 05 efficiency · 06 security-rules)
-Last activity: 2026-07-09 — Phase 106 Wave 1 complete; 01 checkpoint OUTSTANDING (prod data-pass pending serviceAccountKey.json)
+Status: Phase 106 executing — Waves 1-2 done (6/7); Wave 3 starting (07 synthesis → 106-FINDINGS.md). 25 temp findings (5 High · 14 Medium · 6 Low)
+Last activity: 2026-07-09 — Phase 106 Wave 2 complete; 01 checkpoint still OUTSTANDING (prod data-pass pending serviceAccountKey.json)
 
 **Milestone v4.2 "Polish, Home Revamp & Mobile"** — 6 workstreams:
 

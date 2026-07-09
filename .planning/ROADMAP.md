@@ -47,10 +47,10 @@ Started 2026-07-09. Numbering continues from v4.0 (last phase 105 — v4.1 shipp
 - [x] 106-02-PLAN.md — Exhaustive file:line SDK call-site inventory across the 35-file surface → 106-INVENTORY.md (AUDIT-01)
 
 **Wave 2 (dimension audits, parallel — all blocked on Wave 1's 106-02 inventory; each carries a coverage ledger):**
-- [ ] 106-03-PLAN.md — Integrity audit: denorm-drift write-paths, orphan cascades, status-derivation, ID-race → 106-SCRATCH-integrity.md (AUDIT-02)
-- [ ] 106-04-PLAN.md — Correctness audit: listener lifecycle/leaks, error handling, legacy-unsafe reads → 106-SCRATCH-correctness.md (AUDIT-04)
-- [ ] 106-05-PLAN.md — Efficiency audit: N+1, client-side filtering, missing limit(), redundant reads, caching → 106-SCRATCH-efficiency.md (AUDIT-05)
-- [ ] 106-06-PLAN.md — Security-rule reconciliation: rules vs access, over/under-permissioning, dead rules → 106-SCRATCH-security.md (AUDIT-03)
+- [x] 106-03-PLAN.md — Integrity audit: denorm-drift write-paths, orphan cascades, status-derivation, ID-race → 106-SCRATCH-integrity.md (AUDIT-02)
+- [x] 106-04-PLAN.md — Correctness audit: listener lifecycle/leaks, error handling, legacy-unsafe reads → 106-SCRATCH-correctness.md (AUDIT-04)
+- [x] 106-05-PLAN.md — Efficiency audit: N+1, client-side filtering, missing limit(), redundant reads, caching → 106-SCRATCH-efficiency.md (AUDIT-05)
+- [x] 106-06-PLAN.md — Security-rule reconciliation: rules vs access, over/under-permissioning, dead rules → 106-SCRATCH-security.md (AUDIT-03)
 
 **Wave 3 (synthesis, blocked on Waves 1–2):**
 - [ ] 106-07-PLAN.md — Synthesize the single ranked 106-FINDINGS.md (F-00N IDs, summary-table index, no drops) (AUDIT-01)
