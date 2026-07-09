@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Polish, Home Revamp & Mobile
 status: planning
-stopped_at: v4.2 started 2026-07-09 — defining requirements
+stopped_at: v4.2 roadmap approved 2026-07-09 (7 phases, 106-112; 43/43 reqs mapped). Next: /gsd-plan-phase 106
 last_updated: 2026-07-09T00:00:00.000Z
 last_activity: 2026-07-09
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-09 after v4.2 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** v4.2 Polish, Home Revamp & Mobile — defining requirements
+**Current focus:** v4.2 Polish, Home Revamp & Mobile — roadmap approved; next: plan Phase 106 (Data-Layer Audit — Findings Report)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 106 — Data-Layer Audit (Findings Report) — not started
 Plan: —
-Status: Defining requirements
-Last activity: 2026-07-09 — Milestone v4.2 started
+Status: Roadmap approved (7 phases, 106–112; 43/43 requirements mapped) — ready to plan Phase 106
+Last activity: 2026-07-09 — Milestone v4.2 roadmap approved
 
 **Milestone v4.2 "Polish, Home Revamp & Mobile"** — 6 workstreams:
 1. Home — Command Center (role-aware "Needs your attention" landing)

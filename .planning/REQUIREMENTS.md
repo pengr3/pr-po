@@ -108,22 +108,24 @@ Explicitly excluded for v4.2. Documented to prevent scope creep.
 
 ## Traceability
 
-Which phases cover which requirements. Populated during roadmap creation.
+Which phases cover which requirements. Roadmap created 2026-07-09.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HOME-01 … HOME-13 | TBD | Pending |
-| DASH-01 … DASH-07 | TBD | Pending |
-| MODAL-01 … MODAL-07 | TBD | Pending |
-| MOBILE-01 … MOBILE-07 | TBD | Pending |
-| GANTT-01 … GANTT-02 | TBD | Pending |
-| AUDIT-01 … AUDIT-07 | TBD | Pending |
+| AUDIT-01 … AUDIT-05 | Phase 106 — Data-Layer Audit (Findings Report) | Pending |
+| HOME-01 … HOME-08 | Phase 107 — Home Command Center (Shell & Feed Engine) | Pending |
+| HOME-09 … HOME-13 | Phase 108 — Home Per-Role Attention Feeds | Pending |
+| DASH-01 … DASH-07 | Phase 109 — Home Executive Dashboard | Pending |
+| MODAL-01 … MODAL-07 | Phase 110 — Entity Add/Edit Modals | Pending |
+| MOBILE-01 … MOBILE-07 | Phase 111 — Mobile High-Traffic Views & View-Only Gantt | Pending |
+| GANTT-01 … GANTT-02 | Phase 111 — Mobile High-Traffic Views & View-Only Gantt | Pending |
+| AUDIT-06 … AUDIT-07 | Phase 112 — Data-Layer Audit (Remediation & Backfill) | Pending |
 
 **Coverage:**
 - v4.2 requirements: 43 total (HOME×13, DASH×7, MODAL×7, MOBILE×7, GANTT×2, AUDIT×7)
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 43 ⚠️
+- Mapped to phases: 43
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-09*
-*Last updated: 2026-07-09 after v4.2 initial definition*
+*Last updated: 2026-07-09 — roadmap created; all 43 v4.2 requirements mapped to Phases 106–112 (0 unmapped). HOME split across Phases 107 (shell/engine, HOME-01–08) + 108 (per-role feeds, HOME-09–13); AUDIT split across Phase 106 (report, AUDIT-01–05) + 112 (remediation, AUDIT-06–07); GANTT folded into the Phase 111 mobile pass.*
