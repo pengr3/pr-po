@@ -3,15 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Polish, Home Revamp & Mobile
 status: planning
-stopped_at: v4.2 roadmap approved 2026-07-09 (7 phases, 106-112; 43/43 reqs mapped). Next: /gsd-plan-phase 106
-last_updated: 2026-07-09T00:00:00.000Z
-last_activity: 2026-07-09
+stopped_at: Phase 106 context gathered
+last_updated: "2026-07-09T07:36:57.752Z"
+last_activity: 2026-07-09 — Milestone v4.2 roadmap approved
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 0
 ---
 
 # Project State
@@ -31,6 +30,7 @@ Status: Roadmap approved (7 phases, 106–112; 43/43 requirements mapped) — re
 Last activity: 2026-07-09 — Milestone v4.2 roadmap approved
 
 **Milestone v4.2 "Polish, Home Revamp & Mobile"** — 6 workstreams:
+
 1. Home — Command Center (role-aware "Needs your attention" landing)
 2. Home — Executive Dashboard (role-gated Home sub-tab; Super/Ops/Services Admin + Finance)
 3. Entity modals — Client/Project/Service Add + list-Edit → modals
@@ -708,9 +708,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-07-06 - Completed quick task 260706-mco (code): cross-department admin scoping — operations_admin/services_admin now mirror the assigned cross-dept *_user model (home see-all unchanged, cross dept assignment-scoped with full member writes, no cross-dept create/delete). 4 layers (utils.js per-dept split, procurement.js scope-union fix, firestore.rules symmetric member branches, detail/assignments UI). TDD assertion script GREEN; plan-checked + verified 7/7 must-haves. Commits 93734f1/a826cb5/2ea10ed/6ac4509/41c4272 on demo/2026-07-06. PENDING on user: browser UAT + `firebase deploy --only firestore:rules` (dev then prod — MCP deploy no-ops, use CLI). Assign a cross-dept admin via the item's Personnel editor (not the Assignments grid) to bootstrap.
-Last session: 2026-06-15T06:15:45.348Z
-Stopped at: Phase 105 context gathered
-Resume file: None
+Last session: 2026-07-09T07:36:57.742Z
+Stopped at: Phase 106 context gathered
+Resume file: .planning/phases/106-data-layer-audit-findings-report/106-CONTEXT.md
 Next action: Pick next thread. Carry-over loose ends: (1) Phase 86.9 Plan 03 untracked (write SUMMARY-03 + commit/clean DEBUG.md + debug-diag-86.9.js + fix ROADMAP 2/2→3/3); (2) Phase 86.5 (Gantt UI Polish 3) still unplanned; (3) firestore.rules PROD deploy still deferred until v3.3→main merge — NOTE the f785915 project_iterations update rule is now ALSO pending that prod deploy (on top of the Phase 87.4 attachment-gate rule); dev is current, prod is not. Housekeeping: ~17 stale .continue-here files + orphan 83-05 plan + untracked .claude/worktrees/.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
