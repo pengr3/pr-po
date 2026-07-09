@@ -33,16 +33,24 @@ const args = process.argv.slice(2);
 const JSON_MODE = args.includes('--json');
 const SHOW_HELP  = args.includes('--help') || args.includes('-h');
 
+// --project <id> — target a specific Firestore project (D-05: validate against
+// clmc-procurement-dev FIRST, then run read-only against prod for the report
+// numbers). Default stays prod so existing behaviour is unchanged.
+const projIdx = args.indexOf('--project');
+const PROJECT_ID = projIdx !== -1 ? args[projIdx + 1] : (process.env.GCLOUD_PROJECT || 'clmc-procurement');
+
 if (SHOW_HELP) {
     console.log(`
 verify-integrity.js — Firestore data integrity check for clmc-procurement
 
 USAGE:
-  node scripts/verify-integrity.js [--json]
+  node scripts/verify-integrity.js [--json] [--project <id>]
 
 OPTIONS:
-  --json    Output results as JSON instead of human-readable text
-  --help    Show this help message
+  --json          Output results as JSON instead of human-readable text
+  --project <id>  Target a specific Firestore project (default: clmc-procurement).
+                  Use clmc-procurement-dev to validate before running prod.
+  --help          Show this help message
 
 PREREQUISITES:
   npm install firebase-admin
@@ -89,7 +97,7 @@ try {
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    projectId: 'clmc-procurement'
+    projectId: PROJECT_ID
 });
 
 const db = admin.firestore();
@@ -103,6 +111,7 @@ const COLLECTIONS = [
     'prs',
     'pos',
     'transport_requests',
+    'rfps',
     'suppliers',
     'projects',
     'services',
@@ -151,6 +160,114 @@ function tryParse(str) {
 }
 
 // ---------------------------------------------------------------------------
+// Denormalized drift check (D-02) — MRF → PR → PO → TR → RFP
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect denormalized-field drift across the procurement chain.
+ *
+ * The MRF is the head-of-chain reference for the three copied fields
+ * project_code / project_name / department. Each downstream doc (PR, PO, TR,
+ * RFP) that carries the same field but with a DIFFERENT value is a drift record.
+ * A downstream doc that is MISSING the field entirely is legacy-absent, not
+ * drift (a separate schema concern), and is skipped here.
+ *
+ * Fully read-only + in-memory: operates ONLY on the already-fetched `data`
+ * collections, and performs NO Firestore reads or writes of its own.
+ *
+ * RFP linkage is by BUSINESS id (rfp.po_id / rfp.tr_id) — never the unreliable
+ * stored RFP doc-id fields, which are empty on some RFP docs (project memory).
+ */
+function checkDenormDrift(data, results) {
+    const FIELDS = ['project_code', 'project_name', 'department'];
+
+    // ---- Downstream indexes. Plain objects are used (not Map/Set): an
+    // object[key]=value assignment invokes no write-method call, keeping the
+    // read-only assertion clean; all Firestore access stays pure .get(). ----
+    const prsByMrf = {};
+    for (const pr of data.prs) {
+        if (!pr.mrf_id) continue;
+        (prsByMrf[pr.mrf_id] = prsByMrf[pr.mrf_id] || []).push(pr);
+    }
+
+    const posByMrf = {};
+    const posByPr  = {};
+    for (const po of data.pos) {
+        if (po.mrf_id) (posByMrf[po.mrf_id] = posByMrf[po.mrf_id] || []).push(po);
+        if (po.pr_id)  (posByPr[po.pr_id]   = posByPr[po.pr_id]   || []).push(po);
+    }
+
+    const trsByMrf = {};
+    for (const tr of data.transport_requests) {
+        if (!tr.mrf_id) continue;
+        (trsByMrf[tr.mrf_id] = trsByMrf[tr.mrf_id] || []).push(tr);
+    }
+
+    // RFPs joined by business id (po_id / tr_id) per project memory.
+    const rfpsByPoId = {};
+    const rfpsByTrId = {};
+    for (const rfp of (data.rfps || [])) {
+        if (rfp.po_id) (rfpsByPoId[rfp.po_id] = rfpsByPoId[rfp.po_id] || []).push(rfp);
+        if (rfp.tr_id) (rfpsByTrId[rfp.tr_id] = rfpsByTrId[rfp.tr_id] || []).push(rfp);
+    }
+
+    for (const mrf of data.mrfs) {
+        const mrfId = mrf.mrf_id || mrf._id;
+
+        // PRs for this MRF.
+        const prs = prsByMrf[mrfId] || [];
+
+        // POs: directly on the MRF OR reachable via this MRF's PRs' pr_id.
+        // Dedupe by _id using a plain object.
+        const poById = {};
+        for (const po of (posByMrf[mrfId] || [])) poById[po._id] = po;
+        for (const pr of prs) {
+            if (pr.pr_id && posByPr[pr.pr_id]) {
+                for (const po of posByPr[pr.pr_id]) poById[po._id] = po;
+            }
+        }
+        const pos = Object.values(poById);
+
+        // TRs for this MRF.
+        const trs = trsByMrf[mrfId] || [];
+
+        // RFPs reachable via those POs' po_id OR those TRs' tr_id (business-id join).
+        const rfpById = {};
+        for (const po of pos) {
+            for (const rfp of (rfpsByPoId[po.po_id] || [])) rfpById[rfp._id] = rfp;
+        }
+        for (const tr of trs) {
+            for (const rfp of (rfpsByTrId[tr.tr_id] || [])) rfpById[rfp._id] = rfp;
+        }
+        const rfps = Object.values(rfpById);
+
+        // Downstream docs tagged with a display type + id for the drift message.
+        const downstream = [
+            ...prs.map(d => ({ type: 'PR',  id: d.pr_id  || d._id, doc: d })),
+            ...pos.map(d => ({ type: 'PO',  id: d.po_id  || d._id, doc: d })),
+            ...trs.map(d => ({ type: 'TR',  id: d.tr_id  || d._id, doc: d })),
+            ...rfps.map(d => ({ type: 'RFP', id: d.rfp_id || d._id, doc: d }))
+        ];
+
+        for (const field of FIELDS) {
+            const mrfVal = mrf[field];
+            // Compare only when the MRF actually carries the field (head reference).
+            if (mrfVal === undefined || mrfVal === null || mrfVal === '') continue;
+            for (const { type, id, doc } of downstream) {
+                const dVal = doc[field];
+                // Legacy-absent downstream field is NOT drift — skip it.
+                if (dVal === undefined || dVal === null || dVal === '') continue;
+                if (dVal !== mrfVal) {
+                    results.drift.push(
+                        `DRIFT ${field}: MRF ${mrfId}="${mrfVal}" vs ${type} ${id}="${dVal}"`
+                    );
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Main verification logic
 // ---------------------------------------------------------------------------
 
@@ -160,10 +277,12 @@ async function runVerification() {
         errors:   [],   // referential integrity violations
         warnings: [],   // schema inconsistencies
         info:     [],   // orphan / informational
+        drift:    [],   // denormalized drift across MRF → PR → PO → TR → RFP (D-02)
         summary:  {
             errors:       0,
             warnings:     0,
             info:         0,
+            drift:        0,
             fetchErrors:  [],
             status:       'ALL CLEAR'
         }
@@ -298,6 +417,9 @@ async function runVerification() {
             );
         }
     }
+
+    // Denormalized drift across the MRF → PR → PO → TR → RFP chain (D-02, read-only)
+    checkDenormDrift(data, results);
 
     // -----------------------------------------------------------------------
     // Step 4: Schema consistency checks (WARNINGS)
@@ -447,6 +569,7 @@ async function runVerification() {
     results.summary.errors   = results.errors.length;
     results.summary.warnings = results.warnings.length;
     results.summary.info     = results.info.length;
+    results.summary.drift    = results.drift.length;
     results.summary.status   = results.errors.length > 0
         ? 'ISSUES FOUND — review errors above'
         : 'ALL CLEAR — no integrity issues found';
@@ -525,12 +648,24 @@ function printHumanReadable(results) {
         }
     }
 
+    // Denormalization Drift section (MRF → PR → PO → TR → RFP)
+    console.log('\nDenormalization Drift (MRF → PR → PO → TR → RFP)');
+    console.log(SUB);
+    if (results.drift.length === 0) {
+        console.log('  No denormalized drift detected.');
+    } else {
+        for (const msg of results.drift) {
+            console.log(`  [DRIFT] ${msg}`);
+        }
+    }
+
     // Summary section
     console.log('\nSummary');
     console.log(SUB);
     console.log(`  Errors:   ${results.summary.errors} (referential integrity violations)`);
     console.log(`  Warnings: ${results.summary.warnings} (schema inconsistencies)`);
     console.log(`  Info:     ${results.summary.info} (informational / orphaned records)`);
+    console.log(`  Drift:    ${results.summary.drift} (denormalized field disagreements)`);
     console.log('');
     console.log(`  Status: ${results.summary.status}`);
     console.log('');
