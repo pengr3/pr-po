@@ -5343,3 +5343,71 @@ tr.dlp-green, .portfolio-row.dlp-green {
     }
 }
 /* ===== End Phase 103 — Portfolio Table Redesign ===== */
+
+/* ===== Command Center — Feed Hero (Phase 107) ===== */
+
+.cc-feed-section { margin: 0; }
+.cc-feed-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cc-section-label { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--cc-faint); line-height: 1.2; }
+.cc-refresh-btn { font-size: 13px; padding: 4px 10px; color: var(--cc-muted); background: transparent; border: 1px solid var(--cc-line); border-radius: 8px; cursor: pointer; }
+.cc-refresh-btn:hover { color: var(--primary); border-color: #93c5fd; }
+.cc-updated { font-size: 12px; color: var(--cc-faint); margin-right: 8px; }
+.cc-feed-card { background: #fff; border: 1px solid var(--cc-line); border-radius: 12px; overflow: hidden; }
+.cc-feed-list { display: flex; flex-direction: column; }
+
+/* Feed row — severity rail is the primary signal */
+.cc-feed-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; min-height: 44px; border-bottom: 1px solid #f1f5f9; border-left: 4px solid transparent; cursor: pointer; background: #fff; }
+.cc-feed-row:last-child { border-bottom: none; }
+.cc-feed-row:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* Severity tiers: rail + row tint + icon/age emphasis */
+.cc-feed-row--critical { border-left-color: var(--cc-critical); background: var(--cc-critical-tint); }
+.cc-feed-row--critical .cc-feed-icon, .cc-feed-row--critical .cc-feed-age { color: var(--danger-dark); }
+.cc-feed-row--high { border-left-color: var(--cc-high); background: var(--cc-high-tint); }
+.cc-feed-row--high .cc-feed-icon, .cc-feed-row--high .cc-feed-age { color: var(--warning-dark); }
+.cc-feed-row--medium { border-left-color: var(--cc-medium); background: #fff; }
+.cc-feed-row--medium:hover { background: var(--cc-hover); }
+.cc-feed-row--medium .cc-feed-icon { color: var(--primary); }
+.cc-feed-row--medium .cc-feed-age { color: var(--cc-faint); }
+
+/* Row parts */
+.cc-feed-icon { width: 20px; height: 20px; flex: 0 0 20px; margin-top: 1px; }
+.cc-feed-main { flex: 1 1 auto; min-width: 0; }
+.cc-feed-title { font-size: 15px; font-weight: 600; line-height: 1.35; color: var(--cc-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc-feed-subtitle { font-size: 13px; font-weight: 400; line-height: 1.4; color: var(--cc-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
+.cc-feed-age { font-size: 12px; font-weight: 400; line-height: 1.2; color: var(--cc-faint); white-space: nowrap; flex: 0 0 auto; }
+
+/* Category chip — tonal domain pill, distinct from severity */
+.cc-cat-chip { display: inline-flex; padding: .2rem .5rem; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.cc-cat-chip--proposal { background: #e8f0fe; color: #1a73e8; }
+.cc-cat-chip--mrf { background: #e5e7eb; color: #374151; }
+.cc-cat-chip--pr { background: #eef2ff; color: #4338ca; }
+.cc-cat-chip--po { background: #e0f2fe; color: #0369a1; }
+.cc-cat-chip--finance { background: #ecfdf5; color: #047857; }
+.cc-cat-chip--rfp { background: #fffbeb; color: #b45309; }
+.cc-cat-chip--project { background: #e8f0fe; color: #1a73e8; }
+.cc-cat-chip--service { background: #f0fdfa; color: #0f766e; }
+.cc-cat-chip--issue { background: #fef2f2; color: #b91c1c; }
+.cc-cat-chip--dlp { background: #fffbeb; color: #b45309; }
+
+/* Expander / roll-up / overflow */
+.cc-feed-expander { display: block; padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--primary); cursor: pointer; background: #fff; border: none; text-align: left; }
+.cc-feed-rollup { display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 44px; border-bottom: 1px solid #f1f5f9; border-left: 4px solid var(--cc-medium); cursor: pointer; background: #fff; font-style: italic; color: var(--cc-muted); }
+.cc-feed-rollup:hover { background: var(--cc-hover); }
+.cc-feed-overflow { padding: 10px 14px; font-size: 12px; color: var(--cc-faint); }
+
+/* Empty state — calm green gradient card, not a void */
+.cc-empty { background: linear-gradient(135deg, #ecfdf5, #fff); border: 1px solid #bbf7d0; border-radius: 12px; padding: 32px; text-align: center; }
+.cc-empty-icon { width: 40px; height: 40px; border-radius: 999px; background: #ecfdf5; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+.cc-empty-heading { font-size: 18px; font-weight: 700; color: #047857; margin: 0 0 4px; }
+.cc-empty-body { font-size: 15px; font-weight: 400; color: var(--cc-muted); margin: 0 0 4px; }
+.cc-empty-hint { font-size: 13px; color: var(--cc-faint); margin: 0; }
+
+/* Error state — neutral, NOT green */
+.cc-feed-error { background: #fff; border: 1px solid var(--cc-line); border-radius: 12px; padding: 32px; text-align: center; }
+.cc-feed-error-heading { font-size: 18px; font-weight: 700; color: var(--cc-ink); margin: 0 0 4px; }
+.cc-feed-error-body { font-size: 15px; color: var(--cc-muted); margin: 0 0 12px; }
+.cc-feed-retry { font-size: 13px; padding: 6px 14px; border: 1px solid var(--cc-line); border-radius: 8px; background: transparent; color: var(--cc-muted); cursor: pointer; }
+.cc-feed-retry:hover { color: var(--primary); border-color: #93c5fd; }
+
+/* ===== End Command Center — Feed Hero (Phase 107) ===== */
