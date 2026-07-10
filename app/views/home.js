@@ -4,7 +4,7 @@
    Phase 87.1 D-01/D-07/D-08: gains Overview | Engagements | Proposals sub-tabs.
    ======================================== */
 
-import { db, collection, doc, query, where, onSnapshot, getDocs, getDoc } from '../firebase.js';
+import { db, collection, doc, query, where, onSnapshot, getDocs, getDoc, orderBy, limit } from '../firebase.js';
 import { renderEngagementForm, initEngagementForm, destroyEngagementForm } from '../engagement-create.js';
 import {
     STAGE_ORDER,
@@ -17,7 +17,7 @@ import {
 } from './proposals.js';
 import { openProposalModal } from '../proposal-modal.js';
 import { showLoading, showToast, formatCurrency, escapeHTML, getAssignedProjectCodes, getAssignedServiceCodes } from '../utils.js';
-import { createNotification, NOTIFICATION_TYPES } from '../notifications.js';
+import { createNotification, NOTIFICATION_TYPES, TYPE_META } from '../notifications.js';
 // Phase 107 — Command Center feed engine (compute-on-load, D-08). getSourcesForUser is the
 // default source registry consumed by assembleFeed(); imported explicitly per the 107.3 contract.
 import { assembleFeed, getSourcesForUser } from '../home-feed.js';
@@ -32,6 +32,10 @@ let _ccFeed = null;
 // renderKpiChips (owned-item counts: My Open Items / For-Revision / Rejected MRFs) and renderYourWork
 // (the panel rows). Populated by loadYourWorkData(); reset to null at each init/Refresh and in destroy().
 let _ccYourWork = null;
+
+// Phase 107.4 HOME-07 — last-fetched Recent Activity notification slice (read-only; NO mark-as-read).
+// window.ccOpenActivity(idx) reads this to navigate on row click. Reset to [] in destroy().
+let _ccActivityDocs = [];
 
 // Phase 87.1 — last fetched proposals for the home Proposals sub-tab (one-time getDocs cache,
 // scoped to the current session/view). Used by the local approval queue to look up
@@ -569,6 +573,93 @@ async function renderYourWork(user) {
 
     panel.innerHTML = `<div class="cc-section-label" style="margin-bottom:12px;">Your work</div>` + buckets.join('');
     document.getElementById('ccYourWork').style.display = '';
+}
+
+/** Relative age for a Recent Activity row: just now / {m}m ago / {h}h ago / {d}d ago. */
+function ccActivityAge(ts) {
+    const ms = ccToMillis(ts);
+    if (ms == null) return '';
+    const mins = Math.floor(Math.max(0, Date.now() - ms) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+}
+
+/**
+ * Phase 107.4 HOME-07 — render the read-only "Recent activity" panel into #ccActivity.
+ * A per-user notifications slice (latest 8, any read state) — DISTINCT from the bell's unread
+ * semantics: NO mark-as-read here. Clicking a row only navigates (window.ccOpenActivity → location.hash).
+ */
+async function renderRecentActivity(user) {
+    const panel = document.getElementById('ccActivity');
+    if (!panel) return;
+    const heading = `<div class="cc-section-label" style="margin-bottom:12px;">Recent activity</div>`;
+
+    _ccActivityDocs = [];
+    if (user?.uid) {
+        try {
+            const snap = await getDocs(query(
+                collection(db, 'notifications'),
+                where('user_id', '==', user.uid),
+                orderBy('created_at', 'desc'),
+                limit(8)
+            ));
+            snap.forEach(d => _ccActivityDocs.push({ id: d.id, ...d.data() }));
+        } catch (e) {
+            console.error('[Home] Recent Activity fetch failed:', e);
+        }
+    }
+
+    let body;
+    if (_ccActivityDocs.length === 0) {
+        body = `<div class="cc-activity-empty">No recent activity.</div>`;
+    } else {
+        body = _ccActivityDocs.map((n, i) => {
+            const meta = TYPE_META[n.type] || { label: n.type || 'Activity', icon: '•', color: '#64748b', target_route: '#/' };
+            const title = escapeHTML(meta.label || n.message || 'Activity');
+            const obj = n.object_name ? ` · ${escapeHTML(n.object_name)}` : '';
+            const time = escapeHTML(ccActivityAge(n.created_at));
+            const onkey = `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.ccOpenActivity(${i});}"`;
+            return `<div class="cc-activity-row" role="button" tabindex="0" onclick="window.ccOpenActivity(${i})" ${onkey}>
+                <span class="cc-activity-icon" style="background:${meta.color}22;color:${meta.color};">${meta.icon}</span>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${title}${obj}</div>
+                </div>
+                <span style="font-size:12px;color:#94a3b8;white-space:nowrap;flex:0 0 auto;">${time}</span>
+            </div>`;
+        }).join('');
+    }
+    panel.innerHTML = heading + body;
+}
+
+/**
+ * Phase 107.4 HOME-08 — render the condensed nav door rail into #ccDoorRail.
+ * Five compact tiles; each is shown ONLY if the role can reach that area — mirrors the top-nav
+ * gate in app/auth.js updateNavForAuth: window.getCurrentPermissions().tabs[route].access ?? true.
+ */
+function renderDoorRail(user) {
+    const rail = document.getElementById('ccDoorRail');
+    if (!rail) return;
+    const perms = window.getCurrentPermissions?.();
+    const doors = [
+        { emoji: '📋', label: 'Clients',     route: '#/clients',     key: 'clients' },
+        { emoji: '🏗️', label: 'Projects',    route: '#/projects',    key: 'projects' },
+        { emoji: '🔧', label: 'Services',     route: '#/services',    key: 'services' },
+        { emoji: '🛒', label: 'Procurement',  route: '#/procurement', key: 'procurement' },
+        { emoji: '💰', label: 'Finance',      route: '#/finance',     key: 'finance' }
+    ];
+    rail.innerHTML = doors.map(d => {
+        const canReach = perms?.tabs?.[d.key]?.access ?? true;   // same predicate as auth.js updateNavForAuth
+        if (!canReach) return '';
+        const onclick = `location.hash='${d.route}'`;
+        const onkey = `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${onclick}}"`;
+        return `<div class="cc-door" role="button" tabindex="0" onclick="${onclick}" ${onkey}>
+            <span class="cc-door-icon">${d.emoji}</span>
+            <span class="cc-door-label">${d.label}</span>
+        </div>`;
+    }).join('');
 }
 
 /**
@@ -1127,10 +1218,13 @@ export async function init() {
         if (briefingEl) briefingEl.innerHTML = renderBriefing(user, _ccFeed);
         renderFeed(_ccFeed);
 
-        // Phase 107.4 HOME-05/06 — KPI chips + Your Work panel (compute-on-load; getDocs, no listeners).
+        // Phase 107.4 HOME-05..08 — KPI chips + Your Work + Recent Activity + door rail. All four are
+        // compute-on-load (getDocs, NO listeners); the door rail is a synchronous permission-gated render.
         _ccYourWork = null;               // fresh Your-Work compute for this view-load
         await renderYourWork(user);
         await renderKpiChips(user, _ccFeed);
+        await renderRecentActivity(user);
+        renderDoorRail(user);
 
         // Register window functions for sub-nav + proposal modal + home-local queue handlers.
         // Counterpart deletions live in destroy() below.
@@ -1211,6 +1305,13 @@ export async function init() {
         // Phase 107.4 — smooth-scroll a KPI chip to its target section (feed hero / Your Work panel).
         window.ccScrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
+        // Phase 107.4 HOME-07 — Recent Activity row click: navigate ONLY (read-only, NO mark-as-read).
+        window.ccOpenActivity = (idx) => {
+            const n = _ccActivityDocs[idx];
+            if (!n) return;
+            location.hash = n.link || TYPE_META[n.type]?.target_route || '#/';
+        };
+
         // Refresh re-runs the compute-on-load fetch (NO onSnapshot) and re-renders the feed, the briefing
         // count, and the KPI chips so the attention one-liner + chip counts stay in sync.
         window.ccRefreshFeed = async () => {
@@ -1256,9 +1357,11 @@ export async function destroy() {
     delete window.ccOpenFeedItem;
     delete window.ccToggleFeedExpand;
     delete window.ccRefreshFeed;
-    // Phase 107.4 — KPI chip scroll handler + Your-Work cache.
+    // Phase 107.4 — KPI chip scroll handler + Recent Activity nav handler + panel caches.
     delete window.ccScrollTo;
+    delete window.ccOpenActivity;
     _ccYourWork = null;
+    _ccActivityDocs = [];
     document.getElementById('cc-new-proposal-modal')?.remove();
 
     try {
