@@ -63,11 +63,21 @@ Started 2026-07-09. Numbering continues from v4.0 (last phase 105 — v4.1 shipp
 **Requirements**: HOME-01, HOME-02, HOME-03, HOME-04, HOME-05, HOME-06, HOME-07, HOME-08
 **Success Criteria** (what must be TRUE):
   1. On landing, a signed-in user sees a personalized greeting (name + date) and a one-line count of how many items need their attention.
-  2. The "Needs your attention" feed shows only items the user is permitted and assigned to act on, each severity-ranked (high / medium) and clickable straight through to the relevant record or action.
+  2. The "Needs your attention" feed shows only items the user is permitted and assigned to act on, each severity-ranked (critical / high / medium) and clickable straight through to the relevant record or action.
   3. When nothing is pending, the feed shows a calm "You're all caught up" state with no filler rows.
   4. Quick-KPI chips, a "Your work" panel, and a "Recent activity" panel summarize the user's scope, and the five area nav cards remain reachable from the landing.
-**Plans**: TBD
+**Plans**: 4 plans in 3 waves
 **UI hint**: yes
+
+**Wave 1 (foundation, parallel):**
+- [x] 107.1-PLAN.md — Command Center design tokens (--cc-*) + all CSS (feed rows/severity tiers, KPI chips, panels, door rail, empty/error states) (HOME-01,03,04,05,06,07,08)
+- [x] 107.2-PLAN.md — app/home-feed.js feed engine (item model, scoping, rank/dedupe/cap/roll-up, assembleFeed) + 3 seed sources + registry; amends REQUIREMENTS.md HOME-03 to three-tier (HOME-02,03,04)
+
+**Wave 2 (composition, depends on Wave 1):**
+- [x] 107.3-PLAN.md — home.js rewire: sub-nav collapse (Command Center default), briefing header + attention count, attention-feed hero (engine consume + Refresh + empty/error), destroy() (HOME-01,02,03,04)
+
+**Wave 3 (panels, depends on 107.3 — same file):**
+- [x] 107.4-PLAN.md — home.js panels: role-tailored KPI chips, Your Work (3 buckets), Recent Activity (notifications read-only), condensed permission-scoped door rail (HOME-05,06,07,08)
 
 ### Phase 108: Home — Per-Role Attention Feeds
 **Goal**: Populate the Command Center feed with the five role-specific feed definitions so each role sees exactly the actionable items relevant to them, drawing on existing proposals, journal (issues / progress), DLP/retention, RFP, collectibles, billing-request, MRF, PR/TR, and PO data (no new collections).
@@ -145,4 +155,4 @@ Earlier milestones (v1.0–v3.2) are archived under `.planning/milestones/`.
 
 ## Next
 
-🚧 **v4.2 in progress** — Phases 106–112 are defined and 43/43 requirements are mapped. ✅ **Phase 106 (Data-Layer Audit — Findings Report) complete** — `106-FINDINGS.md` holds 25 severity-ranked findings (5 High · 14 Medium · 6 Low); one human-action follow-up (read-only prod data-pass) tracked to Phase 112. Next: **Phase 107: Home Command Center (Shell & Feed Engine)** via `/gsd-plan-phase 107`. Phase numbering continues from 105 (never reset).
+🚧 **v4.2 in progress** — Phases 106–112 are defined and 43/43 requirements are mapped. ✅ **Phase 106 (Data-Layer Audit — Findings Report) complete** — `106-FINDINGS.md` holds 25 severity-ranked findings (5 High · 14 Medium · 6 Low); read-only prod data-pass tracked to Phase 112. ✅ **Phase 107 (Home Command Center — Shell & Feed Engine) complete 2026-07-10** — 4/4 plans across 3 waves; verifier PASSED (21/21 static must-haves, 0 gaps). Command Center replaces the thin landing: `--cc-*` token/class contract (`main.css`+`views.css`), reusable `app/home-feed.js` engine (rank/dedupe/cap/roll-up + 3 seed sources), rewritten `home.js` (briefing + severity-ranked feed hero + KPI/Your-Work/Recent-Activity/door-rail). Phase-106 listener leak closed (`onSnapshot(` in home.js 4→1). 8 browser-UAT items pending → `107-HUMAN-UAT.md`. Next: **Phase 108: Home — Per-Role Attention Feeds** via `/gsd-discuss-phase 108` (feed engine + scoping seam ready). Phase numbering continues from 105 (never reset).

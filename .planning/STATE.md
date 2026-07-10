@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Polish, Home Revamp & Mobile
 status: in-progress
-stopped_at: Phase 106 COMPLETE (report verified 4/4); next Phase 107 — Home Command Center (Shell & Feed Engine)
-last_updated: "2026-07-09T10:00:00.000Z"
-last_activity: 2026-07-09 — Phase 106 complete — 106-FINDINGS.md (25 findings: 5 High · 14 Med · 6 Low); AUDIT-02 live data-pass pending creds → Phase 112
+stopped_at: Phase 107 COMPLETE (4/4 plans, verifier PASSED 21/21 static must-haves, 0 gaps) — 8 browser-UAT items pending (107-HUMAN-UAT.md); next: /gsd-discuss-phase 108
+last_updated: "2026-07-10T04:00:48.000Z"
+last_activity: 2026-07-10 — Phase 107 EXECUTED + VERIFIED: Home Command Center shell + feed engine on v4.2 branch (4/4 plans, 3 waves; verifier PASSED; onSnapshot( in home.js 4→1 leak closed). 8 browser-UAT items carried as human_verification.
 progress:
   total_phases: 7
-  completed_phases: 1
-  total_plans: 7
-  completed_plans: 7
+  completed_phases: 2
+  total_plans: 11
+  completed_plans: 11
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-09 after v4.2 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** v4.2 Polish, Home Revamp & Mobile — Phase 106 COMPLETE (Data-Layer Audit report: 25 findings F-001–F-025); next: Phase 107 (Home Command Center — Shell & Feed Engine)
+**Current focus:** v4.2 Polish, Home Revamp & Mobile — Phase 107 COMPLETE (Home Command Center shell + feed engine); next: Phase 108 (Home — Per-Role Attention Feeds)
 
 ## Current Position
 
-Phase: 106 — Data-Layer Audit (Findings Report) — ✅ COMPLETE (verified 4/4 success criteria)
-Plan: 7/7 plans complete across 3 waves (W1: 01 data-pass + 02 inventory · W2: 03 integrity, 04 correctness, 05 efficiency, 06 security-rules · W3: 07 synthesis → 106-FINDINGS.md)
-Status: Phase 106 COMPLETE — 106-FINDINGS.md holds 25 ranked findings (5 High · 14 Medium · 6 Low), verifier 4/4 + 6/6 spot-checked anchors real. Next: Phase 107.
-Last activity: 2026-07-09 — Phase 106 complete; 1 human-action follow-up tracked in 106-HUMAN-UAT.md (prod data-pass pending serviceAccountKey.json → Phase 112)
+Phase: 107 — Home Command Center (Shell & Feed Engine) — ✅ COMPLETE + VERIFIED (2026-07-10)
+Plan: 4/4 plans complete across 3 waves (W1: 107.1 CSS token/class contract ∥ 107.2 home-feed.js engine+3 seed sources · W2: 107.3 home.js shell/sub-nav/feed-hero · W3: 107.4 home.js KPI+Your Work+Recent Activity+door rail). Covers HOME-01…08.
+Status: Phase 107 EXECUTED + VERIFIED PASSED — 4/4 plans; verifier 21/21 static must-haves, 0 gaps. Delivered on v4.2 branch: `--cc-*` tokens (main.css) + 50 `.cc-*` classes (views.css); new `app/home-feed.js` (rank/dedupe/cap/roll-up + assembleFeed + 3 seed sources + getSourcesForUser registry seam for Phase 108); rewritten `app/views/home.js` (briefing + severity-ranked feed hero + refresh + empty/error, KPI chips, Your Work 3 buckets, read-only Recent Activity, permission-gated door rail). Phase-106 listener leak closed (onSnapshot( 4→1). Finance Collectibles/Payables KPI chips intentionally omitted (derived arithmetic, not queryable — plan omit-rule). 8 browser-UAT items pending in 107-HUMAN-UAT.md. commit_docs behavior: SUMMARY/VERIFICATION/tracking committed on v4.2. Next: /gsd-discuss-phase 108.
+Last activity: 2026-07-10 — Phase 107 executed + verified (Home Command Center). Prior: Phase 106 COMPLETE — 106-FINDINGS.md (25 findings; AUDIT-02 live data-pass → Phase 112).
 
 **Milestone v4.2 "Polish, Home Revamp & Mobile"** — 6 workstreams:
 

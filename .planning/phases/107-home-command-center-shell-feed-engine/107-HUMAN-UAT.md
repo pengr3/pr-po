@@ -1,0 +1,58 @@
+---
+status: partial
+phase: 107-home-command-center-shell-feed-engine
+source: [107-VERIFICATION.md]
+started: "2026-07-10T04:00:48.000Z"
+updated: "2026-07-10T04:00:48.000Z"
+---
+
+## Current Test
+
+[awaiting human testing — run `python -m http.server 8000`, sign in, open `#/`]
+
+## Tests
+
+Phase 107 is a browser-only SPA surface with no headless harness. The static substrate for every item below is verified in code (`107-VERIFICATION.md`, status `passed`); these are the runtime/visual confirmations a human must click through.
+
+### 1. Command Center shell + sub-nav
+expected: On landing, `#/` shows a single ~1080px Command Center column; the sub-nav shows **Command Center** (active) + **Proposals**; the Dashboard tab is hidden. Clicking Proposals still loads the existing scorecards + table unchanged.
+result: [pending]
+
+### 2. Severity tiers + calm empty state
+expected: A busy feed shows visually distinct **critical (red)** / **high (amber)** / **medium (blue)** left rails + row tints. An empty scope shows the calm green "You're all caught up" card (not a void).
+result: [pending]
+
+### 3. Briefing header + role-gated + New Proposal
+expected: Greeting reads `Good {morning/afternoon/evening}, {FirstName}.` with a dated one-liner counting items needing attention (count tone: red if a critical item exists, amber if a high item, neutral otherwise). `+ New Proposal` appears ONLY for super_admin / operations_admin / services_admin and opens the engagement modal — rendered once, no form-id collision.
+result: [pending]
+
+### 4. Feed rank order + deep-link dispatch + Refresh
+expected: Rows are ordered critical → high → medium. Clicking a proposal-approval row opens the EXISTING approve modal; clicking a rejected-MRF row navigates to `#/procurement/records`. `↻ Refresh` re-runs compute-on-load and updates the "Updated …" caption. (No mark-as-read side effects.)
+result: [pending]
+
+### 5. Scoped feed assembly (data)
+expected: Signed in as a super_admin approver with a pending proposal, the feed shows ≥1 item including a proposal-approval row; a user with no scoped items sees the calm empty card; a total fetch failure shows the neutral error card with Retry.
+result: [pending]
+
+### 6. Role-tailored KPI chips
+expected: super_admin sees ~4 chips incl. **Needs Attention** (danger-tinted if a critical item exists); finance sees only **PRs/TRs to Approve** (Collectibles/Payables intentionally omitted — derived arithmetic, not queryable); procurement_staff sees MRFs Pending + Active POs + Needs Attention; a *_user sees My Open Items / For-Revision. No chip renders as `0` or `—`.
+result: [pending]
+
+### 7. Your Work panel — buckets + hide-when-empty
+expected: An operations_user with a for-revision proposal + assigned codes + a submitted MRF sees all three buckets (Proposals for revision / Assigned projects & services / Submitted MRFs), each ≤5 rows with `+N more`. A user with no owned items sees the whole Your Work panel hidden. SEE_ALL roles omit the assigned-codes bucket.
+result: [pending]
+
+### 8. Recent Activity (read-only) + permission-gated door rail
+expected: Recent Activity lists the user's latest notifications; clicking a row navigates WITHOUT marking it read. The door rail shows only the areas the role can reach (mirrors `getCurrentPermissions().tabs[route].access`) and each of the 5 tiles (📋 Clients · 🏗️ Projects · 🔧 Services · 🛒 Procurement · 💰 Finance) navigates.
+result: [pending]
+
+## Summary
+
+total: 8
+passed: 0
+issues: 0
+pending: 8
+skipped: 0
+blocked: 0
+
+## Gaps
