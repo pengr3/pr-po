@@ -122,75 +122,42 @@ function procurementCardHtml() {
  * @returns {string} HTML string for home page
  */
 export function render() {
-    const mode = getDashboardMode();
-
-    // D-05 Role visibility:
-    // - 'projects' (operations_admin/user) → Procurement + Projects (no Services)
-    // - 'services' (services_admin/user) → Procurement + Services (no Projects)
-    // - 'both' (super_admin/finance/procurement_staff/unknown) → all 3 cards
-    // Procurement card always shown regardless of mode.
-    let statsContent = procurementCardHtml();
-
+    // Phase 107 D-02/D-03 — Home is now the Command Center. The old nav-card grid and
+    // procurement quick-stats are retired (the door rail + KPI chips replace them in 107.4).
+    // A minimal brand line sits above the sub-nav; the Command Center owns the greeting h1.
     return `
         <div class="hero-section">
             <h1 class="hero-title">🏗️ CLMC</h1>
             <p class="hero-subtitle">Management System Portal</p>
 
-            <div class="dept-cards">
-                <div class="dept-cards-row dept-cards-row--top">
-                    <div class="nav-card" onclick="location.hash='#/clients'">
-                        <div class="nav-card-icon">📋</div>
-                        <h3>Clients</h3>
-                        <p>Manage client records, contacts, and engagement history</p>
-                        <button class="btn btn-primary">Enter →</button>
-                    </div>
-                    <div class="nav-card" onclick="location.hash='#/projects'">
-                        <div class="nav-card-icon">🏗️</div>
-                        <h3>Projects</h3>
-                        <p>Track projects, budgets, Gantt schedules, and financials</p>
-                        <button class="btn btn-primary">Enter →</button>
-                    </div>
-                    <div class="nav-card" onclick="location.hash='#/services'">
-                        <div class="nav-card-icon">🔧</div>
-                        <h3>Services</h3>
-                        <p>Manage recurring service contracts and work tracking</p>
-                        <button class="btn btn-primary">Enter →</button>
-                    </div>
-                </div>
-                <div class="dept-cards-row dept-cards-row--bottom">
-                    <div class="nav-card" onclick="location.hash='#/procurement'">
-                        <div class="nav-card-icon">🛒</div>
-                        <h3>Procurement</h3>
-                        <p>Submit MRFs, manage suppliers, track orders and RFPs</p>
-                        <button class="btn btn-primary">Enter →</button>
-                    </div>
-                    <div class="nav-card" onclick="location.hash='#/finance'">
-                        <div class="nav-card-icon">💰</div>
-                        <h3>Finance</h3>
-                        <p>Approve PRs, manage payables, collectibles, and RFPs</p>
-                        <button class="btn btn-primary">Enter →</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Phase 87.1 D-01 — Home sub-nav; init() reveals it for eligible roles -->
+            <!-- Phase 107 D-02 — Home sub-nav; init() reveals it for eligible roles.
+                 Command Center (default) | Proposals (non-default) | Dashboard (Phase 109, hidden). -->
             <div class="home-sub-nav" id="homeSubNav" style="display:none;">
                 <div class="home-sub-nav-tabs">
-                    <button class="home-sub-nav-tab home-sub-nav-tab--active" id="homeTabOverview"
-                            onclick="window.switchHomeTab('overview')">Overview</button>
-                    <button class="home-sub-nav-tab" id="homeTabEngagements" style="display:none;"
-                            onclick="window.switchHomeTab('engagements')">Engagements</button>
+                    <button class="home-sub-nav-tab home-sub-nav-tab--active" id="homeTabCommand"
+                            onclick="window.switchHomeTab('command')">Command Center</button>
                     <button class="home-sub-nav-tab" id="homeTabProposals" style="display:none;"
                             onclick="window.switchHomeTab('proposals')">Proposals</button>
+                    <button class="home-sub-nav-tab" id="homeTabDashboard" style="display:none;"
+                            onclick="window.switchHomeTab('dashboard')">Dashboard</button>
                 </div>
             </div>
-            <div id="homeEngagementsContent" style="display:none;"></div>
+
+            <!-- Proposals sub-tab body (unchanged; filled on-demand by _loadHomeProposalsTab) -->
             <div id="homeProposalsContent" style="display:none;"></div>
 
-            <!-- Phase 93: Overview wrapper — tiles shown above (always visible); stats card shown/hidden by switchHomeTab -->
-            <div id="homeOverviewContent">
-                <div class="quick-stats">
-                    ${statsContent}
+            <!-- Phase 107 — Command Center default surface. Briefing + feed hero are wired here (107.3);
+                 the KPI row, Your Work / Recent Activity panels, and door rail are filled by 107.4. -->
+            <div id="homeCommandContent">
+                <div class="cc-container">
+                    <section class="cc-briefing" id="ccBriefing"></section>
+                    <div class="cc-kpi-row" id="ccKpiRow"></div>                     <!-- filled by 107.4 -->
+                    <section class="cc-feed-section" id="ccFeedSection"></section>
+                    <div class="cc-panels" id="ccPanels">
+                        <section class="cc-yourwork" id="ccYourWork" style="display:none;"></section>   <!-- 107.4 -->
+                        <section class="cc-activity" id="ccActivity"></section>                          <!-- 107.4 -->
+                    </div>
+                    <nav class="cc-door-rail" id="ccDoorRail"></nav>                 <!-- 107.4 -->
                 </div>
             </div>
         </div>
@@ -198,29 +165,28 @@ export function render() {
 }
 
 /**
- * Phase 87.1 D-01/D-07/D-08 — Switch the active home sub-tab (overview | engagements | proposals).
+ * Phase 107 D-02 — Switch the active home sub-tab (command | proposals).
+ * Command Center is the default surface; Proposals reuses the existing browse table.
+ * The Dashboard tab button is hidden (Phase 109) and has no body, so it falls through to command.
  * Guards each show/hide against null because finance/procurement_staff render with no sub-nav,
- * so calling this with a missing tab id should be a no-op rather than throwing.
+ * so calling this with a missing tab id is a no-op rather than throwing. Default/unknown → command.
  */
 function switchHomeTab(tab) {
-    const overviewEl = document.getElementById('homeOverviewContent');
-    const engEl = document.getElementById('homeEngagementsContent');
+    const commandEl = document.getElementById('homeCommandContent');
     const propEl = document.getElementById('homeProposalsContent');
 
-    [overviewEl, engEl, propEl].forEach(el => { if (el) el.style.display = 'none'; });
-    ['homeTabOverview', 'homeTabEngagements', 'homeTabProposals'].forEach(id => {
+    [commandEl, propEl].forEach(el => { if (el) el.style.display = 'none'; });
+    ['homeTabCommand', 'homeTabProposals', 'homeTabDashboard'].forEach(id => {
         document.getElementById(id)?.classList.remove('home-sub-nav-tab--active');
     });
 
-    if (tab === 'engagements') {
-        if (engEl) engEl.style.display = '';
-        document.getElementById('homeTabEngagements')?.classList.add('home-sub-nav-tab--active');
-    } else if (tab === 'proposals') {
+    if (tab === 'proposals') {
         if (propEl) propEl.style.display = '';
         document.getElementById('homeTabProposals')?.classList.add('home-sub-nav-tab--active');
     } else {
-        if (overviewEl) overviewEl.style.display = '';
-        document.getElementById('homeTabOverview')?.classList.add('home-sub-nav-tab--active');
+        // 'command' + default/unknown (incl. the hidden 'dashboard' button) → Command Center
+        if (commandEl) commandEl.style.display = '';
+        document.getElementById('homeTabCommand')?.classList.add('home-sub-nav-tab--active');
     }
 }
 
@@ -684,21 +650,13 @@ export async function init() {
             document.querySelectorAll('.stat-value').forEach(el => el.classList.add('stat-refreshing'));
         }
 
-        // Phase 87.1 D-01/D-07/D-08 — home sub-tabs
-        const { showSubNav, canEngagements, canProposals, canApproveQueue } = getHomeSubTabConfig();
+        // Phase 107 D-02 — home sub-tabs (Command Center default + Proposals). The Engagements tab
+        // retires: its form now mounts on-demand inside the '+ New Proposal' modal (see 107.3 Task 2),
+        // so the old eager-render block that populated the retired engagements container is gone.
+        const { showSubNav, canProposals, canApproveQueue } = getHomeSubTabConfig();
         if (showSubNav) {
             const navEl = document.getElementById('homeSubNav');
             if (navEl) navEl.style.display = '';
-
-            if (canEngagements) {
-                const engTabBtn = document.getElementById('homeTabEngagements');
-                if (engTabBtn) engTabBtn.style.display = '';
-                const engEl = document.getElementById('homeEngagementsContent');
-                if (engEl) engEl.innerHTML = renderEngagementForm();
-                // initEngagementForm registers its own window functions + clients/users listeners.
-                // It is idempotent (calls destroyEngagementForm first) — safe across re-inits.
-                await initEngagementForm();
-            }
 
             if (canProposals) {
                 const propTabBtn = document.getElementById('homeTabProposals');
