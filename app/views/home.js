@@ -467,6 +467,111 @@ async function renderKpiChips(user, feed) {
 }
 
 /**
+ * Phase 107.4 HOME-06 — one Your-Work row (lighter than a feed row: no severity rail).
+ * Title (14px/600 ink, ellipsis) + tiny meta (12px muted) + right chevron; whole row clickable.
+ * @param {{title:string, meta:string, onclick:string}} row
+ */
+function ccYourWorkRow(row) {
+    const onkey = `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${row.onclick}}"`;
+    return `<div class="cc-yourwork-row" role="button" tabindex="0" onclick="${row.onclick}" ${onkey}>
+        <div style="min-width:0;">
+            <div style="font-size:14px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(row.title)}</div>
+            ${row.meta ? `<div style="font-size:12px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHTML(row.meta)}</div>` : ''}
+        </div>
+        <span style="color:#94a3b8;font-size:18px;line-height:1;flex:0 0 auto;">&rsaquo;</span>
+    </div>`;
+}
+
+/**
+ * Build one Your-Work bucket: micro-label + up to 5 rows, then a `+N more` affordance
+ * when there are more than 5 (only if a list route is supplied). Empty buckets are never
+ * passed here — the caller omits them entirely (no per-bucket empty text).
+ */
+function ccYourWorkBucket(label, rows, moreOnclick) {
+    const shown = rows.slice(0, 5).map(ccYourWorkRow).join('');
+    const extra = rows.length - 5;
+    const more = (extra > 0 && moreOnclick)
+        ? `<span class="cc-yourwork-more" role="button" tabindex="0" onclick="${moreOnclick}">+${extra} more</span>`
+        : '';
+    return `<div class="cc-yourwork-bucket">
+        <div class="cc-yourwork-bucket-label">${escapeHTML(label)}</div>
+        ${shown}${more}
+    </div>`;
+}
+
+/**
+ * Phase 107.4 HOME-06 — render the "Your work" panel into #ccYourWork (compute-on-load).
+ * Three ownership/assignment buckets in a→b→c order; each EMPTY bucket is omitted entirely.
+ * Bucket b (assigned projects & services) is omitted for SEE_ALL roles (getAssigned* both null).
+ * When all three are empty the whole panel stays display:none (no panel-level empty state).
+ */
+async function renderYourWork(user) {
+    const panel = document.getElementById('ccYourWork');
+    if (!panel) return;
+
+    let yw;
+    try {
+        yw = await loadYourWorkData(user);
+    } catch (e) {
+        console.error('[Home] renderYourWork failed:', e);
+        panel.innerHTML = '';
+        document.getElementById('ccYourWork').style.display = 'none';
+        return;
+    }
+
+    const buckets = [];
+
+    // Bucket a — Proposals for revision (created_by == me, status For Revision)
+    if (yw.a.length > 0) {
+        const rows = yw.a.map(p => ({
+            title: p.title || p.proposal_id || '—',
+            meta: p.project_code || '',
+            onclick: "location.hash='#/?tab=proposals'"
+        }));
+        buckets.push(ccYourWorkBucket('Proposals for revision', rows, "location.hash='#/?tab=proposals'"));
+    }
+
+    // Bucket b — Assigned projects & services (omitted entirely when SEE_ALL / no assignments)
+    if (!yw.bOmitted && yw.b.length > 0) {
+        const rows = yw.b.map(d => {
+            const isProject = d._kind === 'project';
+            const name = isProject ? (d.project_name || '') : (d.service_name || '');
+            const code = isProject ? (d.project_code || '') : (d.service_code || '');
+            const status = isProject ? (d.project_status || '') : (d.service_status || '');
+            const route = isProject
+                ? `#/projects/detail/${encodeURIComponent(code || d.id)}`
+                : `#/services/detail/${encodeURIComponent(code || d.id)}`;
+            return {
+                title: name || code || '—',
+                meta: [code, status].filter(Boolean).join(' · '),
+                onclick: `location.hash='${route}'`
+            };
+        });
+        buckets.push(ccYourWorkBucket('Assigned projects & services', rows, null));
+    }
+
+    // Bucket c — Submitted MRFs (requestor_name == my full_name)
+    if (yw.c.length > 0) {
+        const rows = yw.c.map(m => ({
+            title: m.mrf_id || '—',
+            meta: [m.status, m.project_name].filter(Boolean).join(' · '),
+            onclick: "location.hash='#/procurement/records'"
+        }));
+        buckets.push(ccYourWorkBucket('Submitted MRFs', rows, "location.hash='#/procurement/records'"));
+    }
+
+    if (buckets.length === 0) {
+        // All three buckets empty → keep the panel hidden (no panel-level empty state per UI-SPEC).
+        panel.innerHTML = '';
+        document.getElementById('ccYourWork').style.display = 'none';
+        return;
+    }
+
+    panel.innerHTML = `<div class="cc-section-label" style="margin-bottom:12px;">Your work</div>` + buckets.join('');
+    document.getElementById('ccYourWork').style.display = '';
+}
+
+/**
  * Render the home page
  * @returns {string} HTML string for home page
  */
@@ -1022,8 +1127,9 @@ export async function init() {
         if (briefingEl) briefingEl.innerHTML = renderBriefing(user, _ccFeed);
         renderFeed(_ccFeed);
 
-        // Phase 107.4 HOME-05 — role-tailored KPI chips (compute-on-load getDocs counts; omit-on-unresolved).
+        // Phase 107.4 HOME-05/06 — KPI chips + Your Work panel (compute-on-load; getDocs, no listeners).
         _ccYourWork = null;               // fresh Your-Work compute for this view-load
+        await renderYourWork(user);
         await renderKpiChips(user, _ccFeed);
 
         // Register window functions for sub-nav + proposal modal + home-local queue handlers.
@@ -1117,8 +1223,10 @@ export async function init() {
             renderFeed(_ccFeed);
             const bEl = document.getElementById('ccBriefing');
             if (bEl) bEl.innerHTML = renderBriefing(u, _ccFeed);
-            // Phase 107.4 — invalidate the Your-Work cache so counts refetch, then re-render KPI chips.
+            // Phase 107.4 — invalidate the Your-Work cache so counts refetch, then re-render the
+            // Your Work panel + KPI chips (all compute-on-load; no listeners added).
             _ccYourWork = null;
+            await renderYourWork(u);
             await renderKpiChips(u, _ccFeed);
         };
     } catch (error) {
