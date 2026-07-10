@@ -1266,7 +1266,7 @@ export async function init() {
                         <h2 style="font-size:1.125rem;font-weight:600;margin:0;">New Engagement</h2>
                         <button class="modal-close" aria-label="Close" onclick="window.ccCloseNewProposal()">&times;</button>
                     </div>
-                    <div class="modal-body" style="padding:1.5rem;">${renderEngagementForm()}</div>
+                    <div class="modal-body" style="padding:1.5rem;">${renderEngagementForm(window.getCurrentUser?.()?.role)}</div>
                 </div>`;
             // Backdrop click (outside the modal-content) closes + tears down the form.
             overlay.addEventListener('click', (e) => { if (e.target === overlay) window.ccCloseNewProposal(); });

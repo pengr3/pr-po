@@ -443,7 +443,33 @@ async function submitNewEngagement() {
  * block extracted verbatim from the old proposals.js render(). Caller (home.js
  * Engagements sub-tab) injects this into its content container.
  */
-export function renderEngagementForm() {
+export function renderEngagementForm(role = null) {
+    // Phase 107.5 — scope the engagement TYPE by role/department:
+    //   super_admin / management → Project + Service (one-time, recurring)
+    //   operations_admin        → Project only
+    //   services_admin          → Service only (one-time, recurring)
+    //   null / other            → all types (backward-compatible default)
+    const seesProject = !role || ['super_admin', 'management', 'operations_admin'].includes(role);
+    const seesService = !role || ['super_admin', 'management', 'services_admin'].includes(role);
+    const defaultType = seesProject ? 'project' : 'one-time';
+    const serviceDefault = defaultType !== 'project';
+    const typeOptions = [];
+    if (seesProject) typeOptions.push({ v: 'project', label: 'Project' });
+    if (seesService) {
+        typeOptions.push({ v: 'one-time', label: 'One-time Service' });
+        typeOptions.push({ v: 'recurring', label: 'Recurring Service' });
+    }
+    const typeRadios = typeOptions.map(o => `
+                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.9375rem;">
+                                <input type="radio" name="engagementType" value="${o.v}"${o.v === defaultType ? ' checked' : ''}
+                                       onchange="window.handleEngagementTypeChange('${o.v}')">
+                                ${o.label}
+                            </label>`).join('');
+    // Initial client hint + clientless option reflect the default type (services require a client).
+    const clientReq = serviceDefault
+        ? `<span id="proposalClientRequired" style="color: #ef4444; font-weight: 400;">(required for service engagements)</span>`
+        : `<span id="proposalClientRequired" style="color: #64748b; font-weight: 400;">(optional — clientless project allowed)</span>`;
+    const clientlessOpt = serviceDefault ? '' : `<option value="" data-code="">(none — clientless project)</option>`;
     return `
         <!-- New Engagement Form — Phase 87.1 D-07 (moved from proposals.js Phase 88 D-03) -->
         <section id="new-engagement-section">
@@ -456,32 +482,17 @@ export function renderEngagementForm() {
                         <label style="display: block; font-weight: 600; color: #475569; font-size: 0.875rem; margin-bottom: 0.5rem;">
                             Engagement Type
                         </label>
-                        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
-                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.9375rem;">
-                                <input type="radio" name="engagementType" value="project" checked
-                                       onchange="window.handleEngagementTypeChange('project')">
-                                Project
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.9375rem;">
-                                <input type="radio" name="engagementType" value="one-time"
-                                       onchange="window.handleEngagementTypeChange('one-time')">
-                                One-time Service
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; font-size: 0.9375rem;">
-                                <input type="radio" name="engagementType" value="recurring"
-                                       onchange="window.handleEngagementTypeChange('recurring')">
-                                Recurring Service
-                            </label>
+                        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">${typeRadios}
                         </div>
                     </div>
 
                     <!-- Client picker -->
                     <div style="margin-bottom: 1rem;">
                         <label id="proposalClientLabel" style="display: block; font-weight: 600; color: #475569; font-size: 0.875rem; margin-bottom: 0.5rem;">
-                            Client <span id="proposalClientRequired" style="color: #64748b; font-weight: 400;">(optional — clientless project allowed)</span>
+                            Client ${clientReq}
                         </label>
                         <select id="proposalClient" style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 0.9375rem; color: #1e293b; background: white;">
-                            <option value="" data-code="">(none — clientless project)</option>
+                            ${clientlessOpt}
                         </select>
                     </div>
 
@@ -630,6 +641,12 @@ export async function initEngagementForm() {
         (err) => console.error('[EngagementForm] Users listener error:', err)
     );
     _formListeners.push(usersListener);
+
+    // Phase 107.5 — sync initial type state to the default-checked radio. When the role can
+    // only create services, the default radio is a service type, so the client picker must
+    // start "required" and populateClientDropdown must omit the clientless option.
+    const initialType = document.querySelector('input[name="engagementType"]:checked');
+    handleEngagementTypeChange(initialType ? initialType.value : 'project');
 }
 
 /**
