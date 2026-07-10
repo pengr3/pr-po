@@ -4,7 +4,7 @@
    Phase 87.1 D-01/D-07/D-08: gains Overview | Engagements | Proposals sub-tabs.
    ======================================== */
 
-import { db, collection, doc, query, where, onSnapshot, getDocs, getDoc, orderBy, limit } from '../firebase.js';
+import { db, collection, doc, query, where, onSnapshot, getDocs, getDoc, orderBy, limit, getAggregateFromServer, count } from '../firebase.js';
 import { renderEngagementForm, initEngagementForm, destroyEngagementForm } from '../engagement-create.js';
 import {
     STAGE_ORDER,
@@ -36,6 +36,9 @@ let _ccYourWork = null;
 // Phase 107.4 HOME-07 — last-fetched Recent Activity notification slice (read-only; NO mark-as-read).
 // window.ccOpenActivity(idx) reads this to navigate on row click. Reset to [] in destroy().
 let _ccActivityDocs = [];
+
+// Phase 107.6 — in-flight guard so the Refresh button debounces (ignores clicks mid-refresh).
+let _ccRefreshing = false;
 
 // Phase 87.1 — last fetched proposals for the home Proposals sub-tab (one-time getDocs cache,
 // scoped to the current session/view). Used by the local approval queue to look up
@@ -301,8 +304,10 @@ function ccKpiChipHtml(chip) {
  */
 async function ccCountDocs(qy) {
     try {
-        const snap = await getDocs(qy);
-        return snap.size;
+        // Phase 107.6 — count via server-side aggregation (was getDocs().size, which downloaded
+        // every matching doc just to count it). Returns the count without fetching documents.
+        const snap = await getAggregateFromServer(qy, { count: count() });
+        return snap.data().count;
     } catch (e) {
         console.error('[Home] KPI count query failed:', e);
         return null;   // omit — never render a failed count as 0
@@ -312,10 +317,15 @@ async function ccCountDocs(qy) {
 /** Active POs = POs whose procurement_status !== 'Delivered' (client-side filter; getDocs, no listener). */
 async function ccCountActivePOs() {
     try {
-        const snap = await getDocs(collection(db, 'pos'));
-        let n = 0;
-        snap.forEach(d => { if ((d.data().procurement_status) !== 'Delivered') n++; });
-        return n;
+        // Phase 107.6 — Active POs = not 'Delivered'. Was a full-collection getDocs scan filtered
+        // in JS; now two cheap count-aggregations (total − delivered), so no docs are downloaded.
+        // total − delivered preserves the original semantics (a PO with no procurement_status
+        // was counted as active).
+        const [total, delivered] = await Promise.all([
+            getAggregateFromServer(collection(db, 'pos'), { count: count() }),
+            getAggregateFromServer(query(collection(db, 'pos'), where('procurement_status', '==', 'Delivered')), { count: count() })
+        ]);
+        return total.data().count - delivered.data().count;
     } catch (e) {
         console.error('[Home] Active POs count failed:', e);
         return null;
@@ -353,42 +363,49 @@ async function loadYourWorkData(user) {
     if (_ccYourWork) return _ccYourWork;
     const uid = user?.uid;
     const fullName = user?.full_name;
-
-    // Bucket a — my proposals For Revision (ownership: created_by == uid)
-    let a = [];
-    if (uid) {
-        try {
-            const snap = await getDocs(query(collection(db, 'proposals'),
-                where('created_by', '==', uid), where('status', '==', 'for_revision')));
-            snap.forEach(d => a.push({ id: d.id, ...d.data() }));
-        } catch (e) { console.error('[Home] Your Work bucket a failed:', e); }
-    }
-
-    // Bucket b — assigned projects & services. null = SEE_ALL for that dimension; BOTH null → omit b.
+    // Bucket b scoping decided up front so bOmitted is known before the parallel fetch.
+    // null = SEE_ALL for that dimension; BOTH null → omit b.
     const projCodes = getAssignedProjectCodes();
     const svcCodes = getAssignedServiceCodes();
     const bOmitted = (projCodes === null && svcCodes === null);
-    let b = [];
-    if (!bOmitted) {
-        if (Array.isArray(projCodes) && projCodes.length) {
-            b = b.concat(await ccFetchDocsByCodes('projects', 'project_code', projCodes, 'project'));
-        }
-        if (Array.isArray(svcCodes) && svcCodes.length) {
-            b = b.concat(await ccFetchDocsByCodes('services', 'service_code', svcCodes, 'service'));
-        }
-    }
 
-    // Bucket c — MRFs I submitted (requestor_name == full_name; mrf-form.js scoping)
-    let c = [];
-    if (fullName) {
-        try {
-            const snap = await getDocs(query(collection(db, 'mrfs'),
-                where('requestor_name', '==', fullName)));
-            snap.forEach(d => c.push({ id: d.id, ...d.data() }));
-            // mrf_id encodes MRF-YYYY-### → lexical desc == newest-first
-            c.sort((x, y) => (y.mrf_id || '').localeCompare(x.mrf_id || ''));
-        } catch (e) { console.error('[Home] Your Work bucket c failed:', e); }
-    }
+    // Phase 107.6 — fetch all three buckets CONCURRENTLY (was serial a → b → c). Each bucket is
+    // self-isolated so one failure yields [] for that bucket, not a total failure.
+    const [a, b, c] = await Promise.all([
+        // Bucket a — my proposals For Revision (ownership: created_by == uid)
+        (async () => {
+            if (!uid) return [];
+            try {
+                const snap = await getDocs(query(collection(db, 'proposals'),
+                    where('created_by', '==', uid), where('status', '==', 'for_revision')));
+                const out = []; snap.forEach(d => out.push({ id: d.id, ...d.data() })); return out;
+            } catch (e) { console.error('[Home] Your Work bucket a failed:', e); return []; }
+        })(),
+        // Bucket b — assigned projects & services
+        (async () => {
+            if (bOmitted) return [];
+            let out = [];
+            if (Array.isArray(projCodes) && projCodes.length) {
+                out = out.concat(await ccFetchDocsByCodes('projects', 'project_code', projCodes, 'project'));
+            }
+            if (Array.isArray(svcCodes) && svcCodes.length) {
+                out = out.concat(await ccFetchDocsByCodes('services', 'service_code', svcCodes, 'service'));
+            }
+            return out;
+        })(),
+        // Bucket c — MRFs I submitted (requestor_name == full_name; mrf-form.js scoping)
+        (async () => {
+            if (!fullName) return [];
+            try {
+                const snap = await getDocs(query(collection(db, 'mrfs'),
+                    where('requestor_name', '==', fullName)));
+                const out = []; snap.forEach(d => out.push({ id: d.id, ...d.data() }));
+                // mrf_id encodes MRF-YYYY-### → lexical desc == newest-first
+                out.sort((x, y) => (y.mrf_id || '').localeCompare(x.mrf_id || ''));
+                return out;
+            } catch (e) { console.error('[Home] Your Work bucket c failed:', e); return []; }
+        })()
+    ]);
 
     _ccYourWork = { a, b, c, bOmitted };
     return _ccYourWork;
@@ -419,9 +436,12 @@ async function renderKpiChips(user, feed) {
     }
 
     if (role === 'super_admin' || role === 'management') {
-        const activeProjects = await ccCountDocs(query(collection(db, 'projects'), where('active', '==', true)));
-        const activeServices = await ccCountDocs(query(collection(db, 'services'), where('active', '==', true)));
-        const proposalsToApprove = await ccCountDocs(query(collection(db, 'proposals'), where('status', '==', 'pending_internal')));
+        // Phase 107.6 — the three counts are independent; run them concurrently.
+        const [activeProjects, activeServices, proposalsToApprove] = await Promise.all([
+            ccCountDocs(query(collection(db, 'projects'), where('active', '==', true))),
+            ccCountDocs(query(collection(db, 'services'), where('active', '==', true))),
+            ccCountDocs(query(collection(db, 'proposals'), where('status', '==', 'pending_internal')))
+        ]);
         if (activeProjects != null) chips.push({ count: activeProjects, label: 'Active Projects', tone: '', onclick: "location.hash='#/projects'" });
         if (activeServices != null) chips.push({ count: activeServices, label: 'Active Services', tone: '', onclick: "location.hash='#/services'" });
         if (proposalsToApprove != null) chips.push({ count: proposalsToApprove, label: 'Proposals to Approve', tone: proposalsToApprove > 0 ? 'warn' : '', onclick: "location.hash='#/?tab=proposals'" });
@@ -429,13 +449,17 @@ async function renderKpiChips(user, feed) {
     } else if (role === 'finance') {
         // Collectibles Due / Payables Owed OMITTED: collectible status is derived from payment_records
         // arithmetic (no queryable field) and there is no `payables` collection — per the UI-SPEC omit rule.
-        const prCount = await ccCountDocs(query(collection(db, 'prs'), where('finance_status', '==', 'Pending')));
-        const trCount = await ccCountDocs(query(collection(db, 'transport_requests'), where('finance_status', '==', 'Pending')));
+        const [prCount, trCount] = await Promise.all([
+            ccCountDocs(query(collection(db, 'prs'), where('finance_status', '==', 'Pending'))),
+            ccCountDocs(query(collection(db, 'transport_requests'), where('finance_status', '==', 'Pending')))
+        ]);
         const prTr = (prCount == null && trCount == null) ? null : (prCount || 0) + (trCount || 0);
         if (prTr != null) chips.push({ count: prTr, label: 'PRs/TRs to Approve', tone: prTr > 0 ? 'warn' : '', onclick: "location.hash='#/finance'" });
     } else if (role === 'procurement_staff') {
-        const mrfsPending = await ccCountDocs(query(collection(db, 'mrfs'), where('status', '==', 'Pending')));
-        const activePOs = await ccCountActivePOs();
+        const [mrfsPending, activePOs] = await Promise.all([
+            ccCountDocs(query(collection(db, 'mrfs'), where('status', '==', 'Pending'))),
+            ccCountActivePOs()
+        ]);
         if (mrfsPending != null) chips.push({ count: mrfsPending, label: 'MRFs Pending', tone: mrfsPending > 0 ? 'warn' : '', onclick: "location.hash='#/procurement/mrfs'" });
         if (activePOs != null) chips.push({ count: activePOs, label: 'Active POs', tone: '', onclick: "location.hash='#/procurement/records'" });
         chips.push({ count: total, label: 'Needs Attention', tone: attnTone, onclick: "window.ccScrollTo('ccFeedSection')" });   // Needs Attention = feed.total
@@ -1208,26 +1232,31 @@ export async function init() {
             }
         }
 
-        // Phase 107 HOME-01..04 — Command Center engine bootstrap (compute-on-load, D-08).
-        // One assembleFeed() per view-load; Refresh re-runs it. On total failure, fall back to the
-        // failure-shaped result so the briefing + feed render the neutral error state, not a crash.
+        // Phase 107 HOME-01..08 — Command Center engine bootstrap (compute-on-load, D-08; NO listeners).
+        // Phase 107.6: the four surfaces are fetched in two CONCURRENT waves instead of one long serial
+        // chain. On total feed failure, fall back to the failure-shaped result so the briefing + feed
+        // render the neutral error state, not a crash.
         const user = window.getCurrentUser?.();
-        try {
-            _ccFeed = await assembleFeed(user);
-        } catch (e) {
-            console.error('[Home] assembleFeed failed', e);
-            _ccFeed = { items: [], cap: { visible: [], rest: [], overflow: 0 }, total: 0, hasCritical: false, hasHigh: false, allSourcesFailed: true, fetchedAt: Date.now() };
-        }
+        _ccYourWork = null;               // fresh Your-Work compute for this view-load
+        const _ccFallback = { items: [], cap: { visible: [], rest: [], overflow: 0 }, total: 0, hasCritical: false, hasHigh: false, allSourcesFailed: true, fetchedAt: Date.now() };
+
+        // Wave 1 — feed + Your-Work data, concurrent. Pre-warming _ccYourWork here means the panel
+        // and the *_user KPI chips reuse the cache in wave 2 (no duplicate fetch).
+        await Promise.all([
+            assembleFeed(user).then(f => { _ccFeed = f; }).catch(e => { console.error('[Home] assembleFeed failed', e); _ccFeed = _ccFallback; }),
+            loadYourWorkData(user).catch(e => { console.error('[Home] loadYourWorkData failed', e); })
+        ]);
         const briefingEl = document.getElementById('ccBriefing');
         if (briefingEl) briefingEl.innerHTML = renderBriefing(user, _ccFeed);
         renderFeed(_ccFeed);
 
-        // Phase 107.4 HOME-05..08 — KPI chips + Your Work + Recent Activity + door rail. All four are
-        // compute-on-load (getDocs, NO listeners); the door rail is a synchronous permission-gated render.
-        _ccYourWork = null;               // fresh Your-Work compute for this view-load
-        await renderYourWork(user);
-        await renderKpiChips(user, _ccFeed);
-        await renderRecentActivity(user);
+        // Wave 2 — KPI chips + Recent Activity, concurrent (Your Work reads the warmed cache). The
+        // door rail is a synchronous permission-gated render (no fetch).
+        await Promise.all([
+            renderYourWork(user),
+            renderKpiChips(user, _ccFeed),
+            renderRecentActivity(user)
+        ]);
         renderDoorRail(user);
 
         // Register window functions for sub-nav + proposal modal + home-local queue handlers.
@@ -1319,20 +1348,30 @@ export async function init() {
         // Refresh re-runs the compute-on-load fetch (NO onSnapshot) and re-renders the feed, the briefing
         // count, and the KPI chips so the attention one-liner + chip counts stay in sync.
         window.ccRefreshFeed = async () => {
+            if (_ccRefreshing) return;   // Phase 107.6 — debounce: ignore clicks while a refresh is in-flight
+            _ccRefreshing = true;
+            const inflightBtn = document.querySelector('.cc-refresh-btn');
+            if (inflightBtn) { inflightBtn.disabled = true; inflightBtn.textContent = '↻ Refreshing…'; }
             const u = window.getCurrentUser?.();
+            _ccYourWork = null;          // force a fresh Your-Work compute
             try {
-                _ccFeed = await assembleFeed(u);
-            } catch (e) {
-                _ccFeed = { items: [], cap: { visible: [], rest: [], overflow: 0 }, total: 0, hasCritical: false, hasHigh: false, allSourcesFailed: true, fetchedAt: Date.now() };
+                // Phase 107.6 — mirror init: Wave 1 (feed + Your-Work data) then Wave 2 (Your Work + KPI),
+                // each concurrent. renderFeed re-creates the header (button resets to '↻ Refresh').
+                await Promise.all([
+                    assembleFeed(u).then(f => { _ccFeed = f; }).catch(() => {
+                        _ccFeed = { items: [], cap: { visible: [], rest: [], overflow: 0 }, total: 0, hasCritical: false, hasHigh: false, allSourcesFailed: true, fetchedAt: Date.now() };
+                    }),
+                    loadYourWorkData(u).catch(() => {})
+                ]);
+                renderFeed(_ccFeed);
+                const bEl = document.getElementById('ccBriefing');
+                if (bEl) bEl.innerHTML = renderBriefing(u, _ccFeed);
+                await Promise.all([renderYourWork(u), renderKpiChips(u, _ccFeed)]);
+            } finally {
+                _ccRefreshing = false;
+                const doneBtn = document.querySelector('.cc-refresh-btn');
+                if (doneBtn) { doneBtn.disabled = false; doneBtn.textContent = '↻ Refresh'; }
             }
-            renderFeed(_ccFeed);
-            const bEl = document.getElementById('ccBriefing');
-            if (bEl) bEl.innerHTML = renderBriefing(u, _ccFeed);
-            // Phase 107.4 — invalidate the Your-Work cache so counts refetch, then re-render the
-            // Your Work panel + KPI chips (all compute-on-load; no listeners added).
-            _ccYourWork = null;
-            await renderYourWork(u);
-            await renderKpiChips(u, _ccFeed);
         };
     } catch (error) {
         console.error('Error initializing home view:', error);
@@ -1366,6 +1405,7 @@ export async function destroy() {
     delete window.ccOpenActivity;
     _ccYourWork = null;
     _ccActivityDocs = [];
+    _ccRefreshing = false;   // Phase 107.6 — clear the in-flight guard so a nav-away mid-refresh can't wedge it
     document.getElementById('cc-new-proposal-modal')?.remove();
 
     try {

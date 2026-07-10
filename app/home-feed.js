@@ -201,16 +201,23 @@ export function capItems(items) {
  */
 export async function assembleFeed(user, sources = getSourcesForUser(user)) {
     const sourceFns = Array.isArray(sources) ? sources : [];
-    let collected = [];
-    let failedCount = 0;
-    for (const source of sourceFns) {
+    // Phase 107.6 — run sources CONCURRENTLY (was a serial for-await loop). Each source is still
+    // isolated in its own try/catch so one failing/malicious source cannot sink the feed (T-107-03);
+    // a thrown source resolves to null and is counted toward allSourcesFailed.
+    const settled = await Promise.all(sourceFns.map(async (source) => {
         try {
             const produced = await source(user);
-            if (Array.isArray(produced)) collected = collected.concat(produced);
+            return Array.isArray(produced) ? produced : [];
         } catch (err) {
-            failedCount++;
             console.error('[home-feed] source failed:', source?.name || 'anonymous', err);
+            return null;   // null marks a failed source (distinct from a legitimately empty [])
         }
+    }));
+    let collected = [];
+    let failedCount = 0;
+    for (const produced of settled) {
+        if (produced === null) failedCount++;
+        else collected = collected.concat(produced);
     }
     const items = rollUpByCategory(rankItems(dedupeItems(collected)));
     return {
