@@ -4,7 +4,7 @@
    Phase 87.1 D-01/D-07/D-08: gains Overview | Engagements | Proposals sub-tabs.
    ======================================== */
 
-import { db, collection, doc, onSnapshot, getDoc } from '../firebase.js';
+import { db, collection, doc, query, where, onSnapshot, getDocs, getDoc } from '../firebase.js';
 import { renderEngagementForm, initEngagementForm, destroyEngagementForm } from '../engagement-create.js';
 import {
     STAGE_ORDER,
@@ -16,7 +16,7 @@ import {
     _applyProposalStateTransition
 } from './proposals.js';
 import { openProposalModal } from '../proposal-modal.js';
-import { showLoading, showToast, formatCurrency, escapeHTML } from '../utils.js';
+import { showLoading, showToast, formatCurrency, escapeHTML, getAssignedProjectCodes, getAssignedServiceCodes } from '../utils.js';
 import { createNotification, NOTIFICATION_TYPES } from '../notifications.js';
 // Phase 107 — Command Center feed engine (compute-on-load, D-08). getSourcesForUser is the
 // default source registry consumed by assembleFeed(); imported explicitly per the 107.3 contract.
@@ -27,6 +27,11 @@ import { assembleFeed, getSourcesForUser } from '../home-feed.js';
 // allSourcesFailed, fetchedAt }. Read by the briefing count + feed render + interaction dispatch;
 // 107.4 may read it for the KPI "Needs Attention" chip. Reset to null in destroy().
 let _ccFeed = null;
+
+// Phase 107.4 — Your Work data cached for ONE compute-on-load (getDocs, no listeners). Shared by
+// renderKpiChips (owned-item counts: My Open Items / For-Revision / Rejected MRFs) and renderYourWork
+// (the panel rows). Populated by loadYourWorkData(); reset to null at each init/Refresh and in destroy().
+let _ccYourWork = null;
 
 // Phase 87.1 — last fetched proposals for the home Proposals sub-tab (one-time getDocs cache,
 // scoped to the current session/view). Used by the local approval queue to look up
@@ -264,6 +269,201 @@ function renderFeed(feed) {
     }
 
     section.innerHTML = header + body;
+}
+
+/* ========================================
+   Phase 107.4 — COMMAND CENTER PANELS (HOME-05..08)
+   All four surfaces are COMPUTE-ON-LOAD (getDocs): they add ZERO onSnapshot
+   listeners. A KPI chip whose count can't resolve (query failed / source unknown)
+   is OMITTED — never rendered as 0 or "—" (UI-SPEC omit rule).
+   ======================================== */
+
+/**
+ * Phase 107.4 HOME-05 — one KPI chip. Reuses .project-scorecard-card (white surface/hover) +
+ * .cc-kpi-chip (flex sizing + count/label overrides). Tone modifiers color the .scorecard-count only.
+ * @param {{count:number,label:string,tone:string,onclick:string}} chip
+ */
+function ccKpiChipHtml(chip) {
+    const toneClass = chip.tone === 'danger' ? ' cc-kpi-chip--danger'
+        : (chip.tone === 'warn' ? ' cc-kpi-chip--warn' : '');
+    const onkey = `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();${chip.onclick}}"`;
+    return `<div class="project-scorecard-card cc-kpi-chip${toneClass}" role="button" tabindex="0" onclick="${chip.onclick}" ${onkey}>
+        <span class="scorecard-count">${chip.count}</span>
+        <span class="scorecard-label">${escapeHTML(chip.label)}</span>
+    </div>`;
+}
+
+/**
+ * Lightweight compute-on-load count for a scoped query. Returns the doc count, or `null`
+ * on failure so the caller can apply the OMIT rule (a null count → skip the chip).
+ */
+async function ccCountDocs(qy) {
+    try {
+        const snap = await getDocs(qy);
+        return snap.size;
+    } catch (e) {
+        console.error('[Home] KPI count query failed:', e);
+        return null;   // omit — never render a failed count as 0
+    }
+}
+
+/** Active POs = POs whose procurement_status !== 'Delivered' (client-side filter; getDocs, no listener). */
+async function ccCountActivePOs() {
+    try {
+        const snap = await getDocs(collection(db, 'pos'));
+        let n = 0;
+        snap.forEach(d => { if ((d.data().procurement_status) !== 'Delivered') n++; });
+        return n;
+    } catch (e) {
+        console.error('[Home] Active POs count failed:', e);
+        return null;
+    }
+}
+
+/**
+ * Fetch docs whose `field` is in `codes`, chunking to Firestore's 10-value `in` cap.
+ * Tags each doc with `_kind` so renderYourWork can route project vs. service rows.
+ */
+async function ccFetchDocsByCodes(collName, field, codes, kind) {
+    const out = [];
+    const list = [...new Set((codes || []).filter(Boolean))];
+    for (let i = 0; i < list.length; i += 10) {
+        const chunk = list.slice(i, i + 10);
+        try {
+            const snap = await getDocs(query(collection(db, collName), where(field, 'in', chunk)));
+            snap.forEach(d => out.push({ id: d.id, _kind: kind, ...d.data() }));
+        } catch (e) {
+            console.error(`[Home] Your Work ${collName} code fetch failed:`, e);
+        }
+    }
+    return out;
+}
+
+/**
+ * Phase 107.4 HOME-06 — load (once per view-load) the three Your-Work buckets:
+ *   a) proposals created_by==uid AND status=='for_revision'
+ *   b) assigned projects + services (getAssignedProjectCodes/ServiceCodes; BOTH null = SEE_ALL → omit b)
+ *   c) MRFs requestor_name==full_name (all statuses, newest-first by encoded mrf_id)
+ * Cached in _ccYourWork so renderKpiChips (counts) and renderYourWork (rows) share ONE fetch.
+ * @returns {Promise<{a:object[], b:object[], c:object[], bOmitted:boolean}>}
+ */
+async function loadYourWorkData(user) {
+    if (_ccYourWork) return _ccYourWork;
+    const uid = user?.uid;
+    const fullName = user?.full_name;
+
+    // Bucket a — my proposals For Revision (ownership: created_by == uid)
+    let a = [];
+    if (uid) {
+        try {
+            const snap = await getDocs(query(collection(db, 'proposals'),
+                where('created_by', '==', uid), where('status', '==', 'for_revision')));
+            snap.forEach(d => a.push({ id: d.id, ...d.data() }));
+        } catch (e) { console.error('[Home] Your Work bucket a failed:', e); }
+    }
+
+    // Bucket b — assigned projects & services. null = SEE_ALL for that dimension; BOTH null → omit b.
+    const projCodes = getAssignedProjectCodes();
+    const svcCodes = getAssignedServiceCodes();
+    const bOmitted = (projCodes === null && svcCodes === null);
+    let b = [];
+    if (!bOmitted) {
+        if (Array.isArray(projCodes) && projCodes.length) {
+            b = b.concat(await ccFetchDocsByCodes('projects', 'project_code', projCodes, 'project'));
+        }
+        if (Array.isArray(svcCodes) && svcCodes.length) {
+            b = b.concat(await ccFetchDocsByCodes('services', 'service_code', svcCodes, 'service'));
+        }
+    }
+
+    // Bucket c — MRFs I submitted (requestor_name == full_name; mrf-form.js scoping)
+    let c = [];
+    if (fullName) {
+        try {
+            const snap = await getDocs(query(collection(db, 'mrfs'),
+                where('requestor_name', '==', fullName)));
+            snap.forEach(d => c.push({ id: d.id, ...d.data() }));
+            // mrf_id encodes MRF-YYYY-### → lexical desc == newest-first
+            c.sort((x, y) => (y.mrf_id || '').localeCompare(x.mrf_id || ''));
+        } catch (e) { console.error('[Home] Your Work bucket c failed:', e); }
+    }
+
+    _ccYourWork = { a, b, c, bOmitted };
+    return _ccYourWork;
+}
+
+/**
+ * Phase 107.4 HOME-05 — build the role-tailored KPI chip set and write into #ccKpiRow.
+ * Counts are lightweight getDocs (compute-on-load, NO listeners). Needs Attention reads feed.total
+ * (never omitted). Every other chip is OMITTED when its count can't resolve (null) — never shown as 0/—.
+ * Keyed off the REAL role strings; `management` aliases the super_admin chip set (defensive — not a real
+ * role here). Finance's Collectibles Due / Payables Owed chips are OMITTED (derived, no queryable field).
+ * @param {object|null} user - window.getCurrentUser()
+ * @param {object} feed - _ccFeed (assembleFeed result or failure fallback)
+ */
+async function renderKpiChips(user, feed) {
+    const row = document.getElementById('ccKpiRow');
+    if (!row) return;
+    const role = user?.role || '';
+    const total = feed?.total || 0;                       // Needs Attention (feed.total) — always resolvable
+    const attnTone = feed?.hasCritical ? 'danger' : '';
+    const chips = [];
+
+    // Roles whose chips read owned-item counts (bucket a/c totals) load Your Work once (shared cache).
+    const needsYW = ['operations_admin', 'services_admin', 'operations_user', 'services_user'].includes(role);
+    let yw = null;
+    if (needsYW) {
+        try { yw = await loadYourWorkData(user); } catch (e) { yw = null; }
+    }
+
+    if (role === 'super_admin' || role === 'management') {
+        const activeProjects = await ccCountDocs(query(collection(db, 'projects'), where('active', '==', true)));
+        const activeServices = await ccCountDocs(query(collection(db, 'services'), where('active', '==', true)));
+        const proposalsToApprove = await ccCountDocs(query(collection(db, 'proposals'), where('status', '==', 'pending_internal')));
+        if (activeProjects != null) chips.push({ count: activeProjects, label: 'Active Projects', tone: '', onclick: "location.hash='#/projects'" });
+        if (activeServices != null) chips.push({ count: activeServices, label: 'Active Services', tone: '', onclick: "location.hash='#/services'" });
+        if (proposalsToApprove != null) chips.push({ count: proposalsToApprove, label: 'Proposals to Approve', tone: proposalsToApprove > 0 ? 'warn' : '', onclick: "location.hash='#/?tab=proposals'" });
+        chips.push({ count: total, label: 'Needs Attention', tone: attnTone, onclick: "window.ccScrollTo('ccFeedSection')" });   // Needs Attention = feed.total
+    } else if (role === 'finance') {
+        // Collectibles Due / Payables Owed OMITTED: collectible status is derived from payment_records
+        // arithmetic (no queryable field) and there is no `payables` collection — per the UI-SPEC omit rule.
+        const prCount = await ccCountDocs(query(collection(db, 'prs'), where('finance_status', '==', 'Pending')));
+        const trCount = await ccCountDocs(query(collection(db, 'transport_requests'), where('finance_status', '==', 'Pending')));
+        const prTr = (prCount == null && trCount == null) ? null : (prCount || 0) + (trCount || 0);
+        if (prTr != null) chips.push({ count: prTr, label: 'PRs/TRs to Approve', tone: prTr > 0 ? 'warn' : '', onclick: "location.hash='#/finance'" });
+    } else if (role === 'procurement_staff') {
+        const mrfsPending = await ccCountDocs(query(collection(db, 'mrfs'), where('status', '==', 'Pending')));
+        const activePOs = await ccCountActivePOs();
+        if (mrfsPending != null) chips.push({ count: mrfsPending, label: 'MRFs Pending', tone: mrfsPending > 0 ? 'warn' : '', onclick: "location.hash='#/procurement/mrfs'" });
+        if (activePOs != null) chips.push({ count: activePOs, label: 'Active POs', tone: '', onclick: "location.hash='#/procurement/records'" });
+        chips.push({ count: total, label: 'Needs Attention', tone: attnTone, onclick: "window.ccScrollTo('ccFeedSection')" });   // Needs Attention = feed.total
+    } else if (role === 'operations_admin') {
+        const activeProjects = await ccCountDocs(query(collection(db, 'projects'), where('active', '==', true)));
+        const forRev = yw ? yw.a.length : null;
+        if (activeProjects != null) chips.push({ count: activeProjects, label: 'Active Projects', tone: '', onclick: "location.hash='#/projects'" });
+        if (forRev != null) chips.push({ count: forRev, label: 'My Proposals For Revision', tone: forRev > 0 ? 'warn' : '', onclick: "window.ccScrollTo('ccYourWork')" });
+        chips.push({ count: total, label: 'Needs Attention', tone: attnTone, onclick: "window.ccScrollTo('ccFeedSection')" });   // Needs Attention = feed.total
+    } else if (role === 'services_admin') {
+        const activeServices = await ccCountDocs(query(collection(db, 'services'), where('active', '==', true)));
+        const forRev = yw ? yw.a.length : null;
+        if (activeServices != null) chips.push({ count: activeServices, label: 'Active Services', tone: '', onclick: "location.hash='#/services'" });
+        if (forRev != null) chips.push({ count: forRev, label: 'My Proposals For Revision', tone: forRev > 0 ? 'warn' : '', onclick: "window.ccScrollTo('ccYourWork')" });
+        chips.push({ count: total, label: 'Needs Attention', tone: attnTone, onclick: "window.ccScrollTo('ccFeedSection')" });   // Needs Attention = feed.total
+    } else if (role === 'operations_user') {
+        const openItems = yw ? (yw.a.length + yw.b.length + yw.c.length) : null;
+        const forRev = yw ? yw.a.length : null;
+        const rejected = yw ? yw.c.filter(m => m.status === 'Rejected').length : null;
+        if (openItems != null) chips.push({ count: openItems, label: 'My Open Items', tone: '', onclick: "window.ccScrollTo('ccYourWork')" });
+        if (forRev != null) chips.push({ count: forRev, label: 'My For-Revision Proposals', tone: forRev > 0 ? 'warn' : '', onclick: "window.ccScrollTo('ccYourWork')" });
+        if (rejected != null) chips.push({ count: rejected, label: 'My Rejected MRFs', tone: rejected > 0 ? 'danger' : '', onclick: "location.hash='#/procurement/records'" });
+    } else if (role === 'services_user') {
+        const openItems = yw ? (yw.a.length + yw.b.length + yw.c.length) : null;
+        const forRev = yw ? yw.a.length : null;
+        if (openItems != null) chips.push({ count: openItems, label: 'My Open Items', tone: '', onclick: "window.ccScrollTo('ccYourWork')" });
+        if (forRev != null) chips.push({ count: forRev, label: 'My For-Revision Proposals', tone: forRev > 0 ? 'warn' : '', onclick: "window.ccScrollTo('ccYourWork')" });
+    }
+
+    row.innerHTML = chips.map(ccKpiChipHtml).join('');
 }
 
 /**
@@ -822,6 +1022,10 @@ export async function init() {
         if (briefingEl) briefingEl.innerHTML = renderBriefing(user, _ccFeed);
         renderFeed(_ccFeed);
 
+        // Phase 107.4 HOME-05 — role-tailored KPI chips (compute-on-load getDocs counts; omit-on-unresolved).
+        _ccYourWork = null;               // fresh Your-Work compute for this view-load
+        await renderKpiChips(user, _ccFeed);
+
         // Register window functions for sub-nav + proposal modal + home-local queue handlers.
         // Counterpart deletions live in destroy() below.
         window.switchHomeTab = switchHomeTab;
@@ -898,8 +1102,11 @@ export async function init() {
             rest.style.display = isHidden ? '' : 'none';
             btn.textContent = isHidden ? 'Show less' : `Show all (${_ccFeed?.total ?? 0})`;
         };
-        // Refresh re-runs the compute-on-load fetch (NO onSnapshot) and re-renders BOTH the feed and
-        // the briefing count so the attention one-liner stays in sync.
+        // Phase 107.4 — smooth-scroll a KPI chip to its target section (feed hero / Your Work panel).
+        window.ccScrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // Refresh re-runs the compute-on-load fetch (NO onSnapshot) and re-renders the feed, the briefing
+        // count, and the KPI chips so the attention one-liner + chip counts stay in sync.
         window.ccRefreshFeed = async () => {
             const u = window.getCurrentUser?.();
             try {
@@ -910,6 +1117,9 @@ export async function init() {
             renderFeed(_ccFeed);
             const bEl = document.getElementById('ccBriefing');
             if (bEl) bEl.innerHTML = renderBriefing(u, _ccFeed);
+            // Phase 107.4 — invalidate the Your-Work cache so counts refetch, then re-render KPI chips.
+            _ccYourWork = null;
+            await renderKpiChips(u, _ccFeed);
         };
     } catch (error) {
         console.error('Error initializing home view:', error);
@@ -938,6 +1148,9 @@ export async function destroy() {
     delete window.ccOpenFeedItem;
     delete window.ccToggleFeedExpand;
     delete window.ccRefreshFeed;
+    // Phase 107.4 — KPI chip scroll handler + Your-Work cache.
+    delete window.ccScrollTo;
+    _ccYourWork = null;
     document.getElementById('cc-new-proposal-modal')?.remove();
 
     try {
