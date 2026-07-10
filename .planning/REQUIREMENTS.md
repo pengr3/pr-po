@@ -13,7 +13,7 @@ The landing page becomes a role-aware "what should I do" surface. Every feed ite
 
 - [ ] **HOME-01**: Landing shows a personalized greeting (name + date) and a one-line summary of how many items need the user's attention
 - [ ] **HOME-02**: A "Needs your attention" feed surfaces only actionable items the user is permitted to see (permission + assignment scoped)
-- [ ] **HOME-03**: Feed items are severity-ranked (high / medium) and each links directly to the relevant record or action
+- [ ] **HOME-03**: Feed items are severity-ranked (critical / high / medium) and each links directly to the relevant record or action
 - [ ] **HOME-04**: When nothing needs attention, the feed shows a calm "You're all caught up" empty state (no filler rows)
 - [ ] **HOME-05**: Quick-KPI chips summarize the user's world, scoped by role (my counts / portfolio / financial / procurement)
 - [ ] **HOME-06**: A "Your work" panel shows the user's own items (proposals in revision, assigned projects/services, submitted MRFs)
