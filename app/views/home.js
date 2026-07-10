@@ -18,16 +18,16 @@ import {
 import { openProposalModal } from '../proposal-modal.js';
 import { showLoading, showToast, formatCurrency, escapeHTML } from '../utils.js';
 import { createNotification, NOTIFICATION_TYPES } from '../notifications.js';
+// Phase 107 — Command Center feed engine (compute-on-load, D-08). getSourcesForUser is the
+// default source registry consumed by assembleFeed(); imported explicitly per the 107.3 contract.
+import { assembleFeed, getSourcesForUser } from '../home-feed.js';
 
 // View state
 let statsListeners = [];
-// Phase 81 D-05 — fresh object literal; old 8-key shape is fully replaced (REVIEWS Concern 4).
-let cachedStats = {
-    // Procurement pipeline (D-01)
-    activeMRFs: null,
-    pendingPRs: null,
-    activePOs: null
-};
+// Phase 107 — last assembleFeed() result. Holds { items, cap, total, hasCritical, hasHigh,
+// allSourcesFailed, fetchedAt }. Read by the briefing count + feed render + interaction dispatch;
+// 107.4 may read it for the KPI "Needs Attention" chip. Reset to null in destroy().
+let _ccFeed = null;
 
 // Phase 87.1 — last fetched proposals for the home Proposals sub-tab (one-time getDocs cache,
 // scoped to the current session/view). Used by the local approval queue to look up
@@ -38,19 +38,6 @@ let _homeProposalStatusFilter = null; // null = active-only (default); string = 
 const ACTIVE_PROPOSAL_STAGES = ['draft', 'pending_internal', 'pending_client', 'for_revision'];
 let _homeProposalPage = 1;
 let _proposalListener = null; // onSnapshot unsubscribe handle for proposals collection
-
-/**
- * Determine dashboard mode based on current user role
- * @returns {'projects'|'services'|'both'}
- */
-function getDashboardMode() {
-    const role = window.getCurrentUser?.()?.role || '';
-    // Quick 260627-kg0: only department ADMINS stay single-department; *_user roles surface BOTH
-    // departments' dashboards because they may hold cross-department assignments.
-    if (role === 'operations_admin') return 'projects';
-    if (role === 'services_admin') return 'services';
-    return 'both'; // super_admin, finance, procurement, operations_user, services_user, unknown
-}
 
 /**
  * Phase 87.1 D-01/D-08 — Home sub-tab visibility config based on role.
@@ -90,29 +77,62 @@ function filterProposalsForUser(allProposals) {
     return [];
 }
 
+// Phase 107 — human-readable role labels for the briefing role chip. Fallback = raw role key.
+const ROLE_LABELS = {
+    super_admin: 'Super Admin',
+    operations_admin: 'Operations Admin',
+    services_admin: 'Services Admin',
+    operations_user: 'Operations User',
+    services_user: 'Services User',
+    finance: 'Finance',
+    procurement_staff: 'Procurement',
+    management: 'Management'
+};
+
 /**
- * Build Procurement card HTML — always shown regardless of role (D-05)
- * Reuses existing .stat-item/.stat-label/.stat-value classes inside a .hs-procurement-stats flex wrapper.
- * @returns {string}
+ * Phase 107 HOME-01 — Build the briefing header HTML for #ccBriefing.
+ * Left group: greeting (Good {timeWord}, {firstName}.) + dated attention one-liner whose
+ * count is tone-colored (danger if any critical, warn if any high). Right group: role chip +
+ * the '+ New Proposal' CTA (only for canEngagements roles). Pure string builder — no DOM writes.
+ * @param {object|null} user - window.getCurrentUser() result
+ * @param {object} feed - assembleFeed() result (or the failure-shaped fallback)
+ * @returns {string} HTML
  */
-function procurementCardHtml() {
+function renderBriefing(user, feed) {
+    const hour = new Date().getHours();
+    const timeWord = hour < 12 ? 'morning' : (hour < 18 ? 'afternoon' : 'evening');
+    const firstName = (user?.full_name || 'there').trim().split(/\s+/)[0] || 'there';
+    const role = user?.role || '';
+    const roleLabel = ROLE_LABELS[role] || role || '—';
+
+    // Dated attention one-liner
+    const now = new Date();
+    const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const monthShort = now.toLocaleDateString('en-US', { month: 'short' });
+    const dayNum = now.getDate();
+    const N = feed?.total || 0;
+    let attnPhrase;
+    if (N > 0) {
+        const tone = feed.hasCritical ? 'cc-attn-count--danger' : (feed.hasHigh ? 'cc-attn-count--warn' : '');
+        attnPhrase = `<span class="cc-attn-count ${tone}">${N}</span> item${N === 1 ? '' : 's'} need${N === 1 ? 's' : ''} your attention`;
+    } else {
+        attnPhrase = `You're all caught up`;
+    }
+
+    // '+ New Proposal' CTA — gated to roles that pass canEngagements (super_admin/operations_admin/services_admin)
+    const canEngagements = getHomeSubTabConfig().canEngagements;
+    const newProposalBtn = canEngagements
+        ? `<button class="btn btn-primary" onclick="window.ccOpenNewProposal()">+ New Proposal</button>`
+        : '';
+
     return `
-        <div class="hs-stat-card">
-            <h4 class="hs-stat-card-title">Procurement</h4>
-            <div class="hs-procurement-stats">
-                <div class="stat-item">
-                    <span class="stat-label">Pending MRFs</span>
-                    <span class="stat-value" id="stat-mrfs">${cachedStats.activeMRFs !== null ? cachedStats.activeMRFs : '<span class="skeleton skeleton-stat"></span>'}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Pending PRs</span>
-                    <span class="stat-value" id="stat-prs">${cachedStats.pendingPRs !== null ? cachedStats.pendingPRs : '<span class="skeleton skeleton-stat"></span>'}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Active POs</span>
-                    <span class="stat-value" id="stat-pos">${cachedStats.activePOs !== null ? cachedStats.activePOs : '<span class="skeleton skeleton-stat"></span>'}</span>
-                </div>
-            </div>
+        <div class="cc-briefing-text">
+            <h1 class="cc-greeting">Good ${timeWord}, ${escapeHTML(firstName)}.</h1>
+            <p class="cc-attn-line">${escapeHTML(weekday)}, ${escapeHTML(monthShort)} ${dayNum} · ${attnPhrase}</p>
+        </div>
+        <div class="cc-briefing-actions">
+            <span class="cc-role-chip">${escapeHTML(roleLabel)}</span>
+            ${newProposalBtn}
         </div>
     `;
 }
@@ -641,15 +661,6 @@ function _loadHomeProposalsTab(canApproveQueue) {
  */
 export async function init() {
     try {
-        const mode = getDashboardMode();
-        loadStats(mode);
-
-        // If we have stale cached data showing, add refreshing indicator
-        // until fresh data arrives from Firestore (removed by updateStatDisplay)
-        if (cachedStats.activeMRFs !== null) {
-            document.querySelectorAll('.stat-value').forEach(el => el.classList.add('stat-refreshing'));
-        }
-
         // Phase 107 D-02 — home sub-tabs (Command Center default + Proposals). The Engagements tab
         // retires: its form now mounts on-demand inside the '+ New Proposal' modal (see 107.3 Task 2),
         // so the old eager-render block that populated the retired engagements container is gone.
@@ -667,6 +678,19 @@ export async function init() {
                 _loadHomeProposalsTab(canApproveQueue);
             }
         }
+
+        // Phase 107 HOME-01..04 — Command Center engine bootstrap (compute-on-load, D-08).
+        // One assembleFeed() per view-load; Refresh re-runs it. On total failure, fall back to the
+        // failure-shaped result so the briefing + feed render the neutral error state, not a crash.
+        const user = window.getCurrentUser?.();
+        try {
+            _ccFeed = await assembleFeed(user);
+        } catch (e) {
+            console.error('[Home] assembleFeed failed', e);
+            _ccFeed = { items: [], cap: { visible: [], rest: [], overflow: 0 }, total: 0, hasCritical: false, hasHigh: false, allSourcesFailed: true, fetchedAt: Date.now() };
+        }
+        const briefingEl = document.getElementById('ccBriefing');
+        if (briefingEl) briefingEl.innerHTML = renderBriefing(user, _ccFeed);
 
         // Register window functions for sub-nav + proposal modal + home-local queue handlers.
         // Counterpart deletions live in destroy() below.
@@ -687,77 +711,41 @@ export async function init() {
             _homeProposalPage = page;
             _rerenderProposalTable();
         };
+
+        // Phase 107 — '+ New Proposal' opens the engagement form in a window-style modal ON-DEMAND
+        // (mounts renderEngagementForm() once, then initEngagementForm() wires it). This replaces the
+        // retired eager-render so the form's fixed (non-namespaced) ids never render twice / collide.
+        window.ccOpenNewProposal = async () => {
+            document.getElementById('cc-new-proposal-modal')?.remove();
+            const overlay = document.createElement('div');
+            overlay.id = 'cc-new-proposal-modal';
+            overlay.className = 'modal';
+            overlay.style.display = 'flex';
+            overlay.style.zIndex = '1001';
+            overlay.innerHTML = `
+                <div class="modal-content" style="max-width:720px;margin:auto;max-height:90vh;overflow-y:auto;">
+                    <div class="modal-header">
+                        <h2 style="font-size:1.125rem;font-weight:600;margin:0;">New Proposal</h2>
+                        <button class="modal-close" aria-label="Close" onclick="window.ccCloseNewProposal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="padding:1.5rem;">${renderEngagementForm()}</div>
+                </div>`;
+            // Backdrop click (outside the modal-content) closes + tears down the form.
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) window.ccCloseNewProposal(); });
+            document.body.appendChild(overlay);
+            try {
+                await initEngagementForm();
+            } catch (err) {
+                console.error('[Home] initEngagementForm failed:', err);
+            }
+        };
+        window.ccCloseNewProposal = () => {
+            // destroyEngagementForm() is idempotent and owns the engagement window functions.
+            try { destroyEngagementForm(); } catch (err) { console.error('[Home] destroyEngagementForm failed:', err); }
+            document.getElementById('cc-new-proposal-modal')?.remove();
+        };
     } catch (error) {
         console.error('Error initializing home view:', error);
-    }
-}
-
-/**
- * Load real-time statistics based on dashboard mode
- * @param {'projects'|'services'|'both'} mode
- */
-function loadStats(mode) {
-    // ---- Procurement card (always shown regardless of mode per D-05) ----
-    // Pending MRFs — department filter depends on mode (RESEARCH Open Question 2):
-    //   mode==='projects' → d.department='projects' (or undefined, legacy-safe)
-    //   mode==='services' → d.department='services'
-    //   mode==='both' → no department filter (cross-cutting pipeline view)
-    const mrfListener = onSnapshot(
-        query(collection(db, 'mrfs'), where('status', '==', 'Pending')),
-        (snapshot) => {
-            let count;
-            if (mode === 'projects') {
-                count = snapshot.docs.filter(d => (d.data().department || 'projects') === 'projects').length;
-            } else if (mode === 'services') {
-                count = snapshot.docs.filter(d => d.data().department === 'services').length;
-            } else {
-                // both mode — total across all departments
-                count = snapshot.size;
-            }
-            cachedStats.activeMRFs = count;
-            updateStatDisplay('stat-mrfs', count);
-        },
-        (error) => { console.error('[Home] Error loading MRF stats:', error); }
-    );
-    statsListeners.push(mrfListener);
-
-    // Pending PRs (no dept filter)
-    const prListener = onSnapshot(
-        query(collection(db, 'prs'), where('finance_status', '==', 'Pending')),
-        (snapshot) => {
-            cachedStats.pendingPRs = snapshot.size;
-            updateStatDisplay('stat-prs', cachedStats.pendingPRs);
-        },
-        (error) => { console.error('[Home] Error loading PR stats:', error); }
-    );
-    statsListeners.push(prListener);
-
-    // Active POs — procurement_status != 'Delivered' (no dept filter)
-    const poListener = onSnapshot(
-        collection(db, 'pos'),
-        (snapshot) => {
-            cachedStats.activePOs = snapshot.docs.filter(doc => {
-                const status = doc.data().procurement_status;
-                return status && status !== 'Delivered';
-            }).length;
-            updateStatDisplay('stat-pos', cachedStats.activePOs);
-        },
-        (error) => { console.error('[Home] Error loading PO stats:', error); }
-    );
-    statsListeners.push(poListener);
-}
-
-/**
- * Update stat display in DOM
- * @param {string} elementId - ID of stat element
- * @param {number} value - New value
- */
-function updateStatDisplay(elementId, value) {
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.textContent = value;
-        element.classList.remove('loading');
-        element.classList.remove('stat-refreshing');
     }
 }
 
