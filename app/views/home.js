@@ -100,8 +100,8 @@ const ROLE_LABELS = {
 /**
  * Phase 107 HOME-01 — Build the briefing header HTML for #ccBriefing.
  * Left group: greeting (Good {timeWord}, {firstName}.) + dated attention one-liner whose
- * count is tone-colored (danger if any critical, warn if any high). Right group: role chip +
- * the '+ New Proposal' CTA (only for canEngagements roles). Pure string builder — no DOM writes.
+ * count is tone-colored (danger if any critical, warn if any high). Right group: the
+ * '+ New Engagement' CTA (only for canEngagements roles). Pure string builder — no DOM writes.
  * @param {object|null} user - window.getCurrentUser() result
  * @param {object} feed - assembleFeed() result (or the failure-shaped fallback)
  * @returns {string} HTML
@@ -110,8 +110,6 @@ function renderBriefing(user, feed) {
     const hour = new Date().getHours();
     const timeWord = hour < 12 ? 'morning' : (hour < 18 ? 'afternoon' : 'evening');
     const firstName = (user?.full_name || 'there').trim().split(/\s+/)[0] || 'there';
-    const role = user?.role || '';
-    const roleLabel = ROLE_LABELS[role] || role || '—';
 
     // Dated attention one-liner
     const now = new Date();
@@ -127,10 +125,11 @@ function renderBriefing(user, feed) {
         attnPhrase = `You're all caught up`;
     }
 
-    // '+ New Proposal' CTA — gated to roles that pass canEngagements (super_admin/operations_admin/services_admin)
+    // '+ New Engagement' CTA — gated to roles that pass canEngagements (super_admin/operations_admin/services_admin).
+    // Opens the existing engagement form (project/service, role-scoped). Renamed from 'New Proposal' in 107.5.
     const canEngagements = getHomeSubTabConfig().canEngagements;
-    const newProposalBtn = canEngagements
-        ? `<button class="btn btn-primary" onclick="window.ccOpenNewProposal()">+ New Proposal</button>`
+    const newEngagementBtn = canEngagements
+        ? `<button class="btn btn-primary" onclick="window.ccOpenNewProposal()">+ New Engagement</button>`
         : '';
 
     return `
@@ -139,8 +138,7 @@ function renderBriefing(user, feed) {
             <p class="cc-attn-line">${escapeHTML(weekday)}, ${escapeHTML(monthShort)} ${dayNum} · ${attnPhrase}</p>
         </div>
         <div class="cc-briefing-actions">
-            <span class="cc-role-chip">${escapeHTML(roleLabel)}</span>
-            ${newProposalBtn}
+            ${newEngagementBtn}
         </div>
     `;
 }
@@ -667,42 +665,48 @@ function renderDoorRail(user) {
  * @returns {string} HTML string for home page
  */
 export function render() {
-    // Phase 107 D-02/D-03 — Home is now the Command Center. The old nav-card grid and
-    // procurement quick-stats are retired (the door rail + KPI chips replace them in 107.4).
-    // A minimal brand line sits above the sub-nav; the Command Center owns the greeting h1.
+    // Phase 107.5 D-02/D-03 — Home is the Command Center, rendered as ONE cohesive contained
+    // shell: an integrated underline tab bar at the top, then the briefing + KPI row full-width,
+    // then a two-column body (feed left / Your Work + Recent Activity right), then the door rail.
+    // The old centered "CLMC" brand hero + the role chip are retired; the greeting owns the top.
     return `
-        <div class="hero-section">
-            <h1 class="hero-title">🏗️ CLMC</h1>
-            <p class="hero-subtitle">Management System Portal</p>
-
-            <!-- Phase 107 D-02 — Home sub-nav; init() reveals it for eligible roles.
-                 Command Center (default) | Proposals (non-default) | Dashboard (Phase 109, hidden). -->
-            <div class="home-sub-nav" id="homeSubNav" style="display:none;">
-                <div class="home-sub-nav-tabs">
-                    <button class="home-sub-nav-tab home-sub-nav-tab--active" id="homeTabCommand"
-                            onclick="window.switchHomeTab('command')">Command Center</button>
-                    <button class="home-sub-nav-tab" id="homeTabProposals" style="display:none;"
-                            onclick="window.switchHomeTab('proposals')">Proposals</button>
-                    <button class="home-sub-nav-tab" id="homeTabDashboard" style="display:none;"
-                            onclick="window.switchHomeTab('dashboard')">Dashboard</button>
-                </div>
-            </div>
-
-            <!-- Proposals sub-tab body (unchanged; filled on-demand by _loadHomeProposalsTab) -->
-            <div id="homeProposalsContent" style="display:none;"></div>
-
-            <!-- Phase 107 — Command Center default surface. Briefing + feed hero are wired here (107.3);
-                 the KPI row, Your Work / Recent Activity panels, and door rail are filled by 107.4. -->
-            <div id="homeCommandContent">
-                <div class="cc-container">
-                    <section class="cc-briefing" id="ccBriefing"></section>
-                    <div class="cc-kpi-row" id="ccKpiRow"></div>                     <!-- filled by 107.4 -->
-                    <section class="cc-feed-section" id="ccFeedSection"></section>
-                    <div class="cc-panels" id="ccPanels">
-                        <section class="cc-yourwork" id="ccYourWork" style="display:none;"></section>   <!-- 107.4 -->
-                        <section class="cc-activity" id="ccActivity"></section>                          <!-- 107.4 -->
+        <div class="cc-stage">
+            <div class="cc-shell">
+                <!-- Phase 107.5 D-02 — integrated tab bar; init() reveals it for eligible roles.
+                     Command Center (default) | Proposals (non-default) | Dashboard (Phase 109, hidden). -->
+                <div class="home-sub-nav" id="homeSubNav" style="display:none;">
+                    <div class="home-sub-nav-tabs">
+                        <button class="home-sub-nav-tab home-sub-nav-tab--active" id="homeTabCommand"
+                                onclick="window.switchHomeTab('command')">Command Center</button>
+                        <button class="home-sub-nav-tab" id="homeTabProposals" style="display:none;"
+                                onclick="window.switchHomeTab('proposals')">Proposals</button>
+                        <button class="home-sub-nav-tab" id="homeTabDashboard" style="display:none;"
+                                onclick="window.switchHomeTab('dashboard')">Dashboard</button>
                     </div>
-                    <nav class="cc-door-rail" id="ccDoorRail"></nav>                 <!-- 107.4 -->
+                </div>
+
+                <div class="cc-inner">
+                    <!-- Proposals sub-tab body (unchanged; filled on-demand by _loadHomeProposalsTab) -->
+                    <div id="homeProposalsContent" style="display:none;"></div>
+
+                    <!-- Command Center default surface. Briefing + KPI are full-width; the feed is
+                         the left column, Your Work + Recent Activity the right column. -->
+                    <div id="homeCommandContent">
+                        <div class="cc-container">
+                            <section class="cc-briefing" id="ccBriefing"></section>
+                            <div class="cc-kpi-row" id="ccKpiRow"></div>
+                            <div class="cc-body">
+                                <div class="cc-feed-col">
+                                    <section class="cc-feed-section" id="ccFeedSection"></section>
+                                </div>
+                                <aside class="cc-side-col">
+                                    <section class="cc-yourwork" id="ccYourWork" style="display:none;"></section>
+                                    <section class="cc-activity" id="ccActivity"></section>
+                                </aside>
+                            </div>
+                            <nav class="cc-door-rail" id="ccDoorRail"></nav>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1246,7 +1250,7 @@ export async function init() {
             _rerenderProposalTable();
         };
 
-        // Phase 107 — '+ New Proposal' opens the engagement form in a window-style modal ON-DEMAND
+        // Phase 107 — '+ New Engagement' opens the engagement form in a window-style modal ON-DEMAND
         // (mounts renderEngagementForm() once, then initEngagementForm() wires it). This replaces the
         // retired eager-render so the form's fixed (non-namespaced) ids never render twice / collide.
         window.ccOpenNewProposal = async () => {
@@ -1259,7 +1263,7 @@ export async function init() {
             overlay.innerHTML = `
                 <div class="modal-content" style="max-width:720px;margin:auto;max-height:90vh;overflow-y:auto;">
                     <div class="modal-header">
-                        <h2 style="font-size:1.125rem;font-weight:600;margin:0;">New Proposal</h2>
+                        <h2 style="font-size:1.125rem;font-weight:600;margin:0;">New Engagement</h2>
                         <button class="modal-close" aria-label="Close" onclick="window.ccCloseNewProposal()">&times;</button>
                     </div>
                     <div class="modal-body" style="padding:1.5rem;">${renderEngagementForm()}</div>

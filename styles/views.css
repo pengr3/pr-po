@@ -3724,35 +3724,46 @@
 #homeEngagementsContent {
     align-self: stretch;
 }
+/* Phase 107.5 — integrated underline tab bar (sits at the top edge of the Command Center shell) */
 .home-sub-nav {
-    background: #ffffff;
-    border-bottom: 1px solid var(--gray-200);
-    margin-bottom: 1.5rem;
+    background: linear-gradient(180deg, #fbfcfe, #ffffff);
+    border-bottom: 1px solid var(--cc-line);
+    margin-bottom: 0;
+    padding: 0 30px;
 }
 .home-sub-nav-tabs {
     display: flex;
-    gap: 0.25rem;
-    padding: 0.5rem 0;
+    gap: 1.5rem;
+    padding: 0;
     overflow-x: auto;
     scrollbar-width: none;
 }
 .home-sub-nav-tabs::-webkit-scrollbar { display: none; }
 .home-sub-nav-tab {
+    position: relative;
     flex: 0 0 auto;
-    padding: 0.5rem 1rem;
+    padding: 16px 2px;
     border: none;
-    border-radius: 999px;
+    border-radius: 0;
     background: transparent;
-    color: var(--gray-700);
+    color: var(--cc-muted);
     font-size: 0.9375rem;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.15s, color 0.15s;
+    transition: color 0.15s;
 }
-.home-sub-nav-tab:hover { background: var(--gray-50); color: var(--gray-900); }
-.home-sub-nav-tab--active { background: var(--primary); color: #ffffff; }
-.home-sub-nav-tab--active:hover { background: var(--primary-dark); color: #ffffff; }
+.home-sub-nav-tab:hover { background: transparent; color: var(--cc-ink); }
+.home-sub-nav-tab--active { background: transparent; color: var(--primary); }
+.home-sub-nav-tab--active:hover { background: transparent; color: var(--primary); }
+.home-sub-nav-tab--active::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 2.5px;
+    background: var(--primary);
+    border-radius: 2px 2px 0 0;
+}
 
 /* ── LIFECYCLE ACCORDION CARD (Phase 100) ────────────────────────────── */
 .lc-accordion {
@@ -5414,8 +5425,11 @@ tr.dlp-green, .portfolio-row.dlp-green {
 
 /* ===== Command Center — Shell + Panels (Phase 107) ===== */
 
-/* Page shell — single 1080px column, 24px block-to-block rhythm */
-.cc-container { max-width: 1080px; margin: 0 auto; padding: 24px 0 32px; display: flex; flex-direction: column; gap: 24px; }
+/* Phase 107.5 — cohesive contained shell + inner flex column (24px block rhythm) */
+.cc-stage { max-width: 1160px; margin: 0 auto; padding: 24px 16px 40px; }
+.cc-shell { background: #fff; border: 1px solid var(--cc-line); border-radius: 18px; box-shadow: 0 6px 28px rgba(15, 23, 42, .06); overflow: hidden; }
+.cc-inner { padding: 28px 30px 30px; }
+.cc-container { display: flex; flex-direction: column; gap: 24px; }
 
 /* Briefing header — greeting left, actions right */
 .cc-briefing { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -5436,11 +5450,18 @@ tr.dlp-green, .portfolio-row.dlp-green {
 .cc-kpi-chip--danger .scorecard-count { color: var(--danger); }
 .cc-kpi-chip--warn .scorecard-count { color: var(--cc-high); }
 
-/* Two-panel grid — Your Work + Recent Activity side-by-side */
-.cc-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+/* Phase 107.5 — two-column body: feed (primary) left, side panels stacked right */
+.cc-body { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.cc-feed-col { min-width: 0; }
+.cc-side-col { display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 900px) {
+    .cc-body { grid-template-columns: 1fr; }
+    .cc-inner { padding: 22px 18px 24px; }
+    .home-sub-nav { padding: 0 18px; }
+}
 
 /* Your Work panel */
-.cc-yourwork { background: #fff; border: 1px solid var(--cc-line); border-radius: 12px; padding: 20px; }
+.cc-yourwork { background: #fcfdff; border: 1px solid var(--cc-line); border-radius: 14px; padding: 18px 20px; }
 .cc-yourwork-bucket { margin-bottom: 16px; }
 .cc-yourwork-bucket:last-child { margin-bottom: 0; }
 .cc-yourwork-bucket-label { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--cc-faint); margin-bottom: 8px; }
@@ -5449,7 +5470,7 @@ tr.dlp-green, .portfolio-row.dlp-green {
 .cc-yourwork-more { font-size: 13px; font-weight: 600; color: var(--primary); cursor: pointer; padding: 6px 8px; display: inline-block; }
 
 /* Recent Activity panel */
-.cc-activity { background: #fff; border: 1px solid var(--cc-line); border-radius: 12px; padding: 20px; }
+.cc-activity { background: #fcfdff; border: 1px solid var(--cc-line); border-radius: 14px; padding: 18px 20px; }
 .cc-activity-row { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 8px; border-radius: 6px; cursor: pointer; }
 .cc-activity-row:hover { background: var(--cc-hover); }
 .cc-activity-icon { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
