@@ -5411,3 +5411,56 @@ tr.dlp-green, .portfolio-row.dlp-green {
 .cc-feed-retry:hover { color: var(--primary); border-color: #93c5fd; }
 
 /* ===== End Command Center — Feed Hero (Phase 107) ===== */
+
+/* ===== Command Center — Shell + Panels (Phase 107) ===== */
+
+/* Page shell — single 1080px column, 24px block-to-block rhythm */
+.cc-container { max-width: 1080px; margin: 0 auto; padding: 24px 0 32px; display: flex; flex-direction: column; gap: 24px; }
+
+/* Briefing header — greeting left, actions right */
+.cc-briefing { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.cc-greeting { font-size: 22px; font-weight: 700; line-height: 1.2; color: var(--cc-ink); margin: 0 0 4px; }
+.cc-attn-line { font-size: 15px; font-weight: 400; line-height: 1.4; color: var(--cc-muted); margin: 0; }
+.cc-attn-count { font-weight: 600; color: var(--cc-ink); }
+.cc-attn-count--danger { color: var(--danger); }
+.cc-attn-count--warn { color: var(--cc-high); }
+.cc-briefing-actions { display: flex; align-items: center; gap: 12px; }
+.cc-role-chip { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 999px; background: #f0f6ff; color: #1a73e8; border: 1px solid #d6e4ff; font-size: 13px; font-weight: 600; white-space: nowrap; }
+
+/* KPI chip row — reuse .project-scorecard-card; count above label; whole chip clickable */
+.cc-kpi-row { display: flex; flex-wrap: wrap; gap: 12px; }
+.cc-kpi-chip { flex: 1 1 auto; min-width: 150px; min-height: 44px; cursor: pointer; border-radius: 8px; }
+.cc-kpi-chip .scorecard-count { font-size: 24px; font-weight: 700; line-height: 1; color: var(--cc-ink); }
+.cc-kpi-chip .scorecard-label { font-size: 12px; font-weight: 600; line-height: 1.2; color: var(--cc-muted); }
+.cc-kpi-chip:hover { border-color: #93c5fd; background: #f0f7ff; }
+.cc-kpi-chip--danger .scorecard-count { color: var(--danger); }
+.cc-kpi-chip--warn .scorecard-count { color: var(--cc-high); }
+
+/* Two-panel grid — Your Work + Recent Activity side-by-side */
+.cc-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+/* Your Work panel */
+.cc-yourwork { background: #fff; border: 1px solid var(--cc-line); border-radius: 12px; padding: 20px; }
+.cc-yourwork-bucket { margin-bottom: 16px; }
+.cc-yourwork-bucket:last-child { margin-bottom: 0; }
+.cc-yourwork-bucket-label { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--cc-faint); margin-bottom: 8px; }
+.cc-yourwork-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+.cc-yourwork-row:hover { background: var(--cc-hover); }
+.cc-yourwork-more { font-size: 13px; font-weight: 600; color: var(--primary); cursor: pointer; padding: 6px 8px; display: inline-block; }
+
+/* Recent Activity panel */
+.cc-activity { background: #fff; border: 1px solid var(--cc-line); border-radius: 12px; padding: 20px; }
+.cc-activity-row { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 8px; border-radius: 6px; cursor: pointer; }
+.cc-activity-row:hover { background: var(--cc-hover); }
+.cc-activity-icon { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; }
+.cc-activity-empty { font-size: 13px; color: var(--cc-muted); padding: 8px; }
+
+/* Nav door rail — condensed tiles (no paragraph, no button) */
+.cc-door-rail { display: flex; gap: 8px; flex-wrap: wrap; }
+.cc-door { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--cc-line); border-radius: 8px; padding: 10px 14px; min-height: 44px; min-width: 120px; cursor: pointer; }
+.cc-door:hover { border-color: var(--primary); }
+.cc-door:hover .cc-door-label { color: var(--primary); }
+.cc-door-icon { font-size: 18px; }
+.cc-door-label { font-size: 14px; color: var(--cc-muted); }
+
+/* ===== End Command Center — Shell + Panels (Phase 107) ===== */
