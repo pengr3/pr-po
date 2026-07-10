@@ -33,6 +33,18 @@
     --danger-dark: #721c24;
     --warning-light: #fff3cd;
     --warning-dark: #856404;
+
+    /* Command Center (Phase 107) — net-new tokens; map to existing vars where noted */
+    --cc-critical: var(--danger);       /* #ea4335 */
+    --cc-high: #f59e0b;                  /* deeper amber than --warning #fbbc04 — legible as rail+text */
+    --cc-medium: var(--primary);         /* #1a73e8 */
+    --cc-critical-tint: #fef2f2;         /* low-saturation full-row wash */
+    --cc-high-tint: #fffbeb;             /* low-saturation full-row wash */
+    --cc-hover: #f8fafc;                 /* slate-50 row hover */
+    --cc-ink: #1e293b;                   /* primary text */
+    --cc-muted: #64748b;                 /* secondary text */
+    --cc-faint: #94a3b8;                 /* age / meta text */
+    --cc-line: #e5e7eb;                  /* hairline borders */
 }
 
 /* ========================================
