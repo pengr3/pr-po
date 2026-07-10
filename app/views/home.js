@@ -4,7 +4,7 @@
    Phase 87.1 D-01/D-07/D-08: gains Overview | Engagements | Proposals sub-tabs.
    ======================================== */
 
-import { db, collection, doc, query, where, onSnapshot, getDocs, getDoc } from '../firebase.js';
+import { db, collection, doc, onSnapshot, getDoc } from '../firebase.js';
 import { renderEngagementForm, initEngagementForm, destroyEngagementForm } from '../engagement-create.js';
 import {
     STAGE_ORDER,
@@ -23,7 +23,6 @@ import { createNotification, NOTIFICATION_TYPES } from '../notifications.js';
 import { assembleFeed, getSourcesForUser } from '../home-feed.js';
 
 // View state
-let statsListeners = [];
 // Phase 107 — last assembleFeed() result. Holds { items, cap, total, hasCritical, hasHigh,
 // allSourcesFailed, fetchedAt }. Read by the briefing count + feed render + interaction dispatch;
 // 107.4 may read it for the KPI "Needs Attention" chip. Reset to null in destroy().
@@ -135,6 +134,136 @@ function renderBriefing(user, feed) {
             ${newProposalBtn}
         </div>
     `;
+}
+
+// Phase 107 — category → chip label (matches the .cc-cat-chip--{category} taxonomy in views.css).
+const CATEGORY_LABELS = {
+    proposal: 'Proposal', mrf: 'MRF', pr: 'PR', tr: 'TR', po: 'PO',
+    finance: 'Finance', rfp: 'RFP', project: 'Project', service: 'Service',
+    issue: 'Issue', dlp: 'DLP'
+};
+
+/**
+ * Phase 107 — normalize a feed timestamp (Firestore Timestamp | {seconds} | Date | ms | ISO | null)
+ * to epoch ms, or null when unresolvable.
+ */
+function ccToMillis(ts) {
+    if (ts == null) return null;
+    if (typeof ts.toMillis === 'function') return ts.toMillis();
+    if (typeof ts.seconds === 'number') return ts.seconds * 1000;
+    if (ts instanceof Date) return ts.getTime();
+    if (typeof ts === 'number') return ts;
+    if (typeof ts === 'string') { const t = Date.parse(ts); return Number.isNaN(t) ? null : t; }
+    return null;
+}
+
+/** Compact age string for a feed row: just now / {m}m / {h}h / {d}d. */
+function ccAge(ts) {
+    const ms = ccToMillis(ts);
+    if (ms == null) return '';
+    const mins = Math.floor(Math.max(0, Date.now() - ms) / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h`;
+    return `${Math.floor(hrs / 24)}d`;
+}
+
+/** Relative time for the "Updated {relTime}" caption: just now / {m}m ago. */
+function ccRelTime(fetchedAt) {
+    if (fetchedAt == null) return 'just now';
+    const mins = Math.floor(Math.max(0, Date.now() - fetchedAt) / 60000);
+    return mins < 1 ? 'just now' : `${mins}m ago`;
+}
+
+/**
+ * Phase 107 HOME-02/03 — Build one feed row. `idx` indexes into the concatenated
+ * [...cap.visible, ...cap.rest] list so window.ccOpenFeedItem(idx) resolves the right item.
+ * item.icon is a trusted inline-SVG string (from the engine's TYPE_META) — inserted raw, not escaped.
+ * Roll-up rows (item.isRollup) render with the collapsed .cc-feed-rollup treatment.
+ */
+function renderFeedRow(item, idx) {
+    const age = ccAge(item.timestamp);
+    const aria = `${escapeHTML(item.title || '')} — ${item.severity} — ${age}`;
+    const onkey = `onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.ccOpenFeedItem(${idx});}"`;
+    if (item.isRollup) {
+        return `<div class="cc-feed-row cc-feed-row--${item.severity} cc-feed-rollup" role="button" tabindex="0" data-idx="${idx}" aria-label="${aria}" onclick="window.ccOpenFeedItem(${idx})" ${onkey}>
+            <span class="cc-feed-icon">${item.icon || ''}</span>
+            <div class="cc-feed-main"><div class="cc-feed-title">${escapeHTML(item.title || '')}</div></div>
+            <span class="cc-feed-age">${age}</span>
+        </div>`;
+    }
+    const categoryLabel = CATEGORY_LABELS[item.category]
+        || (item.category ? item.category.charAt(0).toUpperCase() + item.category.slice(1) : '');
+    const catChip = item.category
+        ? `<span class="cc-cat-chip cc-cat-chip--${item.category}">${escapeHTML(categoryLabel)}</span>`
+        : '';
+    return `<div class="cc-feed-row cc-feed-row--${item.severity}" role="button" tabindex="0" data-idx="${idx}" aria-label="${aria}" onclick="window.ccOpenFeedItem(${idx})" ${onkey}>
+        <span class="cc-feed-icon">${item.icon || ''}</span>
+        <div class="cc-feed-main">
+            <div class="cc-feed-title">${escapeHTML(item.title || '')}</div>
+            <div class="cc-feed-subtitle">${escapeHTML(item.subtitle || '')}${catChip}</div>
+        </div>
+        <span class="cc-feed-age">${age}</span>
+    </div>`;
+}
+
+/**
+ * Phase 107 HOME-02/03/04 — Render the "Needs your attention" feed hero into #ccFeedSection.
+ * States (per 107.2 contract): allSourcesFailed → neutral error card; total===0 → calm empty card;
+ * else → cap.visible rows always + cap.rest behind a "Show all (N)" expander + overflow line.
+ */
+function renderFeed(feed) {
+    const section = document.getElementById('ccFeedSection');
+    if (!section) return;
+
+    const header = `
+        <div class="cc-feed-header">
+            <span class="cc-section-label">Needs your attention</span>
+            <div class="cc-feed-header-actions">
+                <span class="cc-updated">Updated ${ccRelTime(feed?.fetchedAt)}</span>
+                <button class="cc-refresh-btn" onclick="window.ccRefreshFeed()">↻ Refresh</button>
+            </div>
+        </div>`;
+
+    let body;
+    if (feed?.allSourcesFailed) {
+        body = `
+            <div class="cc-feed-error">
+                <div class="cc-feed-error-heading">Couldn't load your feed</div>
+                <div class="cc-feed-error-body">Something went wrong fetching your items.</div>
+                <button class="cc-feed-retry" onclick="window.ccRefreshFeed()">Retry</button>
+            </div>`;
+    } else if (!feed || feed.total === 0) {
+        body = `
+            <div class="cc-empty">
+                <div class="cc-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="#047857" stroke-width="1.75"><path d="M4.5 12.75l6 6 9-13.5"/></svg></div>
+                <div class="cc-empty-heading">You're all caught up</div>
+                <div class="cc-empty-body">Nothing needs your attention right now.</div>
+                <div class="cc-empty-hint">New items appear here as work moves through the pipeline.</div>
+            </div>`;
+    } else {
+        const visible = feed.cap?.visible || [];
+        const rest = feed.cap?.rest || [];
+        const overflow = feed.cap?.overflow || 0;
+        const visibleRows = visible.map((item, i) => renderFeedRow(item, i)).join('');
+        const restRows = rest.map((item, i) => renderFeedRow(item, visible.length + i)).join('');
+        const restBlock = rest.length > 0 ? `<div id="ccFeedRest" style="display:none;">${restRows}</div>` : '';
+        const expander = rest.length > 0
+            ? `<button class="cc-feed-expander" id="ccFeedExpander" onclick="window.ccToggleFeedExpand()">Show all (${feed.total})</button>`
+            : '';
+        const overflowLine = overflow > 0
+            ? `<div class="cc-feed-overflow">Showing 25 of ${feed.total} — open the relevant area to see the rest.</div>`
+            : '';
+        body = `
+            <div class="cc-feed-card">
+                <div class="cc-feed-list">${visibleRows}${restBlock}</div>
+                ${expander}
+                ${overflowLine}
+            </div>`;
+    }
+
+    section.innerHTML = header + body;
 }
 
 /**
@@ -691,6 +820,7 @@ export async function init() {
         }
         const briefingEl = document.getElementById('ccBriefing');
         if (briefingEl) briefingEl.innerHTML = renderBriefing(user, _ccFeed);
+        renderFeed(_ccFeed);
 
         // Register window functions for sub-nav + proposal modal + home-local queue handlers.
         // Counterpart deletions live in destroy() below.
@@ -744,6 +874,43 @@ export async function init() {
             try { destroyEngagementForm(); } catch (err) { console.error('[Home] destroyEngagementForm failed:', err); }
             document.getElementById('cc-new-proposal-modal')?.remove();
         };
+
+        // Phase 107 HOME-02/03/04 — feed interaction handlers.
+        // ccOpenFeedItem dispatches a row's deep-link: kind 'route' → location.hash; kind 'modal' →
+        // window[handler](arg) (reuses the existing homeQueueOpen*Modal path — no new destructive UI).
+        window.ccOpenFeedItem = (idx) => {
+            const item = _ccFeed?.cap ? [..._ccFeed.cap.visible, ..._ccFeed.cap.rest][idx] : null;
+            if (!item) return;
+            const dl = item.deepLink;
+            if (!dl) return;
+            if (dl.kind === 'route') {
+                location.hash = dl.value;
+            } else if (dl.kind === 'modal') {
+                const fn = window[dl.handler];
+                if (typeof fn === 'function') fn(dl.arg);
+            }
+        };
+        window.ccToggleFeedExpand = () => {
+            const rest = document.getElementById('ccFeedRest');
+            const btn = document.getElementById('ccFeedExpander');
+            if (!rest || !btn) return;
+            const isHidden = rest.style.display === 'none';
+            rest.style.display = isHidden ? '' : 'none';
+            btn.textContent = isHidden ? 'Show less' : `Show all (${_ccFeed?.total ?? 0})`;
+        };
+        // Refresh re-runs the compute-on-load fetch (NO onSnapshot) and re-renders BOTH the feed and
+        // the briefing count so the attention one-liner stays in sync.
+        window.ccRefreshFeed = async () => {
+            const u = window.getCurrentUser?.();
+            try {
+                _ccFeed = await assembleFeed(u);
+            } catch (e) {
+                _ccFeed = { items: [], cap: { visible: [], rest: [], overflow: 0 }, total: 0, hasCritical: false, hasHigh: false, allSourcesFailed: true, fetchedAt: Date.now() };
+            }
+            renderFeed(_ccFeed);
+            const bEl = document.getElementById('ccBriefing');
+            if (bEl) bEl.innerHTML = renderBriefing(u, _ccFeed);
+        };
     } catch (error) {
         console.error('Error initializing home view:', error);
     }
@@ -764,6 +931,15 @@ export async function destroy() {
     delete window.homeQueueOpenRejectModal;
     delete window.handleHomeProposalScorecardClick;
     delete window.handleHomeProposalPageChange;
+
+    // Phase 107 — Command Center handlers + on-demand New-Proposal modal.
+    delete window.ccOpenNewProposal;
+    delete window.ccCloseNewProposal;
+    delete window.ccOpenFeedItem;
+    delete window.ccToggleFeedExpand;
+    delete window.ccRefreshFeed;
+    document.getElementById('cc-new-proposal-modal')?.remove();
+
     try {
         destroyEngagementForm();
     } catch (err) {
@@ -773,19 +949,12 @@ export async function destroy() {
     _homeCanApproveQueue = false;
     _homeProposalStatusFilter = null;
     _homeProposalPage = 1;
+    _ccFeed = null;
 
     // Cancel proposals real-time listener (Phase 93.2)
     _proposalListener?.();
     _proposalListener = null;
 
-    // Unsubscribe from all Firestore listeners
-    statsListeners.forEach(unsubscribe => {
-        if (typeof unsubscribe === 'function') {
-            unsubscribe();
-        }
-    });
-    statsListeners = [];
-
-    // cachedStats intentionally NOT reset — stale-while-revalidate pattern:
-    // preserved values shown immediately on next visit while fresh data loads
+    // Phase 107 B1 — the legacy procurement-stats onSnapshot fleet is gone; the feed is
+    // compute-on-load (no listeners), so nothing to unsubscribe here beyond the proposals listener.
 }
