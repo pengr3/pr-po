@@ -689,3 +689,85 @@ export async function sourceDlpWindowsExpiring(user) {
     });
     return items;
 }
+
+/* ========================================
+   PORTFOLIO — OPEN ISSUES FAN-OUT (Plan 03, Task 3)
+   #6 is the heaviest source. It ships the resolved-decision-#3 BOUNDED per-assignment/
+   dept subcollection fan-out:
+     1. resolve scoped PARENT doc-ids per collection (chunked `in` on project_code/
+        service_code; a see-all admin/super — codes === null — enumerates the near-static
+        reference collection, 106-FINDINGS F-025),
+     2. cap the parent set (OPEN_ISSUES_PARENT_CAP) so worst-case reads stay bounded even
+        for a large-dept admin (the group-read / open_issue_count denormalization scale
+        paths are recorded in the SUMMARY, NOT built this phase),
+     3. INNER Promise.all — one `getDocs(.../issues where status=='open')` per parent
+        (gotcha 11). The issue doc carries NO parent identity (gotcha 3) so the dedupeKey
+        is composite `issue:{parentId}:{issueId}`.
+   NOT wrapped in try/catch — a failed parent read propagates to assembleFeed's per-source
+   catch (T-108-03); the source counts as failed only for itself, isolated by the engine.
+   ======================================== */
+
+// Documented worst-case bound on the number of fanned-out parents (resolved decision #3 — dept-admin scale).
+const OPEN_ISSUES_PARENT_CAP = 60;
+
+/**
+ * #6 sourceOpenIssues (HOME-10 dept admin / HOME-11 user) — open issues logged on the viewer's
+ * assigned/dept projects & services. Self-scopes via getAssignedProjectCodes()/getAssignedServiceCodes();
+ * see the section header for the bounded-fan-out algorithm. Fixed high (an open issue is an action).
+ */
+export async function sourceOpenIssues(user) {
+    // chunk a code list into groups of ≤10 for a Firestore `in` clause.
+    const chunk10 = (arr) => { const out = []; for (let i = 0; i < arr.length; i += 10) out.push(arr.slice(i, i + 10)); return out; };
+
+    // Resolve scoped parent descriptors for one collection. codes: null=see-all (enumerate),
+    // []=none, else chunked `in`. chunkQueryFn builds the literal scoped `in` query per chunk.
+    const resolveParents = async (collectionName, kindSingular, codes, chunkQueryFn) => {
+        if (Array.isArray(codes) && codes.length === 0) return [];   // scoped, zero assignments → nothing
+        const parents = [];
+        const pushFrom = (snap) => snap.forEach(d => {
+            const e = d.data();
+            parents.push({ id: d.id, kind: kindSingular, name: e.project_name || e.project_code || e.service_code || d.id });
+        });
+        if (codes === null) {
+            // see-all admin/super: enumerate the (near-static) reference collection to get its doc-ids.
+            pushFrom(await getDocs(collection(db, collectionName)));
+        } else {
+            const snaps = await Promise.all(chunk10(codes).map(c => getDocs(chunkQueryFn(c))));
+            snaps.forEach(pushFrom);
+        }
+        return parents;
+    };
+
+    // 1–2. Resolve + cap the scoped parent set across BOTH collections.
+    const [projParents, svcParents] = await Promise.all([
+        resolveParents('projects', 'project', getAssignedProjectCodes(),
+            c => query(collection(db, 'projects'), where('project_code', 'in', c))),
+        resolveParents('services', 'service', getAssignedServiceCodes(),
+            c => query(collection(db, 'services'), where('service_code', 'in', c)))
+    ]);
+    const parents = projParents.concat(svcParents).slice(0, OPEN_ISSUES_PARENT_CAP);   // bounded worst case
+
+    // 3. Inner Promise.all — one open-issues read per parent (bounded by the cap above).
+    const items = [];
+    await Promise.all(parents.map(async parent => {
+        const snap = await getDocs(query(
+            collection(db, parent.kind === 'service' ? 'services' : 'projects', parent.id, 'issues'),
+            where('status', '==', 'open')
+        ));
+        snap.forEach(issueDoc => {
+            const issue = { id: issueDoc.id, ...issueDoc.data() };
+            items.push({
+                dedupeKey: `issue:${parent.id}:${issue.id}`,   // composite — the issue doc carries no parent identity (gotcha 3)
+                severity: SEVERITY.high,
+                icon: TYPE_META.MRF_REJECTED.icon,             // nearest analogue (no dedicated open-issue icon)
+                title: (issue.title || issue.issue_type || 'Open issue'),
+                subtitle: parent.name,
+                category: 'issue',
+                deepLink: { kind: 'route', value: parent.kind === 'service' ? '#/services' : '#/projects' },
+                timestamp: issue.created_at,
+                overdueScore: 0
+            });
+        });
+    }));
+    return items;
+}
