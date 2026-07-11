@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Polish, Home Revamp & Mobile
 status: in-progress
-stopped_at: Phase 108 context gathered (108-CONTEXT.md — 4 gray areas, all recommended defaults); next: /gsd-plan-phase 108. Phase 107 COMPLETE + UAT + SECURE + REDESIGN (107.5/107.6, operator-confirmed).
-last_updated: "2026-07-11T02:05:00.000Z"
-last_activity: 2026-07-11 — Phase 107 operator-review redesign shipped on v4.2: 107.5 contained two-column Command Center shell + underline tab bar (killed the brand hero + role chip; reverses D-03 single-column) + "+ New Engagement" CTA with role/department type-scoping (efd21165, d3b94294); 107.6 feed-engine perf (Strategy A: parallelize sources/buckets/counts + getAggregateFromServer aggregation + kill pos full-scan + refresh debounce; onSnapshot stays 1) (4bd063fa). Operator confirmed layout "much better" + refresh "feels instant" on localhost. New Engagement cross-role type-scoping PENDING browser check (ops_admin/services_admin accounts). Prior 2026-07-10: UAT 6/8 (2 blocked-on-data) + security 3/3 CLOSED.
+stopped_at: Phase 108 PLANNED (4 plans / 4 waves; plan-checker PASSED — 0 blockers, 2 cosmetic warnings). Next: /gsd-execute-phase 108. Plans + RESEARCH NOT yet committed (awaiting user per commit-only-when-asked).
+last_updated: "2026-07-11T04:38:54.000Z"
+last_activity: 2026-07-11 — Phase 108 (Home — Per-Role Attention Feeds) PLANNED via /gsd-plan-phase. Research first (user-chosen; HIGH-confidence 108-RESEARCH.md — per-source spec for 17 new + 3 seed sources, 4 costly sources' server-side-scoping fixes, derivation-helper extract-by-copy map, declarative ROLE_SOURCES registry shape) → gsd-planner wrote 4 plans (108-01..04, sequential waves — all touch shared home-feed-sources.js/home-feed.js) → gsd-plan-checker VERIFICATION PASSED (0 blockers; all 5 REQ-IDs covered; Strategy-A/engine-pristine/no-cycle/case-sensitivity invariants verified). User decision: keep services_admin non-approver gate (self-gates to []). Two cosmetic warnings (RESEARCH Open-Q annotation folded in; where()-spacing left as advisory — executors mirror the spaced seed template). Prior 2026-07-11: Phase 107 redesign (107.5/107.6) operator-confirmed.
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 11
+  total_plans: 15
   completed_plans: 11
 ---
 
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-09 after v4.2 milestone start)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** v4.2 Polish, Home Revamp & Mobile — Phase 107 COMPLETE (Home Command Center shell + feed engine); next: Phase 108 (Home — Per-Role Attention Feeds)
+**Current focus:** v4.2 Polish, Home Revamp & Mobile — Phase 108 (Home — Per-Role Attention Feeds) PLANNED (4 plans, verifier PASSED); next: /gsd-execute-phase 108
 
 ## Current Position
 
-Phase: 107 — Home Command Center (Shell & Feed Engine) — ✅ COMPLETE + VERIFIED + REDESIGNED (107.5/107.6, operator-confirmed 2026-07-11)
-Plan: 4/4 base plans (W1: 107.1 CSS ∥ 107.2 home-feed.js engine+3 seed sources · W2: 107.3 shell/sub-nav/feed-hero · W3: 107.4 KPI+Your Work+Recent Activity+door rail) + 2 operator-review follow-ups: 107.5 (contained two-column shell + underline tabs + New Engagement CTA/type-scoping) · 107.6 (feed-engine perf, Strategy A). Covers HOME-01…08.
-Status: Phase 107 EXECUTED + VERIFIED PASSED — 4/4 plans; verifier 21/21 static must-haves, 0 gaps. Delivered on v4.2 branch: `--cc-*` tokens (main.css) + 50 `.cc-*` classes (views.css); new `app/home-feed.js` (rank/dedupe/cap/roll-up + assembleFeed + 3 seed sources + getSourcesForUser registry seam for Phase 108); rewritten `app/views/home.js` (briefing + severity-ranked feed hero + refresh + empty/error, KPI chips, Your Work 3 buckets, read-only Recent Activity, permission-gated door rail). Phase-106 listener leak closed (onSnapshot( 4→1). Finance Collectibles/Payables KPI chips intentionally omitted (derived arithmetic, not queryable — plan omit-rule). UAT ran 2026-07-10: 6/8 passed, 0 issues, 2 blocked (Tests 4-5 need a live proposal-approval/rejected-MRF feed row) → 107-HUMAN-UAT.md (partial). Security verified: T-107-01/02/03 CLOSED, threats_open:0, 2 pre-existing residuals accepted → 107-SECURITY.md. commit_docs behavior: SUMMARY/VERIFICATION/UAT/SECURITY committed on v4.2. Next: /gsd-discuss-phase 108.
-Last activity: 2026-07-11 — Phase 107 operator-review redesign (107.5 contained two-column shell + New Engagement CTA/type-scoping; 107.6 feed-engine perf Strategy A) shipped on v4.2 + operator-confirmed on localhost (layout "much better", refresh "feels instant"). New Engagement cross-role type-scoping pending browser check. Prior: UAT 6/8 (2 blocked-on-data) + security 3/3 CLOSED; executed + verified. Phase 106 COMPLETE — 106-FINDINGS.md (25 findings; AUDIT-02 live data-pass → Phase 112).
+Phase: 108 — Home — Per-Role Attention Feeds — 📋 PLANNED (4 plans / 4 waves; plan-checker PASSED, 0 blockers). Covers HOME-09…13.  [Prev: 107 ✅ COMPLETE + VERIFIED + REDESIGNED 107.5/107.6, operator-confirmed]
+Plan: 4/4 planned (all sequential — shared home-feed-sources.js/home-feed.js surfaces). W1 108-01: NEW app/status-derivation.js (extract-by-copy pure formulas from private finance/projects/services helpers) + verify RFP due_date=YYYY-MM-DD. W2 108-02: NEW app/home-feed-sources.js scaffold + THRESHOLDS + 10 Finance/Procurement sources (4 costly ones server-side-scoped). W3 108-03: +7 portfolio/admin sources (self-scoped via getAssigned*Codes; bounded open-issues subcollection fan-out). W4 108-04: move 3 seed sources in + ROLE_SOURCES registry + getSourcesForUser + rewire home-feed.js seam (engine otherwise untouched).
+Status: Phase 108 PLANNED — research (108-RESEARCH.md, HIGH-confidence, per-source spec table for 17 new + 3 seed sources) → 4 plans → gsd-plan-checker VERIFICATION PASSED (0 blockers, 2 cosmetic warnings). Invariants verified: Strategy A preserved (no onSnapshot/TTL; each source one scoped getDocs; 4 costly sources where()-scoped before client filter), engine stays pristine (rank/dedupe/cap 8-25/roll-up ≥5 unchanged), no circular import (engine←sources; sources import only SEVERITY leaf; 3 seeds MOVED into sources file), derivation extracted-by-copy (NO import of heavy view modules — Strategy-A "fast"), case-sensitivity (lowercase 'pending' for users/billing_requests; Capitalized for procurement chain). Locked decisions: D-01 severity bands, D-02 build-all + reuse-helpers, D-03 generic ranking+roll-up, D-04 single interleaved cross-dept list. User decision (research-surfaced): KEEP services_admin non-approver gate — awaiting-approval source self-gates to [] (no permission-model/rules change). ROADMAP.md annotated with wave breakdown. Plans + RESEARCH.md NOT committed (awaiting user). Next: /gsd-execute-phase 108.
+Last activity: 2026-07-11 — Phase 108 PLANNED via /gsd-plan-phase (research→plan→verify; verifier PASSED 0 blockers). Prior 2026-07-11: Phase 107 operator-review redesign (107.5 contained two-column shell + New Engagement CTA/type-scoping; 107.6 feed-engine perf Strategy A) shipped on v4.2 + operator-confirmed. Carry-overs still open: New Engagement cross-role type-scoping browser check; 107 UAT Tests 4-5 (blocked on live feed data — Phase 108 will supply the rows); Phase 106 106-FINDINGS.md AUDIT-02 live data-pass → Phase 112.
 
 **Milestone v4.2 "Polish, Home Revamp & Mobile"** — 6 workstreams:
 

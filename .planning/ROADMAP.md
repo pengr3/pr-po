@@ -88,7 +88,19 @@ Started 2026-07-09. Numbering continues from v4.0 (last phase 105 — v4.1 shipp
   2. An Operations/Services Admin sees their department's proposals awaiting approval, overdue in-stage items, expiring DLP, open issues & stale progress, and their own billing requests.
   3. An Operations/Services User sees their proposals For Revision, overdue stages on assigned items, open issues on their items, their rejected MRFs, and projects with no progress update in 14 days.
   4. Finance sees pending PRs/TRs, RFPs overdue/due-this-week, billing requests to decide, overdue collectibles, and retention releases to record; Procurement sees MRFs pending processing, aging POs, rejected TRs to re-edit, and delivered POs missing proof-of-procurement.
-**Plans**: TBD
+**Plans**: 4 plans in 4 waves (sequential — all touch the shared home-feed-sources.js / home-feed.js surfaces; no two parallel plans edit the same file)
+
+**Wave 1 (foundation):**
+- [ ] 108-01-PLAN.md — app/status-derivation.js (pure formulas extracted-by-copy from the private finance/projects/services helpers) + confirm RFP due_date is YYYY-MM-DD (HOME-09,10,11,12)
+
+**Wave 2 (Finance/Procurement sources):**
+- [ ] 108-02-PLAN.md — create app/home-feed-sources.js scaffold (imports + D-01 THRESHOLDS) + 10 Finance/Procurement functional sources (PRs/TRs pending, billing-to-decide, MRFs pending, rejected TRs, overdue RFP, collectibles overdue, retention releases, aging POs, delivered-POs-missing-proof) (HOME-12,13)
+
+**Wave 3 (portfolio/admin sources — sequential on home-feed-sources.js):**
+- [ ] 108-03-PLAN.md — +7 cross-dept/admin sources: pending user registrations, overdue projects, overdue services, DLP windows expiring, stale progress, own billing requests, open-issues bounded subcollection fan-out (HOME-09,10,11)
+
+**Wave 4 (registry wiring + engine seam):**
+- [ ] 108-04-PLAN.md — move the 3 seed sources into home-feed-sources.js, add ROLE_SOURCES registry + getSourcesForUser, rewire home-feed.js import; engine otherwise unchanged (HOME-09,10,11,12,13)
 
 ### Phase 109: Home — Executive Dashboard
 **Goal**: Add a role-gated "Dashboard" sub-tab to Home with KPI tiles and Chart.js visualizations (status breakdown, proposal funnel, spend trend) plus a portfolio-health table, all scoped per role/department — restoring and extending the Phase 77 charts.
