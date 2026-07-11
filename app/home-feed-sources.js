@@ -339,8 +339,8 @@ export async function sourceRetentionReleases(user) {
    PROCUREMENT — SCOPED SCAN SOURCES (Task 3)
    Both scan the pos collection but SCOPE server-side on procurement_status FIRST
    (single-field auto-indexed), then age/absent-proof filter client-side — mirroring
-   the 107.6 pos full-scan fix. The collectionGroup / denormalization escape hatches
-   are NOT used this phase; the procurement_status where() bounds both scans.
+   the 107.6 pos full-scan fix. The cross-collection group-read / denormalization escape
+   hatches are NOT used this phase; the procurement_status where() bounds both scans.
    POs carry no dedicated status-change timestamp (gotcha 4) → updated_at (bumped on
    every status change) is the age-in-status proxy, with date_issued as fallback.
    ======================================== */
@@ -492,6 +492,199 @@ export async function sourceOwnBillingRequests(user) {
             deepLink: { kind: 'route', value: '#/finance/collectibles' },
             timestamp: br.created_at || br.requested_at,
             overdueScore: 0
+        });
+    });
+    return items;
+}
+
+/* ========================================
+   PORTFOLIO — ENGAGEMENT / DLP SOURCES (Plan 03, Task 2)
+   Assignment-aware portfolio sources over projects/services. Each SELF-SCOPES via
+   getAssignedProjectCodes()/getAssignedServiceCodes() (null=see-all admin/finance/
+   procurement/home-dept-admin; []=scoped user with zero assignments → early []; else
+   client-filter to the allowed codes). One function serves every role — the registry
+   (Plan 04) decides which roles get it; the source decides which DATA to show (D-04).
+   SEVERITY is RECOMPUTED against the D-01 THRESHOLDS bands from the status-derivation
+   primitives (stageDaysInStage / normalizeUpdatedAt / getDlpState / dlp-expiry math) —
+   NEVER read off getEngagementSignal(...).level (RESEARCH gotcha 5). getEngagementSignal
+   is used ONLY to enrich a subtitle string, not to grade severity.
+   ======================================== */
+
+/**
+ * The 7 funnel (stage-clock) statuses — excludes On-going/Completed/Loss. Fits one `in` clause
+ * (Firestore allows ≤10 values). Reused by #5a (projects) and #5b (services).
+ */
+const FUNNEL_STATUSES = ['For Proposal', 'Proposal for Internal Approval', 'Proposal Under Client Review', 'For Revision', 'Client Approved', 'For Mobilization', 'For Inspection'];
+
+/**
+ * scopeByCodes — client-side assignment scoping shared by #5a/#5b/#11/#7.
+ * Mirrors getAssigned*Codes() semantics: codes === null → see-all (docs unchanged);
+ * codes === [] → sees-nothing (return []); else keep only docs whose codeField ∈ codes.
+ * A plain (non-exported, non-async) local helper — NOT a feed source — so it does not inflate the source count.
+ */
+function scopeByCodes(docs, codes, codeField) {
+    if (codes === null) return docs;
+    if (codes.length === 0) return [];
+    const allow = new Set(codes);
+    return docs.filter(d => allow.has(d[codeField]));
+}
+
+/**
+ * #5a sourceOverdueProjects (HOME-09/10/11) — funnel-stage projects overdue in their current stage,
+ * self-scoped to the viewer's assigned project_codes. Query: projects where project_status in the 7
+ * funnel statuses (drops On-going/Completed/Loss), then client scopeByCodes + stage band. Only projects
+ * over the STAGE_HIGH band (>7d) surface. Severity (D-01): >STAGE_CRITICAL_D → critical; else → high.
+ */
+export async function sourceOverdueProjects(user) {
+    const codes = getAssignedProjectCodes();                       // null = see all; [] = none
+    if (Array.isArray(codes) && codes.length === 0) return [];     // scoped user with zero project assignments
+    const snap = await getDocs(query(
+        collection(db, 'projects'),
+        where('project_status', 'in', FUNNEL_STATUSES)
+    ));
+    const rows = [];
+    snap.forEach(docSnap => rows.push({ id: docSnap.id, ...docSnap.data() }));
+    const items = [];
+    scopeByCodes(rows, codes, 'project_code').forEach(p => {
+        const d = stageDaysInStage(p, Date.now());
+        if (d == null || d <= THRESHOLDS.STAGE_HIGH_D) return;      // only overdue-in-stage (>7d) surface
+        const severity = d > THRESHOLDS.STAGE_CRITICAL_D ? SEVERITY.critical : SEVERITY.high;
+        const sig = getEngagementSignal(p, Date.now());            // subtitle enrichment ONLY (not severity — gotcha 5)
+        const subtitle = [
+            p.project_status + ' · ' + Math.round(d) + 'd in stage',
+            (sig && sig.level !== 'ok' ? sig.text : null)
+        ].filter(Boolean).join(' · ');
+        items.push({
+            dedupeKey: `project-overdue:${p.id}`,
+            severity,
+            icon: TYPE_META.PROJECT_STATUS_CHANGED.icon,
+            title: (p.project_name || p.project_code || 'Project'),
+            subtitle,
+            category: 'project',
+            deepLink: { kind: 'route', value: '#/projects' },
+            timestamp: p.status_changed_at || p.updated_at,
+            overdueScore: d
+        });
+    });
+    return items;
+}
+
+/**
+ * #5b sourceOverdueServices (HOME-09/10/11) — mirror of #5a on the services collection, self-scoped to
+ * assigned service_codes. Same 7 funnel statuses, same stage band, distinct dedupeKey/category/deepLink.
+ */
+export async function sourceOverdueServices(user) {
+    const codes = getAssignedServiceCodes();                       // null = see all; [] = none
+    if (Array.isArray(codes) && codes.length === 0) return [];     // scoped user with zero service assignments
+    const snap = await getDocs(query(
+        collection(db, 'services'),
+        where('project_status', 'in', FUNNEL_STATUSES)
+    ));
+    const rows = [];
+    snap.forEach(docSnap => rows.push({ id: docSnap.id, ...docSnap.data() }));
+    const items = [];
+    scopeByCodes(rows, codes, 'service_code').forEach(s => {
+        const d = stageDaysInStage(s, Date.now());
+        if (d == null || d <= THRESHOLDS.STAGE_HIGH_D) return;      // only overdue-in-stage (>7d) surface
+        const severity = d > THRESHOLDS.STAGE_CRITICAL_D ? SEVERITY.critical : SEVERITY.high;
+        const sig = getEngagementSignal(s, Date.now());            // subtitle enrichment ONLY (not severity — gotcha 5)
+        const subtitle = [
+            s.project_status + ' · ' + Math.round(d) + 'd in stage',
+            (sig && sig.level !== 'ok' ? sig.text : null)
+        ].filter(Boolean).join(' · ');
+        items.push({
+            dedupeKey: `service-overdue:${s.id}`,
+            severity,
+            icon: TYPE_META.PROJECT_STATUS_CHANGED.icon,
+            title: (s.project_name || s.service_code || 'Service'),
+            subtitle,
+            category: 'service',
+            deepLink: { kind: 'route', value: '#/services' },
+            timestamp: s.status_changed_at || s.updated_at,
+            overdueScore: d
+        });
+    });
+    return items;
+}
+
+/**
+ * #11 sourceStaleProgress (HOME-10/11) — On-going engagements that have gone quiet, spanning BOTH
+ * collections, each self-scoped. DISTINCT concern from #5a/#5b (stage clock) — uses the PROGRESS bands
+ * on last_activity_at ?? updated_at, so its dedupeKey prefix differs (gotcha 13). Only ≥14d quiet surface.
+ * Severity (D-01): >=PROGRESS_CRIT_D (30d) → critical; else → high.
+ */
+export async function sourceStaleProgress(user) {
+    const pCodes = getAssignedProjectCodes();
+    const sCodes = getAssignedServiceCodes();
+    const [projSnap, svcSnap] = await Promise.all([
+        getDocs(query(collection(db, 'projects'), where('project_status', '==', 'On-going'))),
+        getDocs(query(collection(db, 'services'), where('project_status', '==', 'On-going')))
+    ]);
+    const projRows = []; projSnap.forEach(d => projRows.push({ id: d.id, ...d.data(), _kind: 'project' }));
+    const svcRows = []; svcSnap.forEach(d => svcRows.push({ id: d.id, ...d.data(), _kind: 'service' }));
+    const engagements = scopeByCodes(projRows, pCodes, 'project_code')
+        .concat(scopeByCodes(svcRows, sCodes, 'service_code'));
+    const items = [];
+    engagements.forEach(e => {
+        const ms = normalizeUpdatedAt(e.last_activity_at) ?? normalizeUpdatedAt(e.updated_at);
+        if (ms == null) return;
+        const d = (Date.now() - ms) / 86400000;
+        if (d < THRESHOLDS.PROGRESS_HIGH_D) return;                // surface engagements quiet ≥14d
+        const severity = d >= THRESHOLDS.PROGRESS_CRIT_D ? SEVERITY.critical : SEVERITY.high;
+        const isService = e._kind === 'service';
+        items.push({
+            dedupeKey: `stale-progress:${e.id}`,
+            severity,
+            icon: TYPE_META.PROJECT_STATUS_CHANGED.icon,
+            title: (e.project_name || e.project_code || e.service_code || 'Engagement'),
+            subtitle: 'No progress in ' + Math.round(d) + 'd',
+            category: isService ? 'service' : 'project',
+            deepLink: { kind: 'route', value: isService ? '#/services' : '#/projects' },
+            timestamp: e.last_activity_at || e.updated_at,
+            overdueScore: d
+        });
+    });
+    return items;
+}
+
+/**
+ * #7 sourceDlpWindowsExpiring (HOME-09/10) — Completed engagements whose DLP retention window closes
+ * within 14d, spanning BOTH collections, self-scoped. getDlpState needs the Completed pre-filter (gotcha
+ * 6), so both queries scope project_status == 'Completed' first, then check getDlpState === 'in-dlp' and
+ * the days-to-expiry window. DISTINCT dedupeKey from Plan 02's retention-release: (gotcha 13).
+ * Severity (D-01): ≤DLP_CRIT_D (3d) → critical; ≤DLP_HIGH_D (7d) → high; else → medium.
+ */
+export async function sourceDlpWindowsExpiring(user) {
+    const pCodes = getAssignedProjectCodes();
+    const sCodes = getAssignedServiceCodes();
+    const [projSnap, svcSnap] = await Promise.all([
+        getDocs(query(collection(db, 'projects'), where('project_status', '==', 'Completed'))),
+        getDocs(query(collection(db, 'services'), where('project_status', '==', 'Completed')))
+    ]);
+    const projRows = []; projSnap.forEach(d => projRows.push({ id: d.id, ...d.data(), _kind: 'project' }));
+    const svcRows = []; svcSnap.forEach(d => svcRows.push({ id: d.id, ...d.data(), _kind: 'service' }));
+    const engagements = scopeByCodes(projRows, pCodes, 'project_code')
+        .concat(scopeByCodes(svcRows, sCodes, 'service_code'));
+    const items = [];
+    engagements.forEach(e => {
+        if (getDlpState(e) !== 'in-dlp') return;                   // Completed + retention held + not yet expired
+        const exp = new Date(e.dlp_expires_at).getTime();
+        const days = (exp - Date.now()) / 86400000;
+        if (days < 0 || days > THRESHOLDS.DLP_MED_D) return;       // window closing within 0..14d
+        const severity = days <= THRESHOLDS.DLP_CRIT_D
+            ? SEVERITY.critical
+            : (days <= THRESHOLDS.DLP_HIGH_D ? SEVERITY.high : SEVERITY.medium);
+        const isService = e._kind === 'service';
+        items.push({
+            dedupeKey: `dlp-expiring:${e.id}`,
+            severity,
+            icon: TYPE_META.PROJECT_COST_CHANGED.icon,
+            title: 'DLP window closing — ' + (e.project_code || e.service_code || ''),
+            subtitle: Math.ceil(days) + 'd until retention release',
+            category: 'dlp',
+            deepLink: { kind: 'route', value: isService ? '#/services' : '#/projects' },
+            timestamp: e.dlp_expires_at,
+            overdueScore: THRESHOLDS.DLP_MED_D - days               // nearer expiry sorts higher
         });
     });
     return items;
