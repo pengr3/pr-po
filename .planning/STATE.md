@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Polish, Home Revamp & Mobile
 status: in-progress
-stopped_at: Phase 107 COMPLETE + UAT + SECURE + REDESIGN (107.5 layout + 107.6 perf, operator-confirmed on localhost); next: /gsd-discuss-phase 108
-last_updated: "2026-07-11T01:47:35.000Z"
+stopped_at: Phase 108 context gathered (108-CONTEXT.md — 4 gray areas, all recommended defaults); next: /gsd-plan-phase 108. Phase 107 COMPLETE + UAT + SECURE + REDESIGN (107.5/107.6, operator-confirmed).
+last_updated: "2026-07-11T02:05:00.000Z"
 last_activity: 2026-07-11 — Phase 107 operator-review redesign shipped on v4.2: 107.5 contained two-column Command Center shell + underline tab bar (killed the brand hero + role chip; reverses D-03 single-column) + "+ New Engagement" CTA with role/department type-scoping (efd21165, d3b94294); 107.6 feed-engine perf (Strategy A: parallelize sources/buckets/counts + getAggregateFromServer aggregation + kill pos full-scan + refresh debounce; onSnapshot stays 1) (4bd063fa). Operator confirmed layout "much better" + refresh "feels instant" on localhost. New Engagement cross-role type-scoping PENDING browser check (ops_admin/services_admin accounts). Prior 2026-07-10: UAT 6/8 (2 blocked-on-data) + security 3/3 CLOSED.
 progress:
   total_phases: 7
