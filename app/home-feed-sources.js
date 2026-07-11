@@ -35,8 +35,8 @@
 import { db, collection, query, where, getDocs } from './firebase.js';
 import { SEVERITY } from './home-feed.js';
 import { TYPE_META } from './notifications.js';
-import { getRFPTotal } from './utils.js';
-import { deriveRFPStatus, deriveCollectibleStatus, getCollectibleUrgency, getDlpState, normalizeUpdatedAt } from './status-derivation.js';
+import { getRFPTotal, getAssignedProjectCodes, getAssignedServiceCodes } from './utils.js';
+import { deriveRFPStatus, deriveCollectibleStatus, getCollectibleUrgency, getDlpState, normalizeUpdatedAt, stageDaysInStage, getEngagementSignal } from './status-derivation.js';
 
 /**
  * D-01 severity bands (days) — the single declarative place to tune feed severity.
@@ -410,6 +410,87 @@ export async function sourceDeliveredPOsMissingProof(user) {
             category: 'po',
             deepLink: { kind: 'route', value: '#/procurement/records' },
             timestamp: po.updated_at || po.date_issued || null,
+            overdueScore: 0
+        });
+    });
+    return items;
+}
+
+/* ========================================
+   PORTFOLIO / ADMIN — CHEAP ACTION-STATE SOURCES (Plan 03, Task 1)
+   Two cheap self-gating reads: #4 pending user registrations (super_admin approver
+   gate) and #10 your-own pending billing requests (ownership gate on uid). Both are
+   action states → fixed severity. From here on the sources are ASSIGNMENT-AWARE:
+   the same function serves super_admin=all / dept-admin=dept / user=assigned via the
+   getAssignedProjectCodes()/getAssignedServiceCodes() predicates (Task 2/3) — no
+   ad-hoc per-role branching (T-108-01). The file still has NO registry; Plan 04 wires it.
+   ======================================== */
+
+/**
+ * #4 sourcePendingUserRegistrations (HOME-09, super_admin) — new users awaiting approval.
+ * Approver gate mirrors seed #1: only super_admin sees the registration queue.
+ * Query: users where status == 'pending' (LOWERCASE — user-management.js:248). Fixed high (action).
+ */
+export async function sourcePendingUserRegistrations(user) {
+    if (user?.role !== 'super_admin') return [];   // approver gate — only super_admin approves registrations
+    const snap = await getDocs(query(
+        collection(db, 'users'),
+        where('status', '==', 'pending')
+    ));
+    const items = [];
+    snap.forEach(docSnap => {
+        const u = { id: docSnap.id, ...docSnap.data() };
+        const subtitle = [
+            (u.full_name || u.email || '—'),
+            (u.requested_role || u.role || '')
+        ].filter(Boolean).join(' · ');
+        items.push({
+            dedupeKey: `user-pending:${u.id}`,
+            severity: SEVERITY.high,
+            icon: TYPE_META.REGISTRATION_PENDING.icon,
+            title: 'New user awaiting approval',
+            subtitle,
+            category: 'issue',
+            // A2: #/admin honors ?section=user-management; degrades to the admin root if the param is ignored.
+            deepLink: { kind: 'route', value: '#/admin?section=user-management' },
+            timestamp: u.created_at,
+            overdueScore: 0
+        });
+    });
+    return items;
+}
+
+/**
+ * #10 sourceOwnBillingRequests (HOME-10 ops admin / HOME-11 user) — YOUR OWN billing requests still
+ * pending a finance decision (tracking your own submission — DISTINCT from Plan 02's
+ * sourceBillingRequestsToDecide, which is the finance decider's un-scoped queue).
+ * Ownership gate: needs a uid. Query: billing_requests where requested_by_uid == uid AND status ==
+ * 'pending' (LOWERCASE — project-detail.js:1468). Fixed medium (tracking, not overdue — D-01).
+ */
+export async function sourceOwnBillingRequests(user) {
+    if (!user?.uid) return [];   // ownership gate — needs a uid to scope to own submissions
+    const snap = await getDocs(query(
+        collection(db, 'billing_requests'),
+        where('requested_by_uid', '==', user.uid),
+        where('status', '==', 'pending')
+    ));
+    const items = [];
+    snap.forEach(docSnap => {
+        const br = { id: docSnap.id, ...docSnap.data() };
+        const subtitle = [
+            (br.project_code || br.service_code),
+            br.tranche_label,
+            (br.amount_requested != null ? ('₱' + Number(br.amount_requested).toLocaleString()) : null)
+        ].filter(Boolean).join(' · ');
+        items.push({
+            dedupeKey: `billreq-own:${br.id}`,
+            severity: SEVERITY.medium,
+            icon: TYPE_META.BILLING_REQUEST_SUBMITTED.icon,
+            title: 'Your billing request is pending',
+            subtitle,
+            category: 'finance',
+            deepLink: { kind: 'route', value: '#/finance/collectibles' },
+            timestamp: br.created_at || br.requested_at,
             overdueScore: 0
         });
     });
