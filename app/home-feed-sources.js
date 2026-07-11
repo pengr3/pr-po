@@ -334,3 +334,84 @@ export async function sourceRetentionReleases(user) {
     collect(svcSnap);
     return items;
 }
+
+/* ========================================
+   PROCUREMENT — SCOPED SCAN SOURCES (Task 3)
+   Both scan the pos collection but SCOPE server-side on procurement_status FIRST
+   (single-field auto-indexed), then age/absent-proof filter client-side — mirroring
+   the 107.6 pos full-scan fix. The collectionGroup / denormalization escape hatches
+   are NOT used this phase; the procurement_status where() bounds both scans.
+   POs carry no dedicated status-change timestamp (gotcha 4) → updated_at (bumped on
+   every status change) is the age-in-status proxy, with date_issued as fallback.
+   ======================================== */
+
+/**
+ * #17 sourceAgingPOs (HOME-13 procurement) — active POs aging in their current status.
+ * Query: pos where procurement_status in [active statuses] (scoped — Delivered/Cancelled excluded).
+ * Client age from normalizeUpdatedAt(updated_at) ?? date_issued; surface only POs older than the
+ * high band. Severity (D-01 PO-age): >30d → critical; else → high.
+ */
+export async function sourceAgingPOs(user) {
+    const snap = await getDocs(query(
+        collection(db, 'pos'),
+        where('procurement_status', 'in', ['Pending Procurement', 'Pending', 'Procuring', 'Procured'])
+    ));
+    const items = [];
+    snap.forEach(docSnap => {
+        const po = { id: docSnap.id, ...docSnap.data() };
+        const ms = normalizeUpdatedAt(po.updated_at) ?? normalizeUpdatedAt(po.date_issued);
+        if (ms == null) return;
+        const d = (Date.now() - ms) / 86400000;
+        if (d <= THRESHOLDS.PO_AGE_HIGH_D) return;   // only aging POs surface
+        const severity = d > THRESHOLDS.PO_AGE_CRIT_D ? SEVERITY.critical : SEVERITY.high;
+        const subtitle = [
+            po.supplier_name,
+            (Math.round(d) + 'd in status')
+        ].filter(Boolean).join(' · ');
+        items.push({
+            dedupeKey: `po-aging:${po.id}`,
+            severity,
+            icon: TYPE_META.PO_DELIVERED.icon,
+            title: (po.po_id || 'PO') + ' aging in ' + po.procurement_status,
+            subtitle,
+            category: 'po',
+            deepLink: { kind: 'route', value: '#/procurement/records' },
+            timestamp: po.updated_at || po.date_issued || null,
+            overdueScore: d
+        });
+    });
+    return items;
+}
+
+/**
+ * #19 sourceDeliveredPOsMissingProof (HOME-13 procurement) — Delivered POs lacking proof-of-procurement.
+ * Query scoped to procurement_status == 'Delivered' first (can't where() on an absent field), then
+ * client-filter POs that have NEITHER proof_url NOR proof_remarks. Fixed high.
+ */
+export async function sourceDeliveredPOsMissingProof(user) {
+    const snap = await getDocs(query(
+        collection(db, 'pos'),
+        where('procurement_status', '==', 'Delivered')
+    ));
+    const items = [];
+    snap.forEach(docSnap => {
+        const po = { id: docSnap.id, ...docSnap.data() };
+        if (po.proof_url || po.proof_remarks) return;   // only POs with NO proof surface
+        const subtitle = [
+            po.supplier_name,
+            (po.project_name || po.project_code || '—')
+        ].filter(Boolean).join(' · ');
+        items.push({
+            dedupeKey: `po-noproof:${po.id}`,
+            severity: SEVERITY.high,
+            icon: TYPE_META.PO_DELIVERED.icon,
+            title: (po.po_id || 'PO') + ' delivered — proof missing',
+            subtitle,
+            category: 'po',
+            deepLink: { kind: 'route', value: '#/procurement/records' },
+            timestamp: po.updated_at || po.date_issued || null,
+            overdueScore: 0
+        });
+    });
+    return items;
+}
