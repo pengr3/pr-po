@@ -32,9 +32,14 @@
    - Ranking: critical → high → medium, then most-overdue, then newest-first.
    ======================================== */
 
-import { db, collection, query, where, getDocs } from './firebase.js';
-import { TYPE_META } from './notifications.js';
-import { getAgeInStageDays, isOverdueInStage } from './views/proposals.js';
+// Per-role feed DEFINITIONS + the full source library live in home-feed-sources.js (Phase 108).
+// This engine imports getSourcesForUser (assembleFeed's default `sources` arg) and RE-EXPORTS it so
+// existing consumers that import it from THIS module (home.js:23 — the 107.3 contract) keep resolving
+// after the Plan-04 move. That module imports SEVERITY back from here — a benign 2-node cycle:
+// SEVERITY is a frozen leaf const read only INSIDE source function bodies (call time), never at
+// either module's top-level init.
+import { getSourcesForUser } from './home-feed-sources.js';
+export { getSourcesForUser };   // re-export: preserve home-feed.js public API (home.js imports it by name)
 
 /** Public severity vocabulary (D-06 three-tier model). */
 export const SEVERITY = Object.freeze({ critical: 'critical', high: 'high', medium: 'medium' });
@@ -232,152 +237,9 @@ export async function assembleFeed(user, sources = getSourcesForUser(user)) {
 }
 
 /* ========================================
-   SEED SOURCES (D-12) + SCOPING + REGISTRY
-   Three sources that prove the engine end-to-end and populate a Super Admin
-   feed on day one. They exercise permission scope, ownership scope, both
-   deep-link kinds, multiple tiers, and the empty state. Phase 108 reuses them.
-   Each source issues a SCOPED getDocs and lets any failure propagate to
-   assembleFeed's per-source try/catch (do NOT swallow here — assembleFeed owns
-   the allSourcesFailed accounting, T-107-03).
+   SOURCE LIBRARY + PER-ROLE REGISTRY
+   The 3 seed sources, scopeProposalToDept, the 17 Finance/Procurement/portfolio
+   sources, the ROLE_SOURCES map, and getSourcesForUser now live in
+   home-feed-sources.js (Phase 108, Plan 04). This module is the pristine engine;
+   assembleFeed(user) defaults its `sources` arg to the imported getSourcesForUser.
    ======================================== */
-
-/**
- * Mirror home.js filterProposalsForUser dept scope.
- * operations_* → 'projects'; services_* → 'services'; super_admin/others → null (all).
- * Callers filter on `(p.parent_collection || 'projects')` when this returns non-null.
- */
-function scopeProposalToDept(role) {
-    if (role === 'super_admin') return null;
-    if (typeof role === 'string' && role.startsWith('operations_')) return 'projects';
-    if (typeof role === 'string' && role.startsWith('services_')) return 'services';
-    return null;
-}
-
-/**
- * SOURCE 1 — Proposals awaiting your approval (permission-scoped, modal deep-link).
- * Approver gate: only super_admin / operations_admin internally approve (mirror canApproveQueue).
- * Severity: overdue-in-stage → critical, else high.
- */
-export async function sourceProposalsAwaitingApproval(user) {
-    const role = user?.role;
-    if (!['super_admin', 'operations_admin'].includes(role)) return [];   // approver gate
-
-    const snap = await getDocs(query(
-        collection(db, 'proposals'),
-        where('status', '==', 'pending_internal')
-    ));
-    const dept = scopeProposalToDept(role);   // null = sees all (super_admin)
-    const items = [];
-    snap.forEach(docSnap => {
-        const p = { id: docSnap.id, ...docSnap.data() };
-        if (dept && (p.parent_collection || 'projects') !== dept) return;   // client-side dept scope
-        const ageDays = getAgeInStageDays(p);
-        const subtitle = [
-            p.project_code,
-            p.target_client_name,
-            (p.amount != null ? ('₱' + Number(p.amount).toLocaleString()) : null)
-        ].filter(Boolean).join(' · ');
-        items.push({
-            dedupeKey: `proposal-approval:${p.id}`,
-            severity: isOverdueInStage(p) ? SEVERITY.critical : SEVERITY.high,
-            icon: TYPE_META.PROPOSAL_SUBMITTED.icon,
-            title: p.title || '—',
-            subtitle,
-            category: 'proposal',
-            // Reuses the EXISTING approve/reject modal — the row opens approve;
-            // reject is available inside that modal path. No new destructive UI.
-            deepLink: { kind: 'modal', handler: 'homeQueueOpenApproveModal', arg: p.id },
-            timestamp: p.current_status_since || p.created_at,
-            overdueScore: ageDays
-        });
-    });
-    return items;
-}
-
-/**
- * SOURCE 2 — Your proposals For Revision (ownership-scoped, route deep-link).
- * Ownership query on created_by == uid (no client filtering).
- * B4 (resolves D-02/D-12 in favor of D-02): emit a feed row ONLY when OVERDUE.
- * isOverdueInStage() covers only pending_*, so for for_revision the operative
- * overdue test is age-based (> 7 days). Non-overdue for-revision proposals still
- * appear in 107.4's Your Work bucket (a) via that panel's own query, regardless of age.
- */
-export async function sourceMyProposalsForRevision(user) {
-    if (!user?.uid) return [];
-
-    const snap = await getDocs(query(
-        collection(db, 'proposals'),
-        where('created_by', '==', user.uid),
-        where('status', '==', 'for_revision')
-    ));
-    const items = [];
-    snap.forEach(docSnap => {
-        const p = { id: docSnap.id, ...docSnap.data() };
-        const ageDays = getAgeInStageDays(p);
-        if (ageDays <= 7) return null;   // gate: only overdue for-revision proposals surface in the feed
-        items.push({
-            dedupeKey: `proposal-revision:${p.id}`,
-            severity: ageDays > 14 ? SEVERITY.critical : SEVERITY.high,
-            icon: TYPE_META.PROPOSAL_SUBMITTED.icon,
-            title: p.title || '—',
-            subtitle: 'Needs revision · ' + (p.project_code || '—'),
-            category: 'proposal',
-            deepLink: { kind: 'route', value: '#/?tab=proposals' },
-            timestamp: p.current_status_since || p.created_at,
-            overdueScore: ageDays
-        });
-    });
-    return items;
-}
-
-/**
- * SOURCE 3 — Your rejected MRFs (requestor-scoped, route deep-link).
- * MRFs are scoped to a user by requestor_name == full_name (no created_by uid on mrfs).
- * status is case-sensitive 'Rejected' (CLAUDE.md). Severity fixed high.
- */
-export async function sourceMyRejectedMRFs(user) {
-    if (!user?.full_name) return [];
-
-    const snap = await getDocs(query(
-        collection(db, 'mrfs'),
-        where('requestor_name', '==', user.full_name),
-        where('status', '==', 'Rejected')
-    ));
-    const items = [];
-    snap.forEach(docSnap => {
-        const m = { id: docSnap.id, ...docSnap.data() };
-        items.push({
-            dedupeKey: `mrf-rejected:${m.id}`,
-            severity: SEVERITY.high,
-            icon: TYPE_META.MRF_REJECTED.icon,
-            title: (m.mrf_id || 'MRF') + ' rejected',
-            subtitle: (m.project_name || m.project_code || '—'),
-            category: 'mrf',
-            deepLink: { kind: 'route', value: '#/procurement/records' },
-            // B2: rejection writes rejected_at (ISO string, procurement.js L4943); MRFs carry no
-            // modified-timestamp field. toMillis handles ISO strings; date_needed (a future date)
-            // is only a last-resort fallback (would yield negative age).
-            timestamp: m.rejected_at || m.date_needed || null,
-            overdueScore: 0
-        });
-    });
-    return items;
-}
-
-/**
- * Seed source REGISTRY (D-10/D-12) — the seam Phase 108 replaces with a
- * role → source-set mapping + per-source severity thresholds; the seed sources
- * here become part of the reusable library it composes.
- *
- * For 107, return ALL THREE seed sources for every signed-in user — each source
- * self-gates by applicability (approver gate / uid / full_name), so unscoped
- * users simply get empty arrays back. No user → no sources.
- */
-export function getSourcesForUser(user) {
-    if (!user) return [];
-    return [
-        sourceProposalsAwaitingApproval,
-        sourceMyProposalsForRevision,
-        sourceMyRejectedMRFs
-    ];
-}
