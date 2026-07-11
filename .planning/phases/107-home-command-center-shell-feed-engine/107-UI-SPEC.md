@@ -16,6 +16,8 @@ reviewed_at: 2026-07-10
 >
 > **Scope reminder:** shell composition + feed **engine** as a reusable frame + a 3-source seed (D-10/D-12). Per-role feed *definitions* (HOME-09–13 → Phase 108), Executive Dashboard (Phase 109), and the ≤768px mobile layout (Phase 111) are **out of scope** and are noted "deferred" where they touch a boundary.
 
+> **⚠ Amendment (107.5 / 107.6 — 2026-07-11, post-operator-review):** The shipped Command Center was revised after visual review. **Layout:** the single-column stack in *§ Layout & Composition (D-03)* is **superseded** by a **contained two-column shell** — one cohesive `.cc-shell` card, an **integrated underline tab bar** (replacing the centered "CLMC / Management System Portal" brand hero + the pill sub-nav), and a two-column body (**feed left · Your Work + Recent Activity right**), collapsing to one column ≤900px (Phase 111). **Briefing:** the **role chip is removed**; the CTA is **`+ New Engagement`** (was `+ New Proposal`) with engagement **type scoped by role** — super_admin → Project + Service; operations_admin → Project; services_admin → Service. **Feed engine (107.6):** compute is **parallelized** and KPI counts use **`getAggregateFromServer` aggregation** (still compute-on-load, `onSnapshot` stays 1). Tokens, severity tiers, copy, and interaction contracts below are otherwise unchanged. See `107-HUMAN-UAT.md` follow-up R1–R3 and commits `efd21165` / `d3b94294` / `4bd063fa`.
+
 ---
 
 ## Design System

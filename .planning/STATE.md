@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Polish, Home Revamp & Mobile
 status: in-progress
-stopped_at: Phase 107 COMPLETE + UAT + SECURE (verifier PASSED 21/21; UAT 6/8 passed 0 issues, 2 blocked on feed data; security 3/3 threats CLOSED, threats_open:0); next: /gsd-discuss-phase 108
-last_updated: "2026-07-10T07:42:24.000Z"
-last_activity: 2026-07-10 — Phase 107 UAT + SECURE: browser UAT ran 6/8 passed, 0 defects, 2 blocked (Tests 4-5 need a live proposal-approval/rejected-MRF feed row) → 107-HUMAN-UAT.md (partial). Security verified by gsd-security-auditor: T-107-01/02/03 all CLOSED, 2 pre-existing residuals accepted → 107-SECURITY.md (verified). Prior: EXECUTED + VERIFIED (4/4 plans, onSnapshot( 4→1).
+stopped_at: Phase 107 COMPLETE + UAT + SECURE + REDESIGN (107.5 layout + 107.6 perf, operator-confirmed on localhost); next: /gsd-discuss-phase 108
+last_updated: "2026-07-11T01:47:35.000Z"
+last_activity: 2026-07-11 — Phase 107 operator-review redesign shipped on v4.2: 107.5 contained two-column Command Center shell + underline tab bar (killed the brand hero + role chip; reverses D-03 single-column) + "+ New Engagement" CTA with role/department type-scoping (efd21165, d3b94294); 107.6 feed-engine perf (Strategy A: parallelize sources/buckets/counts + getAggregateFromServer aggregation + kill pos full-scan + refresh debounce; onSnapshot stays 1) (4bd063fa). Operator confirmed layout "much better" + refresh "feels instant" on localhost. New Engagement cross-role type-scoping PENDING browser check (ops_admin/services_admin accounts). Prior 2026-07-10: UAT 6/8 (2 blocked-on-data) + security 3/3 CLOSED.
 progress:
   total_phases: 7
   completed_phases: 2
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-07-09 after v4.2 milestone start)
 
 ## Current Position
 
-Phase: 107 — Home Command Center (Shell & Feed Engine) — ✅ COMPLETE + VERIFIED (2026-07-10)
-Plan: 4/4 plans complete across 3 waves (W1: 107.1 CSS token/class contract ∥ 107.2 home-feed.js engine+3 seed sources · W2: 107.3 home.js shell/sub-nav/feed-hero · W3: 107.4 home.js KPI+Your Work+Recent Activity+door rail). Covers HOME-01…08.
+Phase: 107 — Home Command Center (Shell & Feed Engine) — ✅ COMPLETE + VERIFIED + REDESIGNED (107.5/107.6, operator-confirmed 2026-07-11)
+Plan: 4/4 base plans (W1: 107.1 CSS ∥ 107.2 home-feed.js engine+3 seed sources · W2: 107.3 shell/sub-nav/feed-hero · W3: 107.4 KPI+Your Work+Recent Activity+door rail) + 2 operator-review follow-ups: 107.5 (contained two-column shell + underline tabs + New Engagement CTA/type-scoping) · 107.6 (feed-engine perf, Strategy A). Covers HOME-01…08.
 Status: Phase 107 EXECUTED + VERIFIED PASSED — 4/4 plans; verifier 21/21 static must-haves, 0 gaps. Delivered on v4.2 branch: `--cc-*` tokens (main.css) + 50 `.cc-*` classes (views.css); new `app/home-feed.js` (rank/dedupe/cap/roll-up + assembleFeed + 3 seed sources + getSourcesForUser registry seam for Phase 108); rewritten `app/views/home.js` (briefing + severity-ranked feed hero + refresh + empty/error, KPI chips, Your Work 3 buckets, read-only Recent Activity, permission-gated door rail). Phase-106 listener leak closed (onSnapshot( 4→1). Finance Collectibles/Payables KPI chips intentionally omitted (derived arithmetic, not queryable — plan omit-rule). UAT ran 2026-07-10: 6/8 passed, 0 issues, 2 blocked (Tests 4-5 need a live proposal-approval/rejected-MRF feed row) → 107-HUMAN-UAT.md (partial). Security verified: T-107-01/02/03 CLOSED, threats_open:0, 2 pre-existing residuals accepted → 107-SECURITY.md. commit_docs behavior: SUMMARY/VERIFICATION/UAT/SECURITY committed on v4.2. Next: /gsd-discuss-phase 108.
-Last activity: 2026-07-10 — Phase 107 UAT (6/8 passed, 2 blocked-on-data) + security verified (3/3 threats closed). Prior: executed + verified (Home Command Center). Phase 106 COMPLETE — 106-FINDINGS.md (25 findings; AUDIT-02 live data-pass → Phase 112).
+Last activity: 2026-07-11 — Phase 107 operator-review redesign (107.5 contained two-column shell + New Engagement CTA/type-scoping; 107.6 feed-engine perf Strategy A) shipped on v4.2 + operator-confirmed on localhost (layout "much better", refresh "feels instant"). New Engagement cross-role type-scoping pending browser check. Prior: UAT 6/8 (2 blocked-on-data) + security 3/3 CLOSED; executed + verified. Phase 106 COMPLETE — 106-FINDINGS.md (25 findings; AUDIT-02 live data-pass → Phase 112).
 
 **Milestone v4.2 "Polish, Home Revamp & Mobile"** — 6 workstreams:
 

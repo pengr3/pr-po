@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phase 107 — Command Center v2 (contained, redesigned)</title>
+<style>
+  :root{
+    --primary:#1a73e8; --primary-dark:#1557b0; --blue-tint:#f0f6ff;
+    --success:#059669; --success-tint:#ecfdf5;
+    --cc-critical:#ea4335; --cc-critical-tint:#fef2f2; --danger-dark:#b91c1c;
+    --cc-high:#f59e0b; --cc-high-tint:#fffbeb; --warning-dark:#b45309;
+    --cc-medium:#1a73e8;
+    --cc-hover:#f8fafc; --cc-ink:#1e293b; --cc-muted:#64748b; --cc-faint:#94a3b8;
+    --cc-line:#e5e7eb; --bg:#eef1f6; --card:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--cc-ink);-webkit-font-smoothing:antialiased;}
+
+  /* ===== global app top-nav (from index.html — stays; this is the ONLY brand) ===== */
+  .topnav{background:#fff;border-bottom:1px solid var(--cc-line);display:flex;align-items:center;gap:1.5rem;padding:0 1.5rem;height:56px;position:sticky;top:0;z-index:20;}
+  .topnav .brand{font-weight:800;font-size:1.05rem;display:flex;gap:.45rem;align-items:center;letter-spacing:-.01em;}
+  .topnav a{color:var(--cc-muted);font-size:.875rem;text-decoration:none;padding:.3rem 0;font-weight:500;}
+  .topnav a.active{color:var(--primary);font-weight:600;}
+  .topnav .sp{flex:1;}
+  .topnav .bell{position:relative;color:var(--cc-muted);font-size:1.1rem;}
+  .topnav .bell .dot{position:absolute;top:-4px;right:-6px;min-width:16px;height:16px;padding:0 3px;background:var(--cc-critical);color:#fff;border-radius:999px;font-size:.62rem;display:flex;align-items:center;justify-content:center;border:2px solid #fff;font-weight:700;}
+  .topnav .av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a73e8,#1557b0);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:700;}
+
+  /* ===== contained shell ===== */
+  .cc-stage{max-width:1180px;margin:0 auto;padding:1.5rem 1.5rem 3rem;}
+  .cc-shell{background:var(--card);border:1px solid var(--cc-line);border-radius:18px;box-shadow:0 6px 28px rgba(15,23,42,.06);overflow:hidden;}
+
+  /* integrated tab bar — the redesigned sub-nav (no more floating pill) */
+  .cc-tabs{display:flex;align-items:center;gap:.4rem;padding:0 1.9rem;border-bottom:1px solid var(--cc-line);background:linear-gradient(180deg,#fbfcfe,#fff);}
+  .cc-tab{position:relative;padding:1.05rem .3rem;margin-right:1.4rem;font-size:.95rem;font-weight:600;color:var(--cc-muted);cursor:pointer;background:none;border:none;transition:color .13s;}
+  .cc-tab:hover{color:var(--cc-ink);}
+  .cc-tab.on{color:var(--primary);}
+  .cc-tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;background:var(--primary);border-radius:2px 2px 0 0;}
+  .cc-tab.soon{color:var(--cc-faint);cursor:default;}
+  .cc-tab .soon-tag{font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--cc-faint);background:#f1f5f9;border-radius:4px;padding:.05rem .3rem;margin-left:.35rem;vertical-align:middle;}
+  .cc-tabs .sp{flex:1;}
+  .cc-tabs .env{font-size:.7rem;color:var(--cc-faint);letter-spacing:.04em;}
+
+  .cc-inner{padding:1.7rem 1.9rem 1.9rem;}
+
+  /* briefing */
+  .cc-brief{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1.4rem;}
+  .cc-brief h1{margin:0;font-size:1.6rem;font-weight:700;line-height:1.12;letter-spacing:-.01em;}
+  .cc-brief .sub{margin-top:.35rem;font-size:.95rem;color:var(--cc-muted);}
+  .cc-brief .sub .em{font-weight:700;} .cc-brief .sub .em.d{color:var(--cc-critical);} .cc-brief .sub .em.w{color:var(--warning-dark);}
+  .cc-brief-r{display:flex;gap:.7rem;align-items:center;}
+  .role-chip{font-size:.76rem;color:var(--primary);background:var(--blue-tint);border:1px solid #d6e4ff;padding:.3rem .75rem;border-radius:999px;font-weight:600;white-space:nowrap;}
+  .btn{border:none;border-radius:9px;padding:.6rem 1.05rem;font-size:.86rem;font-weight:600;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:.4rem;}
+  .btn-primary{background:var(--primary);color:#fff;box-shadow:0 2px 8px rgba(26,115,232,.28);} .btn-primary:hover{background:var(--primary-dark);}
+  .btn-primary .car{opacity:.85;font-size:.7rem;}
+
+  /* KPI chips — lighter inside the shell (no heavy floating cards) */
+  .cc-kpi{display:flex;gap:.7rem;flex-wrap:wrap;margin-bottom:1.6rem;}
+  .kpi{flex:1;min-width:150px;background:#fbfcfe;border:1px solid var(--cc-line);border-radius:11px;padding:.75rem .95rem;cursor:pointer;transition:all .13s;}
+  .kpi:hover{border-color:#93c5fd;background:#f0f7ff;transform:translateY(-1px);}
+  .kpi .n{font-size:1.5rem;font-weight:700;line-height:1;} .kpi .n.d{color:var(--cc-critical);} .kpi .n.w{color:var(--warning-dark);}
+  .kpi .l{font-size:.75rem;font-weight:600;color:var(--cc-muted);margin-top:.32rem;}
+
+  /* two-column body */
+  .cc-body{display:grid;grid-template-columns:1.75fr 1fr;gap:1.7rem;align-items:start;}
+  @media (max-width:840px){ .cc-body{grid-template-columns:1fr;} }
+
+  .sec-label{font-size:.74rem;letter-spacing:.09em;text-transform:uppercase;color:var(--cc-faint);font-weight:700;margin:0;}
+  .feed-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem;}
+  .feed-head .r{display:flex;gap:.75rem;align-items:center;}
+  .updated{font-size:.76rem;color:var(--cc-faint);}
+  .refresh{font-size:.8rem;color:var(--primary);cursor:pointer;background:none;border:none;font-weight:600;}
+
+  .feed{display:flex;flex-direction:column;}
+  .frow{display:flex;gap:.85rem;align-items:center;padding:.9rem .95rem;border:1px solid var(--cc-line);border-left-width:4px;border-radius:12px;margin-bottom:.65rem;cursor:pointer;transition:all .13s;background:#fff;}
+  .frow:hover{box-shadow:0 6px 18px rgba(15,23,42,.08);transform:translateY(-1px);}
+  .frow.critical{border-left-color:var(--cc-critical);background:var(--cc-critical-tint);}
+  .frow.high{border-left-color:var(--cc-high);background:var(--cc-high-tint);}
+  .frow.medium{border-left-color:var(--cc-medium);}
+  .fic{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;background:#fff;border:1px solid var(--cc-line);}
+  .frow.critical .fic{color:var(--cc-critical);} .frow.high .fic{color:var(--warning-dark);}
+  .fmain{flex:1;min-width:0;}
+  .ftitle{font-size:.96rem;font-weight:600;line-height:1.3;}
+  .fsub{font-size:.8rem;color:var(--cc-muted);margin-top:.15rem;}
+  .fright{display:flex;flex-direction:column;align-items:flex-end;gap:.45rem;flex-shrink:0;}
+  .fage{font-size:.74rem;color:var(--cc-faint);white-space:nowrap;}
+  .fbtn{border:1px solid var(--cc-line);background:#fff;color:var(--cc-ink);border-radius:8px;padding:.38rem .85rem;font-size:.78rem;font-weight:600;cursor:pointer;}
+  .fbtn.primary{background:var(--primary);color:#fff;border-color:var(--primary);}
+  .expander{font-size:.82rem;color:var(--primary);font-weight:600;cursor:pointer;padding:.35rem .2rem;}
+
+  /* right column */
+  .panel{border:1px solid var(--cc-line);border-radius:14px;padding:1.15rem 1.25rem;margin-bottom:1.1rem;background:#fcfdff;}
+  .panel h3{margin:0 0 .85rem;font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--cc-faint);font-weight:700;}
+  .yw-row{display:flex;justify-content:space-between;align-items:center;padding:.6rem 0;border-bottom:1px solid #eef2f7;cursor:pointer;font-size:.9rem;}
+  .yw-row:last-child{border-bottom:none;}
+  .yw-row .lab{color:var(--cc-ink);font-weight:500;} .yw-row:hover .lab{color:var(--primary);}
+  .yw-row .v{font-weight:700;} .yw-row .tag{font-size:.7rem;font-weight:700;color:var(--warning-dark);background:var(--cc-high-tint);border:1px solid #fde68a;padding:.12rem .5rem;border-radius:999px;}
+  .act-row{display:flex;gap:.7rem;align-items:flex-start;padding:.55rem 0;border-bottom:1px solid #eef2f7;cursor:pointer;}
+  .act-row:last-child{border-bottom:none;}
+  .act-dot{width:9px;height:9px;border-radius:50%;margin-top:.42rem;flex-shrink:0;}
+  .act-main{flex:1;font-size:.84rem;line-height:1.3;} .act-main b{font-weight:700;}
+  .act-time{font-size:.72rem;color:var(--cc-faint);margin-top:.12rem;}
+
+  .calm{background:linear-gradient(135deg,var(--success-tint),#fff);border:1px solid #bbf7d0;border-radius:14px;padding:2.6rem 2rem;text-align:center;}
+  .calm .ck{font-size:2rem;color:#047857;} .calm h3{margin:.5rem 0 .2rem;color:#047857;font-size:1.15rem;}
+  .calm p{margin:0;color:var(--cc-muted);font-size:.9rem;} .calm .hint{color:var(--cc-faint);font-size:.8rem;margin-top:.3rem;}
+
+  .doors{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.7rem;padding-top:1.4rem;border-top:1px solid var(--cc-line);}
+  .door{flex:1;min-width:130px;background:#fff;border:1px solid var(--cc-line);border-radius:10px;padding:.72rem .95rem;cursor:pointer;font-size:.85rem;color:var(--cc-muted);display:flex;align-items:center;gap:.55rem;font-weight:600;transition:all .12s;}
+  .door:hover{border-color:var(--primary);color:var(--primary);background:#fbfcff;}
+
+  /* demo controls */
+  .controls{position:fixed;bottom:16px;left:16px;z-index:50;background:#0f172a;color:#e2e8f0;border-radius:12px;padding:.9rem 1rem;width:238px;box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:.8rem;}
+  .controls h4{margin:0 0 .55rem;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:#64748b;}
+  .controls label{display:block;color:#94a3b8;font-size:.68rem;margin:.5rem 0 .2rem;}
+  .controls select{width:100%;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:.35rem .5rem;font-size:.8rem;}
+  .seg{display:flex;gap:.3rem;margin-top:.3rem;}
+  .seg button{flex:1;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:.4rem;font-size:.74rem;cursor:pointer;font-weight:600;}
+  .seg button.on{background:var(--primary);color:#fff;border-color:var(--primary);}
+  .tag-note{position:fixed;top:66px;right:16px;z-index:50;background:#0f172a;color:#cbd5e1;font-size:.68rem;padding:.35rem .65rem;border-radius:8px;opacity:.92;}
+</style>
+</head>
+<body>
+
+<div class="tag-note">PREVIEW · design proposal — not the live app</div>
+
+<!-- global app nav (the ONLY brand — the centered "CLMC Management System Portal" block is gone) -->
+<div class="topnav">
+  <span class="brand">🏗️ CLMC</span>
+  <a class="active" href="javascript:void(0)">Home</a>
+  <a href="javascript:void(0)">Clients</a><a href="javascript:void(0)">Projects</a>
+  <a href="javascript:void(0)">Services</a><a href="javascript:void(0)">Procurement</a>
+  <a href="javascript:void(0)">Finance</a>
+  <span class="sp"></span>
+  <span class="bell">🔔<span class="dot">3</span></span>
+  <span class="av" id="av">F</span>
+</div>
+
+<div class="cc-stage">
+  <div class="cc-shell">
+    <!-- redesigned tab bar (integrated, left-aligned underline) -->
+    <div class="cc-tabs">
+      <button class="cc-tab on">Command Center</button>
+      <button class="cc-tab">Proposals</button>
+      <button class="cc-tab soon">Dashboard<span class="soon-tag">soon</span></button>
+      <span class="sp"></span>
+      <span class="env" id="env"></span>
+    </div>
+    <div class="cc-inner" id="inner"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <h4>Simulate</h4>
+  <label>Role</label>
+  <select id="role" onchange="render()">
+    <option value="super_admin">Super Admin</option>
+    <option value="operations_admin">Operations Admin</option>
+    <option value="services_admin">Services Admin</option>
+    <option value="finance">Finance</option>
+    <option value="procurement">Procurement</option>
+    <option value="operations_user">Operations User</option>
+  </select>
+  <label>Activity</label>
+  <div class="seg">
+    <button id="dBusy" class="on" onclick="setDay('busy')">Busy day</button>
+    <button id="dCalm" onclick="setDay('calm')">All caught up</button>
+  </div>
+</div>
+
+<script>
+const S={role:'super_admin',day:'busy',name:'Francis'};
+const ROLE_LABEL={super_admin:'Super Admin',operations_admin:'Operations Admin',services_admin:'Services Admin',finance:'Finance',procurement:'Procurement',operations_user:'Operations User'};
+/* who may create what via + New Engagement */
+const ENGAGE={super_admin:['Project','Service'],operations_admin:['Project'],services_admin:['Service'],finance:[],procurement:[],operations_user:[]};
+
+const KPIS={
+  super_admin:[{n:12,l:'Active projects'},{n:5,l:'Active services'},{n:3,l:'Proposals to approve',t:'w'},{n:4,l:'Needs attention',t:'d'}],
+  operations_admin:[{n:12,l:'Active projects'},{n:2,l:'My proposals for revision',t:'w'},{n:4,l:'Needs attention',t:'d'}],
+  services_admin:[{n:5,l:'Active services'},{n:1,l:'My proposals for revision',t:'w'},{n:4,l:'Needs attention',t:'d'}],
+  finance:[{n:4,l:'Pending PRs',t:'w'},{n:'₱1.24M',l:'Payables owed'},{n:'₱3.80M',l:'To collect'}],
+  procurement:[{n:6,l:'MRFs pending',t:'w'},{n:9,l:'Active POs'},{n:4,l:'Needs attention',t:'d'}],
+  operations_user:[{n:8,l:'My open items'},{n:2,l:'For-revision proposals',t:'w'},{n:1,l:'My rejected MRFs',t:'d'}],
+};
+const FEED={
+  super_admin:[
+    {sev:'critical',ic:'⏰',title:'CLMC-BGC-2026003 overdue in Client Review',sub:'12 days in stage · BGC Tower Retrofit',age:'12d',btn:'Open'},
+    {sev:'high',ic:'📝',title:'3 proposals awaiting your approval',sub:'Oldest waiting 4 days · BGC Tower, Ayala Lobby +1',age:'4d',btn:'Review',primary:true},
+    {sev:'high',ic:'📦',title:'6 MRFs pending review',sub:'Procurement · 2 marked Critical urgency',age:'2d',btn:'Open'},
+    {sev:'medium',ic:'🛡️',title:'Retention DLP expires in 5 days',sub:'CLMC-ACME-2026001 · ₱120,000 held retention',age:'5d',btn:'Record release'},
+  ],
+  operations_admin:[
+    {sev:'critical',ic:'⏰',title:'Metro Line 7 overdue 12d in Mobilization',sub:'Needs a push · DOTr',age:'12d',btn:'Open'},
+    {sev:'high',ic:'📌',title:'1 new project to assign',sub:'Nuvali Clubhouse MEP',age:'1d',btn:'Assign',primary:true},
+    {sev:'medium',ic:'📝',title:'3 plans need updating',sub:'Projects department',age:'3d',btn:'Open'},
+  ],
+  services_admin:[
+    {sev:'critical',ic:'🚨',title:'Fire Suppression Service — open site issue',sub:'Client access blocked · Robinsons',age:'1d',btn:'Open'},
+    {sev:'medium',ic:'🛠️',title:'2 service plans need updating',sub:'Services department',age:'2d',btn:'Open',primary:true},
+  ],
+  finance:[
+    {sev:'critical',ic:'💸',title:'₱340,000 overdue across 5 collectibles',sub:'Oldest 41 days · Acme Warehouse +4',age:'41d',btn:'Open'},
+    {sev:'high',ic:'📝',title:'4 PRs awaiting your approval',sub:'Total ₱512,400 · oldest 3 days',age:'3d',btn:'Review',primary:true},
+    {sev:'medium',ic:'💰',title:'2 payables fall due this week',sub:'MetroSteel ₱128k · PowerGen ₱96k',age:'2d',btn:'Open'},
+  ],
+  procurement:[
+    {sev:'high',ic:'📦',title:'6 MRFs need processing into PRs',sub:'2 marked Critical urgency',age:'2d',btn:'Process',primary:true},
+    {sev:'medium',ic:'🚚',title:'PO-2026-031 awaiting delivery confirmation',sub:'Supplier: MetroSteel · 12 items',age:'1d',btn:'Open'},
+    {sev:'medium',ic:'📄',title:'1 RFP awaiting supplier quote',sub:'Subic Cold Storage electricals',age:'3d',btn:'Open'},
+  ],
+  operations_user:[
+    {sev:'critical',ic:'⏰',title:'2 overdue tasks on Subic Cold Storage',sub:'Progress update was due 3 days ago',age:'3d',btn:'Open'},
+    {sev:'high',ic:'📝',title:'2 proposals returned for revision',sub:'Nuvali Clubhouse · City Hall Annex',age:'6d',btn:'Open',primary:true},
+  ],
+};
+/* Your Work only for roles that own personal items */
+const YW={
+  operations_admin:[{lab:'Proposals in revision',tag:'2 open'},{lab:'Assigned projects',v:7}],
+  services_admin:[{lab:'Proposals in revision',tag:'1 open'},{lab:'Assigned services',v:4}],
+  operations_user:[{lab:'Proposals in revision',tag:'2 open'},{lab:'Assigned projects',v:5},{lab:'Assigned services',v:2},{lab:'MRFs you submitted',v:8}],
+};
+const ACTIVITY=[
+  {c:'#059669',t:'<b>PO-2026-071</b> marked <b>Delivered</b>',time:'25 min ago'},
+  {c:'#1a73e8',t:'Progress on <b>CLMC-SMP-2026004</b> → 65%',time:'2 hours ago'},
+  {c:'#ef4444',t:'New issue logged · <b>Ayala Land Lobby</b>',time:'Yesterday'},
+  {c:'#8b5cf6',t:'Proposal decided · <b>Environmental Impact Assessment</b>',time:'Yesterday'},
+  {c:'#059669',t:'Billing decision · <b>Bonifacio Tower Fit-out</b>',time:'2 days ago'},
+  {c:'#0ea5e9',t:'<b>MRF-2026-058</b> submitted · Subic Cold Storage',time:'2 days ago'},
+];
+
+function helloWord(){const h=new Date().getHours();return h<12?'morning':h<18?'afternoon':'evening';}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+function render(){
+  S.role=document.getElementById('role').value;
+  document.getElementById('av').textContent=(S.name[0]||'F').toUpperCase();
+  document.getElementById('env').textContent='';
+  const busy=S.day==='busy';
+  const feed=busy?(FEED[S.role]||[]):[];
+  const kpis=KPIS[S.role]||[];
+  const n=feed.length, hasCrit=feed.some(f=>f.sev==='critical'), hasHigh=feed.some(f=>f.sev==='high');
+  const dateStr=new Date().toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+  const attn=n>0?`${dateStr} · You have <span class="em ${hasCrit?'d':hasHigh?'w':''}">${n} ${n===1?'thing':'things'}</span> that need your attention today.`
+               :`${dateStr} · You're all caught up.`;
+
+  const engageTypes=ENGAGE[S.role]||[];
+  const engageBtn=engageTypes.length
+    ? `<button class="btn btn-primary">+ New Engagement${engageTypes.length>1?' <span class="car">▾</span>':''}</button>` : '';
+
+  const kpiHtml=kpis.map(k=>`<div class="kpi"><div class="n ${k.t||''}">${k.n}</div><div class="l">${esc(k.l)}</div></div>`).join('');
+
+  let feedBody;
+  if(feed.length){
+    feedBody=feed.map(f=>`<div class="frow ${f.sev}"><div class="fic">${f.ic}</div>
+      <div class="fmain"><div class="ftitle">${esc(f.title)}</div><div class="fsub">${esc(f.sub)}</div></div>
+      <div class="fright"><span class="fage">${f.age} ago</span><button class="fbtn ${f.primary?'primary':''}">${f.btn}</button></div></div>`).join('')
+      + (feed.length>=4?`<div class="expander">Show all (${feed.length+2}) →</div>`:'');
+  } else {
+    feedBody=`<div class="calm"><div class="ck">✓</div><h3>You're all caught up</h3>
+      <p>Nothing needs your attention right now.</p>
+      <div class="hint">New items appear here as work moves through the pipeline.</div></div>`;
+  }
+
+  const yw=YW[S.role];
+  const ywHtml=(busy&&yw)?`<div class="panel"><h3>Your work</h3>${yw.map(r=>`
+    <div class="yw-row"><span class="lab">${esc(r.lab)}</span>${r.tag?`<span class="tag">${r.tag}</span>`:`<span class="v">${r.v}</span>`}</div>`).join('')}</div>`:'';
+  const actHtml=`<div class="panel"><h3>Recent activity</h3>${ACTIVITY.map(a=>`
+    <div class="act-row"><span class="act-dot" style="background:${a.c}"></span>
+      <div class="act-main">${a.t}<div class="act-time">${a.time}</div></div></div>`).join('')}</div>`;
+
+  const doors=[['📋','Clients'],['🏗️','Projects'],['🔧','Services'],['🛒','Procurement'],['💰','Finance']]
+    .map(d=>`<div class="door">${d[0]} ${d[1]}</div>`).join('');
+
+  document.getElementById('inner').innerHTML=`
+    <div class="cc-brief">
+      <div><h1>Good ${helloWord()}, ${esc(S.name)}</h1><div class="sub">${attn}</div></div>
+      <div class="cc-brief-r">${engageBtn}</div>
+    </div>
+    <div class="cc-kpi">${kpiHtml}</div>
+    <div class="cc-body">
+      <div class="cc-left">
+        <div class="feed-head"><p class="sec-label">Needs your attention</p>
+          <div class="r"><span class="updated">Updated just now</span><button class="refresh">↻ Refresh</button></div></div>
+        <div class="feed">${feedBody}</div>
+      </div>
+      <div class="cc-right">${ywHtml}${actHtml}</div>
+    </div>
+    <div class="doors">${doors}</div>`;
+}
+function setDay(d){S.day=d;document.getElementById('dBusy').classList.toggle('on',d==='busy');document.getElementById('dCalm').classList.toggle('on',d==='calm');render();}
+render();
+</script>
+</body>
+</html>
