@@ -206,3 +206,131 @@ export async function sourceRejectedTRs(user) {
     });
     return items;
 }
+
+/* ========================================
+   FINANCE — MONEY / DERIVATION SOURCES (Task 2)
+   Derived money states (RFP payment status, collectible overdue, DLP-expired
+   retention). The two costly sources (#9, #14) scope SERVER-SIDE first with a
+   due_date string-range where() (RFP due_date CONFIRMED YYYY-MM-DD, Plan 01
+   SUMMARY), then derive client-side only on the reduced set. Severity bands read
+   the D-01 THRESHOLDS money constants, not magic numbers.
+   ======================================== */
+
+/**
+ * #9 sourceOverdueRfpPayments (HOME-09 super_admin + HOME-12 finance) — RFP payments
+ * overdue OR due within the next 7 days ("overdue/due this week"). COSTLY → scoped.
+ * Query: rfps where due_date < (today + 7d) (string range — SAFE per Plan 01's confirmed
+ * YYYY-MM-DD format), then client-exclude Fully-Paid via deriveRFPStatus.
+ * Severity (D-01 money bands): >30d past due → critical; 0..30d past due → high; future (due ≤7d) → medium.
+ */
+export async function sourceOverdueRfpPayments(user) {
+    // today + 7 days, as YYYY-MM-DD, so the range captures both past-due and due-this-week RFPs.
+    const cutoff = new Date(Date.now() + THRESHOLDS.MONEY_DUE_SOON_D * 86400000).toISOString().slice(0, 10);
+    const snap = await getDocs(query(
+        collection(db, 'rfps'),
+        where('due_date', '<', cutoff)
+    ));
+    const items = [];
+    snap.forEach(docSnap => {
+        const rfp = { id: docSnap.id, ...docSnap.data() };
+        if (deriveRFPStatus(rfp) === 'Fully Paid') return;   // client filter: drop settled RFPs
+        const daysPastDue = Math.floor((Date.now() - new Date(rfp.due_date).getTime()) / 86400000);
+        const severity = daysPastDue > THRESHOLDS.MONEY_CRIT_D
+            ? SEVERITY.critical
+            : (daysPastDue >= 0 ? SEVERITY.high : SEVERITY.medium);
+        const subtitle = [
+            (rfp.po_id || rfp.tranche_label),
+            ('₱' + getRFPTotal(rfp).toLocaleString())
+        ].filter(Boolean).join(' · ');
+        items.push({
+            dedupeKey: `rfp-overdue:${rfp.id}`,
+            severity,
+            icon: TYPE_META.RFP_REVIEW_NEEDED.icon,
+            title: (rfp.rfp_id || 'RFP') + (daysPastDue >= 0 ? ' payment overdue' : ' due soon'),
+            subtitle,
+            category: 'rfp',
+            deepLink: { kind: 'route', value: '#/finance' },
+            timestamp: rfp.due_date,
+            overdueScore: daysPastDue
+        });
+    });
+    return items;
+}
+
+/**
+ * #14 sourceCollectiblesOverdue (HOME-12 finance) — collectibles past due and not fully paid.
+ * COSTLY → scoped. Query: collectibles where due_date < today (string range — collectibles due_date
+ * IS YYYY-MM-DD, finance.js:139), then client-filter deriveCollectibleStatus === 'Overdue'.
+ * Severity (D-01): critical urgency tier (≥30d overdue) → critical; else → high.
+ */
+export async function sourceCollectiblesOverdue(user) {
+    const todayISO = new Date().toISOString().slice(0, 10);
+    const snap = await getDocs(query(
+        collection(db, 'collectibles'),
+        where('due_date', '<', todayISO)
+    ));
+    const items = [];
+    snap.forEach(docSnap => {
+        const coll = { id: docSnap.id, ...docSnap.data() };
+        if (deriveCollectibleStatus(coll) !== 'Overdue') return;   // excludes fully-paid / not-actually-overdue
+        const u = getCollectibleUrgency(coll);
+        const severity = u.tier === 'critical' ? SEVERITY.critical : SEVERITY.high;
+        const subtitle = [
+            (coll.project_code || coll.service_code),
+            ('₱' + Number(coll.amount_requested).toLocaleString()),
+            (u.daysOverdue + 'd overdue')
+        ].filter(Boolean).join(' · ');
+        items.push({
+            dedupeKey: `collectible-overdue:${coll.id}`,
+            severity,
+            icon: TYPE_META.COLLECTIBLE_CREATED.icon,
+            title: 'Collectible overdue',
+            subtitle,
+            category: 'finance',
+            deepLink: { kind: 'route', value: '#/finance/collectibles' },
+            timestamp: coll.due_date,
+            overdueScore: u.daysOverdue
+        });
+    });
+    return items;
+}
+
+/**
+ * #8 sourceRetentionReleases (HOME-12 finance) — DLP-expired retention still held, across BOTH
+ * projects and services. Query each collection scoped to project_status == 'Completed' (getDlpState
+ * returns 'active' for non-Completed — gotcha 6 — so the Completed pre-filter is mandatory), then
+ * client-filter getDlpState === 'expired' (dlp_expires_at past AND retention_released_at null).
+ * Single interleaved list (D-04); the project/service origin shows only via subtitle. Fixed high.
+ */
+export async function sourceRetentionReleases(user) {
+    const [projSnap, svcSnap] = await Promise.all([
+        getDocs(query(collection(db, 'projects'), where('project_status', '==', 'Completed'))),
+        getDocs(query(collection(db, 'services'), where('project_status', '==', 'Completed')))
+    ]);
+    const items = [];
+    const collect = (snap) => {
+        snap.forEach(docSnap => {
+            const e = { id: docSnap.id, ...docSnap.data() };
+            if (getDlpState(e) !== 'expired') return;   // DLP past + retention not yet released
+            const subtitle = [
+                (e.project_code || e.service_code),
+                (e.project_name || ''),
+                'DLP expired'
+            ].filter(Boolean).join(' · ');
+            items.push({
+                dedupeKey: `retention-release:${e.id}`,
+                severity: SEVERITY.high,
+                icon: TYPE_META.PROJECT_COST_CHANGED.icon,
+                title: 'Retention release to record',
+                subtitle,
+                category: 'dlp',
+                deepLink: { kind: 'route', value: '#/finance' },
+                timestamp: e.dlp_expires_at,
+                overdueScore: Math.max(0, Math.floor((Date.now() - new Date(e.dlp_expires_at).getTime()) / 86400000))
+            });
+        });
+    };
+    collect(projSnap);
+    collect(svcSnap);
+    return items;
+}
