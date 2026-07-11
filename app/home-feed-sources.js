@@ -37,6 +37,7 @@ import { SEVERITY } from './home-feed.js';
 import { TYPE_META } from './notifications.js';
 import { getRFPTotal, getAssignedProjectCodes, getAssignedServiceCodes } from './utils.js';
 import { deriveRFPStatus, deriveCollectibleStatus, getCollectibleUrgency, getDlpState, normalizeUpdatedAt, stageDaysInStage, getEngagementSignal } from './status-derivation.js';
+import { getAgeInStageDays, isOverdueInStage } from './views/proposals.js';   // moved seed sources (#1/#2) depend on these
 
 /**
  * D-01 severity bands (days) — the single declarative place to tune feed severity.
@@ -770,4 +771,222 @@ export async function sourceOpenIssues(user) {
         });
     }));
     return items;
+}
+
+/* ========================================
+   MOVED SEED SOURCES (was home-feed.js D-12) + PROPOSAL DEPT SCOPING
+   The 3 original 107 seed sources, moved here VERBATIM (Plan 04) so the whole
+   source library — 17 Finance/Procurement/portfolio sources + these 3 seeds =
+   20 — lives in ONE module the engine composes via getSourcesForUser below.
+   They exercise permission scope (approver gate), ownership scope (uid),
+   requestor scope (full_name), both deep-link kinds, and multiple tiers.
+   Each issues a SCOPED getDocs and lets any failure propagate to assembleFeed's
+   per-source try/catch (do NOT swallow here — the engine owns allSourcesFailed).
+   ======================================== */
+
+/**
+ * Mirror home.js filterProposalsForUser dept scope.
+ * operations_* → 'projects'; services_* → 'services'; super_admin/others → null (all).
+ * Callers filter on `(p.parent_collection || 'projects')` when this returns non-null.
+ */
+function scopeProposalToDept(role) {
+    if (role === 'super_admin') return null;
+    if (typeof role === 'string' && role.startsWith('operations_')) return 'projects';
+    if (typeof role === 'string' && role.startsWith('services_')) return 'services';
+    return null;
+}
+
+/**
+ * SOURCE 1 — Proposals awaiting your approval (permission-scoped, modal deep-link).
+ * Approver gate: only super_admin / operations_admin internally approve (mirror canApproveQueue).
+ * Severity: overdue-in-stage → critical, else high.
+ */
+export async function sourceProposalsAwaitingApproval(user) {
+    const role = user?.role;
+    if (!['super_admin', 'operations_admin'].includes(role)) return [];   // approver gate
+
+    const snap = await getDocs(query(
+        collection(db, 'proposals'),
+        where('status', '==', 'pending_internal')
+    ));
+    const dept = scopeProposalToDept(role);   // null = sees all (super_admin)
+    const items = [];
+    snap.forEach(docSnap => {
+        const p = { id: docSnap.id, ...docSnap.data() };
+        if (dept && (p.parent_collection || 'projects') !== dept) return;   // client-side dept scope
+        const ageDays = getAgeInStageDays(p);
+        const subtitle = [
+            p.project_code,
+            p.target_client_name,
+            (p.amount != null ? ('₱' + Number(p.amount).toLocaleString()) : null)
+        ].filter(Boolean).join(' · ');
+        items.push({
+            dedupeKey: `proposal-approval:${p.id}`,
+            severity: isOverdueInStage(p) ? SEVERITY.critical : SEVERITY.high,
+            icon: TYPE_META.PROPOSAL_SUBMITTED.icon,
+            title: p.title || '—',
+            subtitle,
+            category: 'proposal',
+            // Reuses the EXISTING approve/reject modal — the row opens approve;
+            // reject is available inside that modal path. No new destructive UI.
+            deepLink: { kind: 'modal', handler: 'homeQueueOpenApproveModal', arg: p.id },
+            timestamp: p.current_status_since || p.created_at,
+            overdueScore: ageDays
+        });
+    });
+    return items;
+}
+
+/**
+ * SOURCE 2 — Your proposals For Revision (ownership-scoped, route deep-link).
+ * Ownership query on created_by == uid (no client filtering).
+ * B4 (resolves D-02/D-12 in favor of D-02): emit a feed row ONLY when OVERDUE.
+ * isOverdueInStage() covers only pending_*, so for for_revision the operative
+ * overdue test is age-based (> 7 days). Non-overdue for-revision proposals still
+ * appear in 107.4's Your Work bucket (a) via that panel's own query, regardless of age.
+ */
+export async function sourceMyProposalsForRevision(user) {
+    if (!user?.uid) return [];
+
+    const snap = await getDocs(query(
+        collection(db, 'proposals'),
+        where('created_by', '==', user.uid),
+        where('status', '==', 'for_revision')
+    ));
+    const items = [];
+    snap.forEach(docSnap => {
+        const p = { id: docSnap.id, ...docSnap.data() };
+        const ageDays = getAgeInStageDays(p);
+        if (ageDays <= 7) return null;   // gate: only overdue for-revision proposals surface in the feed
+        items.push({
+            dedupeKey: `proposal-revision:${p.id}`,
+            severity: ageDays > 14 ? SEVERITY.critical : SEVERITY.high,
+            icon: TYPE_META.PROPOSAL_SUBMITTED.icon,
+            title: p.title || '—',
+            subtitle: 'Needs revision · ' + (p.project_code || '—'),
+            category: 'proposal',
+            deepLink: { kind: 'route', value: '#/?tab=proposals' },
+            timestamp: p.current_status_since || p.created_at,
+            overdueScore: ageDays
+        });
+    });
+    return items;
+}
+
+/**
+ * SOURCE 3 — Your rejected MRFs (requestor-scoped, route deep-link).
+ * MRFs are scoped to a user by requestor_name == full_name (no created_by uid on mrfs).
+ * status is case-sensitive 'Rejected' (CLAUDE.md). Severity fixed high.
+ */
+export async function sourceMyRejectedMRFs(user) {
+    if (!user?.full_name) return [];
+
+    const snap = await getDocs(query(
+        collection(db, 'mrfs'),
+        where('requestor_name', '==', user.full_name),
+        where('status', '==', 'Rejected')
+    ));
+    const items = [];
+    snap.forEach(docSnap => {
+        const m = { id: docSnap.id, ...docSnap.data() };
+        items.push({
+            dedupeKey: `mrf-rejected:${m.id}`,
+            severity: SEVERITY.high,
+            icon: TYPE_META.MRF_REJECTED.icon,
+            title: (m.mrf_id || 'MRF') + ' rejected',
+            subtitle: (m.project_name || m.project_code || '—'),
+            category: 'mrf',
+            deepLink: { kind: 'route', value: '#/procurement/records' },
+            // B2: rejection writes rejected_at (ISO string, procurement.js L4943); MRFs carry no
+            // modified-timestamp field. toMillis handles ISO strings; date_needed (a future date)
+            // is only a last-resort fallback (would yield negative age).
+            timestamp: m.rejected_at || m.date_needed || null,
+            overdueScore: 0
+        });
+    });
+    return items;
+}
+
+/* ========================================
+   ROLE → SOURCE-SET REGISTRY + getSourcesForUser (Plan 04)
+   The declarative seam that replaces the 107 seed stub: each of the 7 roles maps
+   to its exact HOME-09..13 source set. getSourcesForUser(user) returns that set;
+   assembleFeed(user) (home-feed.js) defaults its `sources` arg to it. Every name
+   below is DEFINED in THIS file (17 Finance/Procurement/portfolio + 3 moved seeds
+   = 20). Each source ALSO self-gates the DATA it returns (approver gate /
+   getAssigned*Codes / uid / full_name), so even a mis-listed source returns []
+   rather than leaking (T-108-02, fail-closed).
+   ======================================== */
+const ROLE_SOURCES = {
+    // HOME-09 — cross-dept portfolio + admin approvals + money (super_admin sees ALL depts)
+    super_admin: [
+        sourceProposalsAwaitingApproval,   // both depts (scopeProposalToDept → null)
+        sourcePendingUserRegistrations,
+        sourceOverdueProjects,
+        sourceOverdueServices,
+        sourceDlpWindowsExpiring,
+        sourceOverdueRfpPayments,
+    ],
+    // HOME-10 — operations department only (assignment predicates yield the ops slice)
+    operations_admin: [
+        sourceProposalsAwaitingApproval,
+        sourceOverdueProjects,
+        sourceDlpWindowsExpiring,
+        sourceOpenIssues,
+        sourceStaleProgress,
+        sourceOwnBillingRequests,
+    ],
+    // HOME-10 — services department only.
+    // sourceProposalsAwaitingApproval self-gates to [] for services_admin (non-approver,
+    // decision #1) — listed for symmetry, returns no rows.
+    services_admin: [
+        sourceProposalsAwaitingApproval,
+        sourceOverdueServices,
+        sourceDlpWindowsExpiring,
+        sourceOpenIssues,
+        sourceStaleProgress,
+        sourceOwnBillingRequests,
+    ],
+    // HOME-11 — operations user, assigned items only
+    operations_user: [
+        sourceMyProposalsForRevision,
+        sourceOverdueProjects,
+        sourceOpenIssues,
+        sourceMyRejectedMRFs,
+        sourceStaleProgress,
+    ],
+    // HOME-11 — services user, assigned items only
+    services_user: [
+        sourceMyProposalsForRevision,
+        sourceOverdueServices,
+        sourceOpenIssues,
+        sourceMyRejectedMRFs,
+        sourceStaleProgress,
+    ],
+    // HOME-12 — finance functional queue (dept-agnostic)
+    finance: [
+        sourcePendingPRs,
+        sourcePendingTRs,
+        sourceOverdueRfpPayments,
+        sourceBillingRequestsToDecide,
+        sourceCollectiblesOverdue,
+        sourceRetentionReleases,
+    ],
+    // HOME-13 — procurement functional queue (dept-agnostic)
+    procurement: [
+        sourceMrfsPendingProcessing,
+        sourceAgingPOs,
+        sourceRejectedTRs,
+        sourceDeliveredPOsMissingProof,
+    ],
+};
+
+/**
+ * The Phase-108 seam (replaces the 107 seed stub). Returns the exact source set
+ * for the signed-in user's role; unknown/absent role → [] (fail-closed, T-108-01);
+ * no user → []. assembleFeed(user) in home-feed.js defaults its `sources` arg to this.
+ */
+export function getSourcesForUser(user) {
+    if (!user) return [];
+    return ROLE_SOURCES[user.role] || [];
 }
