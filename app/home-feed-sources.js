@@ -926,9 +926,18 @@ export async function sourceMyRejectedMRFs(user) {
    to its exact HOME-09..13 source set. getSourcesForUser(user) returns that set;
    assembleFeed(user) (home-feed.js) defaults its `sources` arg to it. Every name
    below is DEFINED in THIS file (17 Finance/Procurement/portfolio + 3 moved seeds
-   = 20). Each source ALSO self-gates the DATA it returns (approver gate /
-   getAssigned*Codes / uid / full_name), so even a mis-listed source returns []
-   rather than leaking (T-108-02, fail-closed).
+   = 20).
+   ACCESS-CONTROL NOTE (WR-03): two source classes, only one of which self-gates.
+   - Portfolio/admin sources (Overdue{Projects,Services}, StaleProgress, DlpWindowsExpiring,
+     OpenIssues, PendingUserRegistrations, OwnBillingRequests, and the 3 proposal/MRF seeds)
+     self-gate the DATA they return (approver gate / getAssigned*Codes / uid / requester-uid),
+     so a mis-listing of one of THESE degrades to [] — fail-closed (T-108-02).
+   - The ~10 Finance/Procurement FUNCTIONAL-QUEUE sources (PendingPRs, PendingTRs,
+     BillingRequestsToDecide, OverdueRfpPayments, CollectiblesOverdue, RetentionReleases,
+     MrfsPendingProcessing, AgingPOs, RejectedTRs, DeliveredPOsMissingProof) are dept-agnostic
+     and DO NOT self-gate by role — they return the whole functional queue to whoever runs them.
+     Their access control IS this registry placement (backed by Firestore rules), NOT fail-closed:
+     mis-listing one WOULD surface that queue client-side. Edit ROLE_SOURCES with that in mind.
    ======================================== */
 const ROLE_SOURCES = {
     // HOME-09 — cross-dept portfolio + admin approvals + money (super_admin sees ALL depts)
