@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-12T17:02:16Z",
+  "phase": "108",
+  "phase_name": "Home — Per-Role Attention Feeds",
+  "phase_dir": ".planning/phases/108-home-per-role-attention-feeds",
+  "plan": 4,
+  "total_tasks": 5,
+  "task": 1,
+  "status": "paused",
+  "stage": "UAT (verify-work) in progress — Test 1 of 5 presented, awaiting operator response",
+  "completed_tasks": [
+    {"id": "exec", "name": "Execute all 4 plans (W1-W4)", "status": "done", "commit": "616fd985/2b5087c3 (last)"},
+    {"id": "verify", "name": "Inline code verification (18/18 must-haves, 0 gaps)", "status": "done", "commit": "c2655d7e"},
+    {"id": "review", "name": "Code review (0 crit / 3 warn / 4 info)", "status": "done", "commit": "8cff36df"},
+    {"id": "fix", "name": "Fix all 3 warnings WR-01/02/03", "status": "done", "commit": "12413b6b/18a0e83e/1cda980c"}
+  ],
+  "remaining_tasks": [
+    {"id": 1, "name": "UAT-1 per-role feed renders, no module-load ReferenceError", "status": "presented_awaiting_result"},
+    {"id": 2, "name": "UAT-2 feed content matches role (finance/procurement/super_admin dedupeKeys)", "status": "not_started"},
+    {"id": 3, "name": "UAT-3 costly sources issue scoped reads; #6 bounded (DevTools Network)", "status": "not_started"},
+    {"id": 4, "name": "UAT-4 assignment isolation (ops_user: services=[], projects=assigned)", "status": "not_started"},
+    {"id": 5, "name": "UAT-5 deep-link clicks route correctly per category", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "UAT requires signing in as up to 7 roles against prod Firebase; Claude cannot authenticate (credentials off-limits, no role accounts). Operator-driven.", "type": "human_action", "workaround": "Operator runs the 5 checks in-browser and reports; Claude records + diagnoses failures."}
+  ],
+  "human_actions_pending": [
+    {"action": "Run the 5 browser UAT items in 108-HUMAN-UAT.md and report each result", "context": "Only remaining gate before Phase 108 can be marked complete; verifier confirmed all code-level must-haves.", "blocking": true}
+  ],
+  "decisions": [
+    {"decision": "Executed 4 plans as sequential single-plan waves, NO worktrees", "rationale": "02/03/04 chain-edit the same home-feed-sources.js; zero parallelism possible", "phase": "108"},
+    {"decision": "Orchestrator owns STATE.md/ROADMAP.md writes; executors did code+SUMMARY only", "rationale": "gsd-sdk is NOT installed in this environment", "phase": "108"},
+    {"decision": "WR-01 fix = local-date cutoff + 1d slack (query stays superset of client 'Overdue' filter)", "rationale": "getCollectibleUrgency defines overdue at local midnight; UTC toISOString dropped just-overdue rows for PH users 00:00-08:00", "phase": "108"},
+    {"decision": "WR-02 fix = per-collection parent budget split", "rationale": "concat().slice(0,60) starved service issues for admins with >=60 projects", "phase": "108"},
+    {"decision": "WR-03 fix = corrected comment only (no role gates added)", "rationale": "functional finance/procurement queues are dept-agnostic by design; access control is registry placement + Firestore rules", "phase": "108"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "Resume /gsd-verify-work 108: collect operator's Test 1 result, then present Tests 2-5 one at a time, record in 108-HUMAN-UAT.md. On all-pass: run transition.md to mark Phase 108 complete in ROADMAP/STATE/REQUIREMENTS, then Phase 109 (Executive Dashboard). On any fail: diagnose root cause, plan gap closure (gap_closure:true), /gsd-execute-phase 108 --gaps-only.",
+  "context_notes": "Phase 108 code is done, independently code-verified, code-reviewed and all warnings fixed. Tree clean, all committed on v4.2. Verifier + first code-review attempt earlier died on the ACCOUNT MONTHLY SPEND LIMIT (both since completed). Only the 5 in-browser UAT items remain. When resuming, DO NOT re-run execution — jump straight back into the conversational UAT."
+}

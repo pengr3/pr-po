@@ -1,14 +1,20 @@
 ---
-status: partial
+status: testing
 phase: 108-home-per-role-attention-feeds
 source: [108-VERIFICATION.md]
 started: "2026-07-11T07:47:58Z"
-updated: "2026-07-11T07:47:58Z"
+updated: "2026-07-12T00:00:00Z"
 ---
 
 ## Current Test
 
-[awaiting human testing — load the app on prod/dev and sign in per role]
+number: 1
+name: Per-role feed renders with no module-load error
+expected: |
+  Home (#/) Command Center "needs your attention" feed renders items (or a calm
+  empty state) with NO red console error — specifically no ReferenceError / no
+  "cannot access 'SEVERITY' before initialization".
+awaiting: user response
 
 ## Tests
 
