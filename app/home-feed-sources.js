@@ -265,10 +265,18 @@ export async function sourceOverdueRfpPayments(user) {
  * Severity (D-01): critical urgency tier (≥30d overdue) → critical; else → high.
  */
 export async function sourceCollectiblesOverdue(user) {
-    const todayISO = new Date().toISOString().slice(0, 10);
+    // WR-01: getCollectibleUrgency defines "overdue" at LOCAL midnight (due_date+'T00:00:00' vs
+    // today.setHours(0,0,0,0)), so a UTC toISOString() cutoff silently excluded just-overdue rows
+    // for UTC+8 (PH) users during the 00:00–08:00 local window. Build the cutoff from LOCAL date
+    // components + 1 day of slack, keeping the query a strict SUPERSET of the client 'Overdue'
+    // filter below (which stays the authoritative gate — it also drops fully-paid / not-yet-overdue).
+    const cutoffDate = new Date();
+    cutoffDate.setHours(0, 0, 0, 0);
+    cutoffDate.setDate(cutoffDate.getDate() + 1);
+    const cutoff = `${cutoffDate.getFullYear()}-${String(cutoffDate.getMonth() + 1).padStart(2, '0')}-${String(cutoffDate.getDate()).padStart(2, '0')}`;
     const snap = await getDocs(query(
         collection(db, 'collectibles'),
-        where('due_date', '<', todayISO)
+        where('due_date', '<', cutoff)
     ));
     const items = [];
     snap.forEach(docSnap => {
