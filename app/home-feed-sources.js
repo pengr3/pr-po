@@ -754,7 +754,12 @@ export async function sourceOpenIssues(user) {
         resolveParents('services', 'service', getAssignedServiceCodes(),
             c => query(collection(db, 'services'), where('service_code', 'in', c)))
     ]);
-    const parents = projParents.concat(svcParents).slice(0, OPEN_ISSUES_PARENT_CAP);   // bounded worst case
+    // WR-02: split the cap across BOTH collections so a project-heavy admin (≥cap projects) never
+    // loses ALL service issues to a plain concat().slice(). Each side gets at least half; whichever
+    // side is under its half lends the remainder to the other, so the total still == the cap.
+    const projTake = Math.min(projParents.length, Math.max(Math.floor(OPEN_ISSUES_PARENT_CAP / 2), OPEN_ISSUES_PARENT_CAP - svcParents.length));
+    const svcTake = Math.min(svcParents.length, OPEN_ISSUES_PARENT_CAP - projTake);
+    const parents = projParents.slice(0, projTake).concat(svcParents.slice(0, svcTake));   // bounded worst case, both collections represented
 
     // 3. Inner Promise.all — one open-issues read per parent (bounded by the cap above).
     const items = [];
