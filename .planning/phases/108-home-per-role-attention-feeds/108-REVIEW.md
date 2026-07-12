@@ -12,7 +12,10 @@ findings:
   warning: 3
   info: 4
   total: 7
-status: issues_found
+fixes_applied:
+  warning: 3   # WR-01, WR-02, WR-03 fixed 2026-07-12
+  info: 0      # IR-01..04 left as advisory
+status: fixed
 ---
 
 # Phase 108: Code Review Report
@@ -20,7 +23,17 @@ status: issues_found
 **Reviewed:** 2026-07-12
 **Depth:** standard
 **Files Reviewed:** 3
-**Status:** issues_found
+**Status:** fixed (3/3 warnings resolved 2026-07-12; 4 info left as advisory)
+
+## Resolution (fixes applied 2026-07-12)
+
+All three warnings fixed via `/gsd-code-review 108 --fix` (Critical+Warning scope), one atomic commit each:
+- **WR-01 → FIXED** (`fix(108): collectibles-overdue query uses local-date cutoff not UTC`) — cutoff now built from local date components + 1 day slack; query is a strict superset of the authoritative client `'Overdue'` filter. RFP source left as-is (immune — 7-day window absorbs the skew).
+- **WR-02 → FIXED** (`fix(108): open-issues parent cap splits across both collections`) — per-collection budget split (each ≥ half, under-filled side lends its remainder); total still bounded at `OPEN_ISSUES_PARENT_CAP`; both collections always represented. Verified across 7 size cases.
+- **WR-03 → FIXED** (`docs(108): correct overstated fail-closed invariant comment`) — registry header now distinguishes the self-gating portfolio/admin sources (fail-closed) from the ~10 dept-agnostic functional-queue sources (access control = registry placement + Firestore rules). Comment-only; no behaviour change.
+- **IR-01..04 → not actioned** (advisory info; IR-04 is accepted tech debt). Fix later with `--all` if desired.
+
+Post-fix invariants re-checked: 20 sources, 0 `onSnapshot`, `node --check` clean.
 
 ## Summary
 
