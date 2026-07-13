@@ -19,11 +19,11 @@ The landing page becomes a role-aware "what should I do" surface. Every feed ite
 - [ ] **HOME-06**: A "Your work" panel shows the user's own items (proposals in revision, assigned projects/services, submitted MRFs)
 - [ ] **HOME-07**: A "Recent activity" panel shows the latest relevant events for the user's scope
 - [ ] **HOME-08**: The five area nav cards/rail remain reachable from the landing
-- [ ] **HOME-09**: Super Admin feed = proposals awaiting approval · pending user registrations · most-overdue projects/services (both depts) · DLP windows expiring · overdue RFP payments
-- [ ] **HOME-10**: Operations/Services Admin feed = dept proposals awaiting approval · overdue in-stage items · DLP expiring · open issues & stale progress · own billing requests
-- [ ] **HOME-11**: Operations/Services User feed = my proposals For Revision · overdue stages on assigned items · open issues on my items · my rejected MRFs · projects with no progress update in 14 days
-- [ ] **HOME-12**: Finance feed = PRs pending · TRs pending · RFPs overdue/due this week · billing requests to decide · collectibles overdue · retention releases to record
-- [ ] **HOME-13**: Procurement feed = MRFs pending processing · aging POs to advance · rejected TRs to re-edit · delivered POs missing proof-of-procurement
+- [x] **HOME-09**: Super Admin feed = proposals awaiting approval · pending user registrations · most-overdue projects/services (both depts) · DLP windows expiring · overdue RFP payments
+- [x] **HOME-10**: Operations/Services Admin feed = dept proposals awaiting approval · overdue in-stage items · DLP expiring · open issues & stale progress · own billing requests
+- [x] **HOME-11**: Operations/Services User feed = my proposals For Revision · overdue stages on assigned items · open issues on my items · my rejected MRFs · projects with no progress update in 14 days
+- [x] **HOME-12**: Finance feed = PRs pending · TRs pending · RFPs overdue/due this week · billing requests to decide · collectibles overdue · retention releases to record
+- [x] **HOME-13**: Procurement feed = MRFs pending processing · aging POs to advance · rejected TRs to re-edit · delivered POs missing proof-of-procurement
 
 ### Home — Executive Dashboard (DASH)
 
@@ -114,7 +114,7 @@ Which phases cover which requirements. Roadmap created 2026-07-09.
 |-------------|-------|--------|
 | AUDIT-01 … AUDIT-05 | Phase 106 — Data-Layer Audit (Findings Report) | Complete (report verified 4/4; AUDIT-02 live data-pass → Phase 112) |
 | HOME-01 … HOME-08 | Phase 107 — Home Command Center (Shell & Feed Engine) | Pending |
-| HOME-09 … HOME-13 | Phase 108 — Home Per-Role Attention Feeds | Pending |
+| HOME-09 … HOME-13 | Phase 108 — Home Per-Role Attention Feeds | ✅ Complete (browser UAT 5/5, 2026-07-13) |
 | DASH-01 … DASH-07 | Phase 109 — Home Executive Dashboard | Pending |
 | MODAL-01 … MODAL-07 | Phase 110 — Entity Add/Edit Modals | Pending |
 | MOBILE-01 … MOBILE-07 | Phase 111 — Mobile High-Traffic Views & View-Only Gantt | Pending |
@@ -129,3 +129,4 @@ Which phases cover which requirements. Roadmap created 2026-07-09.
 ---
 *Requirements defined: 2026-07-09*
 *Last updated: 2026-07-09 — roadmap created; all 43 v4.2 requirements mapped to Phases 106–112 (0 unmapped). HOME split across Phases 107 (shell/engine, HOME-01–08) + 108 (per-role feeds, HOME-09–13); AUDIT split across Phase 106 (report, AUDIT-01–05) + 112 (remediation, AUDIT-06–07); GANTT folded into the Phase 111 mobile pass.*
+*2026-07-13 — Phase 108 complete: HOME-09–13 validated (browser UAT 5/5). Milestone v4.2 at 3/7 phases (106 ✅, 107 ✅, 108 ✅). Next: Phase 109 (DASH-01–07).*

@@ -1,5 +1,5 @@
 ---
-status: human_needed
+status: verified  # 5 human UAT items all PASSED 2026-07-13 (108-HUMAN-UAT.md)
 phase: 108-home-per-role-attention-feeds
 verified: "2026-07-11T07:47:58Z"
 verifier: orchestrator-inline
