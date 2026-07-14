@@ -27,6 +27,8 @@ The landing page becomes a role-aware "what should I do" surface. Every feed ite
 
 ### Home — Executive Dashboard (DASH)
 
+> ⏸ **DEFERRED 2026-07-14 (user decision)** — Phase 109 skipped for now ("value not justified now"); **DASH-01…07 are not delivered this milestone**. The discussion + spike 108 (A/B/C model shootout → enriched Model A) are preserved at `.planning/spikes/108-executive-dashboard-content-model/`. Revive via `/gsd-discuss-phase 109`.
+
 A role-gated "how are we doing" overview, one click from the Command Center landing.
 
 - [ ] **DASH-01**: A "Dashboard" sub-tab appears on Home only for Super Admin, Operations Admin, Services Admin, and Finance
@@ -115,7 +117,7 @@ Which phases cover which requirements. Roadmap created 2026-07-09.
 | AUDIT-01 … AUDIT-05 | Phase 106 — Data-Layer Audit (Findings Report) | Complete (report verified 4/4; AUDIT-02 live data-pass → Phase 112) |
 | HOME-01 … HOME-08 | Phase 107 — Home Command Center (Shell & Feed Engine) | Pending |
 | HOME-09 … HOME-13 | Phase 108 — Home Per-Role Attention Feeds | ✅ Complete (browser UAT 5/5, 2026-07-13) |
-| DASH-01 … DASH-07 | Phase 109 — Home Executive Dashboard | Pending |
+| DASH-01 … DASH-07 | Phase 109 — Home Executive Dashboard | ⏸ Deferred 2026-07-14 (user decision; spike 108 preserved) |
 | MODAL-01 … MODAL-07 | Phase 110 — Entity Add/Edit Modals | Pending |
 | MOBILE-01 … MOBILE-07 | Phase 111 — Mobile High-Traffic Views & View-Only Gantt | Pending |
 | GANTT-01 … GANTT-02 | Phase 111 — Mobile High-Traffic Views & View-Only Gantt | Pending |
@@ -123,10 +125,12 @@ Which phases cover which requirements. Roadmap created 2026-07-09.
 
 **Coverage:**
 - v4.2 requirements: 43 total (HOME×13, DASH×7, MODAL×7, MOBILE×7, GANTT×2, AUDIT×7)
-- Mapped to phases: 43
+- Active this milestone: 36 (DASH×7 deferred 2026-07-14 — Phase 109 skipped by user decision)
+- Mapped to phases: 43 (all mapped; DASH×7 parked)
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-09*
 *Last updated: 2026-07-09 — roadmap created; all 43 v4.2 requirements mapped to Phases 106–112 (0 unmapped). HOME split across Phases 107 (shell/engine, HOME-01–08) + 108 (per-role feeds, HOME-09–13); AUDIT split across Phase 106 (report, AUDIT-01–05) + 112 (remediation, AUDIT-06–07); GANTT folded into the Phase 111 mobile pass.*
 *2026-07-13 — Phase 108 complete: HOME-09–13 validated (browser UAT 5/5). Milestone v4.2 at 3/7 phases (106 ✅, 107 ✅, 108 ✅). Next: Phase 109 (DASH-01–07).*
+*2026-07-14 — Phase 109 (Executive Dashboard) DEFERRED by user decision ("value not justified now"); DASH-01–07 parked (spike 108 A/B/C + enriched Model A preserved). v4.2 active scope now 36 reqs across Phases 106–108, 110–112. Next: Phase 110 (MODAL-01–07).*
