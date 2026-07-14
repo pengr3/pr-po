@@ -128,7 +128,17 @@ Started 2026-07-09. Numbering continues from v4.0 (last phase 105 — v4.1 shipp
   2. Editing a client, project, or service from its list opens the same modal, pre-filled.
   3. All three modals validate input and reuse the shared `components.js` modal pattern.
   4. Project and service detail-page inline auto-save behaves exactly as before (unchanged).
-**Plans**: TBD
+**Plans**: 6 plans in 2 waves
+
+**Wave 1 (build the modal modules, parallel — distinct files, no overlap):**
+- [ ] 110-01-PLAN.md — Client Add/Edit modal module `app/client-modal.js` (create|edit, toast validation, free close) (MODAL-01,02,07)
+- [ ] 110-02-PLAN.md — `app/engagement-create.js`: lockedType-aware renderEngagementForm + exported openEngagementModal/closeEngagementModal launcher + opt-in auto-close hook (home.js untouched) (MODAL-03,05,07)
+- [ ] 110-03-PLAN.md — Project/Service pre-filled Edit modal module `app/entity-edit-modal.js` (updateDoc, Draft-inclusive status, edit-history/sync/tranche/collectibles preserved) (MODAL-04,06,07)
+
+**Wave 2 (wire the lists, parallel — clients/projects/services are distinct files):**
+- [ ] 110-04-PLAN.md — Wire `clients.js` to the modal; remove inline #addClientForm + inline-row edit (MODAL-01,02,07)
+- [ ] 110-05-PLAN.md — Wire `projects.js`: Add→engagement (lockedType='project') + Edit→openProjectEditModal + D-05 canEngagements gate swap; remove inline form (MODAL-03,04,07)
+- [ ] 110-06-PLAN.md — Wire `services.js`: Add→engagement (lockedType='service', sub-type selectable) + Edit→openServiceEditModal + D-05 gate swap; remove inline form (MODAL-05,06,07)
 **UI hint**: yes
 
 ### Phase 111: Mobile — High-Traffic Views & View-Only Gantt
@@ -172,4 +182,4 @@ Earlier milestones (v1.0–v3.2) are archived under `.planning/milestones/`.
 
 ## Next
 
-🚧 **v4.2 in progress** — Phases 106–112 are defined and 43/43 requirements are mapped. ✅ **Phase 106 (Data-Layer Audit — Findings Report) complete** — `106-FINDINGS.md` holds 25 severity-ranked findings (5 High · 14 Medium · 6 Low); read-only prod data-pass tracked to Phase 112. ✅ **Phase 107 (Home Command Center — Shell & Feed Engine) complete 2026-07-10** — 4/4 plans across 3 waves; verifier PASSED (21/21 static must-haves, 0 gaps). Command Center replaces the thin landing: `--cc-*` token/class contract (`main.css`+`views.css`), reusable `app/home-feed.js` engine (rank/dedupe/cap/roll-up + 3 seed sources), rewritten `home.js` (briefing + severity-ranked feed hero + KPI/Your-Work/Recent-Activity/door-rail). Phase-106 listener leak closed (`onSnapshot(` in home.js 4→1). 8 browser-UAT items pending → `107-HUMAN-UAT.md`. ✅ **Phase 108 (Home — Per-Role Attention Feeds) complete 2026-07-13** — 4/4 plans; code-verified 18/18 + code-reviewed (3 warnings fixed) + browser UAT 5/5 (operator-confirmed). 20 role-scoped feed sources in `home-feed-sources.js` + ROLE_SOURCES registry; HOME-09…13 delivered. ⏸ **Phase 109 (Executive Dashboard, DASH-01…07) DEFERRED 2026-07-14** — user decision ("value not justified now"); paused discuss + spike 108 (A/B/C → enriched Model A) preserved. Next: **Phase 110: Entity Add/Edit Modals** via `/gsd-discuss-phase 110` (or `/gsd-plan-phase 110`) — convert Client/Project/Service Add + list-Edit to modals, MODAL-01…07. Phase numbering continues from 105 (never reset).
+🚧 **v4.2 in progress** — Phases 106–112 are defined and 43/43 requirements are mapped. ✅ **Phase 106 (Data-Layer Audit — Findings Report) complete** — `106-FINDINGS.md` holds 25 severity-ranked findings (5 High · 14 Medium · 6 Low); read-only prod data-pass tracked to Phase 112. ✅ **Phase 107 (Home Command Center — Shell & Feed Engine) complete 2026-07-10** — 4/4 plans across 3 waves; verifier PASSED (21/21 static must-haves, 0 gaps). Command Center replaces the thin landing: `--cc-*` token/class contract (`main.css`+`views.css`), reusable `app/home-feed.js` engine (rank/dedupe/cap/roll-up + 3 seed sources), rewritten `home.js` (briefing + severity-ranked feed hero + KPI/Your-Work/Recent-Activity/door-rail). Phase-106 listener leak closed (`onSnapshot(` in home.js 4→1). 8 browser-UAT items pending → `107-HUMAN-UAT.md`. ✅ **Phase 108 (Home — Per-Role Attention Feeds) complete 2026-07-13** — 4/4 plans; code-verified 18/18 + code-reviewed (3 warnings fixed) + browser UAT 5/5 (operator-confirmed). 20 role-scoped feed sources in `home-feed-sources.js` + ROLE_SOURCES registry; HOME-09…13 delivered. ⏸ **Phase 109 (Executive Dashboard, DASH-01…07) DEFERRED 2026-07-14** — user decision ("value not justified now"); paused discuss + spike 108 (A/B/C → enriched Model A) preserved. ✅ **Phase 110 (Entity Add/Edit Modals) PLANNED 2026-07-14** — 6 plans in 2 waves (Wave 1: client-modal.js, engagement-create.js locked-type launcher, entity-edit-modal.js; Wave 2: wire clients/projects/services lists). Next: `/gsd-execute-phase 110`. Phase numbering continues from 105 (never reset).

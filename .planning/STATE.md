@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Polish, Home Revamp & Mobile
-status: paused
+status: executing
 stopped_at: Phase 110 context gathered
-last_updated: "2026-07-14T03:45:05.243Z"
-last_activity: 2026-07-14 — Resumed via /gsd-resume-work → user skipped Phase 109 (deferred, not deleted) → advancing to Phase 110 (details in frontmatter last_activity).
+last_updated: "2026-07-14T04:56:35.202Z"
+last_activity: 2026-07-14 -- Phase 110 planning complete
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 15
+  total_plans: 21
   completed_plans: 15
   percent: 43
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-07-09 after v4.2 milestone start)
 
 Phase: 110 — Entity Add/Edit Modals — ⬜ READY TO PLAN (not started; no 110-CONTEXT.md yet). Covers MODAL-01…07. [Phase 109 (Executive Dashboard) ⏸ DEFERRED 2026-07-14 — user decision; spike 108 preserved, DASH-01…07 parked. Prev complete: 108 ✅ (browser UAT 5/5, 2026-07-13); 107 ✅ VERIFIED + REDESIGNED]
 Plan: Phase 110 not started — no plans yet. Next: /gsd-discuss-phase 110 (or /gsd-plan-phase 110). Goal: convert Add + list-Edit for Client/Project/Service from the inline `.add-form` toggle to modals reusing the `components.js` modal pattern; detail-page inline auto-save untouched. Independent of the Home revamp; MODAL-* must land before MOBILE-07 (Phase 111).
-Status: Phase 109 DEFERRED (user decided to skip — "value not justified now"). Paused discuss-phase 109 (was task 4/9, inside spike 108 at the enriched-Model-A verification checkpoint) abandoned; HANDOFF.json + 109 .continue-here.md removed; spike 108 (A/B/C shootout → enriched Model A, verified numbers, scope flag) kept as committed reference. Roadmap/requirements/state updated: 109 marked DEFERRED, dropped from Phase 111 deps (mobile-Home now = Command Center only), DASH-01…07 parked (v4.2 active 43→36). Next: Phase 110 (Entity Add/Edit Modals, MODAL-01…07) — no CONTEXT.md yet → /gsd-discuss-phase 110 first, or /gsd-plan-phase 110. Carry-overs still open: New Engagement cross-role type-scoping browser check; Phase 106 AUDIT-02 live data-pass → Phase 112.
-Last activity: 2026-07-14 — Resumed via /gsd-resume-work → user skipped Phase 109 (deferred, not deleted) → advancing to Phase 110 (details in frontmatter last_activity).
+Status: Ready to execute
+Last activity: 2026-07-14 -- Phase 110 planning complete
 
 **Milestone v4.2 "Polish, Home Revamp & Mobile"** — 6 workstreams:
 
