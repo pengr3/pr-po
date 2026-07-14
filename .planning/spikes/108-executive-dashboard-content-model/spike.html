@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spike 108 — Executive Dashboard (enriched Model A × role)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --primary:#1a73e8; --primary-dark:#1557b0; --blue-tint:#f0f6ff;
+    --success:#059669; --success-tint:#ecfdf5;
+    --cc-critical:#ea4335; --cc-critical-tint:#fef2f2; --danger-dark:#b91c1c;
+    --cc-high:#f59e0b; --cc-high-tint:#fffbeb; --warning-dark:#b45309;
+    --cc-hover:#f8fafc; --cc-ink:#1e293b; --cc-muted:#64748b; --cc-faint:#94a3b8;
+    --cc-line:#e5e7eb; --bg:#eef1f6; --card:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--cc-ink);-webkit-font-smoothing:antialiased;padding-bottom:135px;}
+
+  .topnav{background:#fff;border-bottom:1px solid var(--cc-line);display:flex;align-items:center;gap:1.5rem;padding:0 1.5rem;height:56px;position:sticky;top:0;z-index:20;}
+  .topnav .brand{font-weight:800;font-size:1.05rem;display:flex;gap:.45rem;align-items:center;letter-spacing:-.01em;}
+  .topnav a{color:var(--cc-muted);font-size:.875rem;text-decoration:none;padding:.3rem 0;font-weight:500;}
+  .topnav a.active{color:var(--primary);font-weight:600;}
+  .topnav .sp{flex:1;}
+  .topnav .bell{position:relative;color:var(--cc-muted);font-size:1.1rem;}
+  .topnav .bell .dot{position:absolute;top:-4px;right:-6px;min-width:16px;height:16px;padding:0 3px;background:var(--cc-critical);color:#fff;border-radius:999px;font-size:.62rem;display:flex;align-items:center;justify-content:center;border:2px solid #fff;font-weight:700;}
+  .topnav .av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a73e8,#1557b0);color:#fff;display:flex;align-items:center;justify-content:center;font-size:.82rem;font-weight:700;}
+
+  /* top context bar: model locked + weight toggle */
+  .model-bar{max-width:1180px;margin:1.3rem auto 0;padding:0 1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;}
+  .lock-tag{font-size:.76rem;font-weight:700;color:var(--success);background:var(--success-tint);border:1px solid #bbf7d0;padding:.35rem .7rem;border-radius:8px;}
+  .wtoggle{display:inline-flex;align-items:center;gap:.5rem;font-size:.76rem;color:var(--cc-muted);}
+  .wseg{display:inline-flex;background:#fff;border:1px solid var(--cc-line);border-radius:8px;padding:.2rem;}
+  .wseg button{border:none;background:none;color:var(--cc-muted);font-size:.78rem;font-weight:600;padding:.35rem .7rem;border-radius:6px;cursor:pointer;}
+  .wseg button.on{background:var(--primary);color:#fff;}
+  .model-hint{font-size:.78rem;color:var(--cc-faint);flex:1;min-width:180px;}
+
+  .cc-stage{max-width:1180px;margin:.9rem auto 0;padding:0 1.5rem 3rem;}
+  .cc-shell{background:var(--card);border:1px solid var(--cc-line);border-radius:18px;box-shadow:0 6px 28px rgba(15,23,42,.06);overflow:hidden;}
+  .cc-tabs{display:flex;align-items:center;gap:.4rem;padding:0 1.9rem;border-bottom:1px solid var(--cc-line);background:linear-gradient(180deg,#fbfcfe,#fff);}
+  .cc-tab{position:relative;padding:1.05rem .3rem;margin-right:1.4rem;font-size:.95rem;font-weight:600;color:var(--cc-muted);cursor:pointer;background:none;border:none;}
+  .cc-tab.on{color:var(--primary);}
+  .cc-tab.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2.5px;background:var(--primary);border-radius:2px 2px 0 0;}
+  .cc-tabs .sp{flex:1;}
+  .cc-tabs .env{font-size:.7rem;color:var(--cc-faint);letter-spacing:.04em;}
+  .cc-inner{padding:1.7rem 1.9rem 1.9rem;}
+
+  .dash-head{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;}
+  .dash-head h1{margin:0;font-size:1.5rem;font-weight:700;letter-spacing:-.01em;}
+  .dash-head .scope{margin-top:.32rem;font-size:.86rem;color:var(--cc-muted);}
+  .role-chip{font-size:.76rem;color:var(--primary);background:var(--blue-tint);border:1px solid #d6e4ff;padding:.3rem .75rem;border-radius:999px;font-weight:600;white-space:nowrap;}
+  .refresh-wrap{display:flex;gap:.7rem;align-items:center;}
+  .updated{font-size:.76rem;color:var(--cc-faint);}
+  .refresh{font-size:.8rem;color:var(--primary);cursor:pointer;background:none;border:none;font-weight:600;}
+
+  /* KPI tiles (DASH-02) */
+  .cc-kpi{display:flex;gap:.7rem;flex-wrap:wrap;margin-bottom:1.1rem;}
+  .kpi{flex:1;min-width:168px;background:#fbfcfe;border:1px solid var(--cc-line);border-radius:11px;padding:.85rem 1rem;cursor:pointer;transition:all .13s;}
+  .kpi:hover{border-color:#93c5fd;background:#f0f7ff;transform:translateY(-1px);}
+  .kpi .n{font-size:1.5rem;font-weight:700;line-height:1;} .kpi .n.d{color:var(--cc-critical);} .kpi .n.w{color:var(--warning-dark);} .kpi .n.g{color:var(--success);}
+  .kpi .l{font-size:.75rem;font-weight:600;color:var(--cc-muted);margin-top:.32rem;}
+  .kpi .sub{font-size:.7rem;color:var(--cc-faint);margin-top:.18rem;}
+
+  /* cash-flow ribbon */
+  .cash{display:flex;align-items:stretch;gap:.5rem;flex-wrap:wrap;background:linear-gradient(180deg,#fbfdff,#f5f9ff);border:1px solid #dbe8ff;border-radius:13px;padding:.9rem 1rem;margin-bottom:1.1rem;}
+  .cash-flow{display:flex;align-items:center;gap:.2rem;flex:1;min-width:340px;flex-wrap:wrap;}
+  .cstep{padding:.15rem .55rem;}
+  .cstep .cl{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--cc-faint);font-weight:700;}
+  .cstep .cv{font-size:1.12rem;font-weight:700;margin-top:.1rem;}
+  .cstep .cv.ovd{color:var(--cc-critical);}
+  .carrow{color:#c3d5f5;font-size:1.1rem;font-weight:700;}
+  .cash-aside{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;}
+  .cchip{border-radius:10px;padding:.45rem .7rem;min-width:120px;}
+  .cchip .cl{font-size:.64rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700;opacity:.85;}
+  .cchip .cv{font-size:1.05rem;font-weight:700;margin-top:.1rem;}
+  .cchip.net{background:var(--success-tint);border:1px solid #bbf7d0;color:#047857;}
+  .cchip.net.neg{background:var(--cc-critical-tint);border-color:#fecaca;color:var(--danger-dark);}
+  .cchip.ret{background:#fff;border:1px solid var(--cc-line);color:var(--cc-ink);}
+  .cchip .csub{font-size:.64rem;color:var(--cc-muted);margin-top:.1rem;font-weight:500;}
+
+  /* risk strip */
+  .risk{display:flex;align-items:center;gap:.4rem 1.4rem;flex-wrap:wrap;border-radius:12px;padding:.7rem 1rem;margin-bottom:1.5rem;font-size:.85rem;font-weight:600;}
+  .risk.warn{background:var(--cc-high-tint);border:1px solid #fde68a;color:var(--warning-dark);}
+  .risk.ok{background:var(--success-tint);border:1px solid #bbf7d0;color:#047857;}
+  .risk .seg{display:flex;align-items:center;gap:.4rem;cursor:pointer;}
+  .risk .seg b{color:var(--danger-dark);}
+  .risk.warn .dot{color:var(--cc-critical);}
+
+  .sec-label{font-size:.74rem;letter-spacing:.09em;text-transform:uppercase;color:var(--cc-faint);font-weight:700;margin:0 0 .8rem;}
+  .dash-charts{display:grid;grid-template-columns:repeat(2,1fr);gap:1.1rem;margin-bottom:1.6rem;}
+  @media (max-width:820px){ .dash-charts{grid-template-columns:1fr;} }
+  .chart-card{border:1px solid var(--cc-line);border-radius:14px;padding:1.05rem 1.15rem;background:#fcfdff;}
+  .chart-card .ch-top{display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.55rem;}
+  .chart-card h3{margin:0;font-size:.9rem;font-weight:700;color:var(--cc-ink);}
+  .chart-card .ch-sub{font-size:.73rem;color:var(--cc-faint);margin-top:.12rem;}
+  .winbadge{font-size:.72rem;font-weight:700;color:#047857;background:var(--success-tint);border:1px solid #bbf7d0;padding:.2rem .55rem;border-radius:999px;white-space:nowrap;}
+  .legend{display:flex;gap:.8rem;font-size:.7rem;color:var(--cc-muted);margin-top:.5rem;}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:.3rem;vertical-align:middle;}
+  .canvas-wrap{position:relative;height:206px;}
+
+  /* portfolio table */
+  .ptable-card{border:1px solid var(--cc-line);border-radius:14px;overflow:hidden;background:#fff;}
+  .ptable-head{display:flex;justify-content:space-between;align-items:center;padding:.95rem 1.15rem;border-bottom:1px solid var(--cc-line);background:linear-gradient(180deg,#fbfcfe,#fff);}
+  .ptable-head h3{margin:0;font-size:.9rem;font-weight:700;}
+  .ptable-head .cnt{font-size:.74rem;color:var(--cc-faint);}
+  .ptable-scroll{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:.85rem;min-width:720px;}
+  thead th{text-align:left;font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;color:var(--cc-faint);font-weight:700;padding:.6rem 1.1rem;border-bottom:1px solid var(--cc-line);white-space:nowrap;}
+  thead th.num,tbody td.num{text-align:right;}
+  tbody td{padding:.6rem 1.1rem;border-bottom:1px solid #f1f5f9;white-space:nowrap;}
+  tbody tr{cursor:pointer;} tbody tr:hover{background:#f8fbff;} tbody tr:last-child td{border-bottom:none;}
+  tbody tr.risk-row{background:#fff8f7;box-shadow:inset 3px 0 0 var(--cc-critical);}
+  .code{font-family:'SFMono-Regular',Consolas,monospace;font-size:.77rem;color:var(--cc-muted);}
+  .pname{font-weight:600;color:var(--cc-ink);}
+  .kind-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:.45rem;vertical-align:middle;}
+  .kind-project{background:var(--primary);} .kind-service{background:#8b5cf6;}
+  .risk-pill{font-size:.62rem;font-weight:700;color:var(--danger-dark);background:var(--cc-critical-tint);border:1px solid #fecaca;padding:.06rem .38rem;border-radius:999px;margin-left:.45rem;}
+  .stat{font-size:.72rem;font-weight:600;padding:.14rem .5rem;border-radius:999px;}
+  .prog{display:flex;align-items:center;gap:.5rem;min-width:120px;}
+  .prog .bar{flex:1;height:6px;border-radius:99px;background:#eef2f7;overflow:hidden;}
+  .prog .fill{height:100%;border-radius:99px;background:var(--primary);}
+  .prog .pct{font-size:.72rem;color:var(--cc-muted);width:30px;text-align:right;}
+  .money{font-weight:600;} .money.zero{color:var(--cc-faint);font-weight:500;}
+  .empty-row td{text-align:center;color:var(--cc-faint);padding:2.2rem 1rem;}
+  .calm{background:linear-gradient(135deg,var(--success-tint),#fff);border:1px solid #bbf7d0;border-radius:14px;padding:2.4rem 2rem;text-align:center;margin-bottom:1.5rem;}
+  .calm .ck{font-size:1.8rem;color:#047857;} .calm h3{margin:.4rem 0 .2rem;color:#047857;font-size:1.1rem;} .calm p{margin:0;color:var(--cc-muted);font-size:.9rem;}
+
+  .controls{position:fixed;bottom:16px;left:16px;z-index:60;background:#0f172a;color:#e2e8f0;border-radius:12px;padding:.9rem 1rem;width:230px;box-shadow:0 10px 30px rgba(0,0,0,.3);font-size:.8rem;}
+  .controls h4{margin:0 0 .55rem;font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:#64748b;}
+  .controls label{display:block;color:#94a3b8;font-size:.68rem;margin:.5rem 0 .2rem;}
+  .controls select{width:100%;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:.4rem .5rem;font-size:.8rem;}
+  .seg{display:flex;gap:.3rem;margin-top:.3rem;}
+  .seg button{flex:1;background:#1e293b;color:#94a3b8;border:1px solid #334155;border-radius:6px;padding:.4rem;font-size:.72rem;cursor:pointer;font-weight:600;}
+  .seg button.on{background:var(--primary);color:#fff;border-color:var(--primary);}
+
+  .logpane{position:fixed;bottom:16px;right:16px;z-index:60;width:380px;max-height:150px;background:#0f172a;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden;display:flex;flex-direction:column;}
+  .log-head{display:flex;justify-content:space-between;align-items:center;padding:.5rem .8rem;color:#64748b;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;font-weight:700;border-bottom:1px solid #1e293b;}
+  .log-head button{background:none;border:none;color:#475569;font-size:.68rem;cursor:pointer;}
+  .log-body{overflow-y:auto;padding:.4rem .8rem .6rem;font-family:'SFMono-Regular',Consolas,monospace;font-size:.72rem;line-height:1.55;}
+  .log-body .e{color:#64748b;} .log-body .e .t{color:#334155;margin-right:.5rem;}
+  .log-body .role,.log-body .weight{color:#93c5fd;} .log-body .nav{color:#fbbf24;} .log-body .calc{color:#34d399;}
+  .tag-note{position:fixed;top:66px;right:16px;z-index:50;background:#0f172a;color:#cbd5e1;font-size:.68rem;padding:.35rem .65rem;border-radius:8px;opacity:.92;}
+</style>
+</head>
+<body>
+
+<div class="tag-note">SPIKE 108 · enriched Model A — design proposal, not the live app</div>
+
+<div class="topnav">
+  <span class="brand">🏗️ CLMC</span>
+  <a class="active" href="javascript:void(0)">Home</a>
+  <a href="javascript:void(0)">Clients</a><a href="javascript:void(0)">Projects</a>
+  <a href="javascript:void(0)">Services</a><a href="javascript:void(0)">Procurement</a>
+  <a href="javascript:void(0)">Finance</a>
+  <span class="sp"></span>
+  <span class="bell">🔔<span class="dot">3</span></span>
+  <span class="av" id="av">F</span>
+</div>
+
+<div class="model-bar">
+  <span class="lock-tag">Model A · Uniform — locked ✓</span>
+  <span class="wtoggle">Weight charts by
+    <span class="wseg" id="wseg">
+      <button data-w="count" onclick="setWeight('count')">Count</button>
+      <button data-w="value" class="on" onclick="setWeight('value')">₱ value</button>
+    </span>
+  </span>
+  <span class="model-hint">Same layout for all 4 roles — figures scope by role. Enriched with cash-flow, risk & procurement signal.</span>
+</div>
+
+<div class="cc-stage">
+  <div class="cc-shell">
+    <div class="cc-tabs">
+      <button class="cc-tab">Command Center</button>
+      <button class="cc-tab">Proposals</button>
+      <button class="cc-tab on">Dashboard</button>
+      <span class="sp"></span>
+      <span class="env">role-gated · Super Admin · Ops/Services Admin · Finance</span>
+    </div>
+    <div class="cc-inner" id="inner"></div>
+  </div>
+</div>
+
+<div class="controls">
+  <h4>Simulate</h4>
+  <label>Role (eligible for Dashboard)</label>
+  <select id="role" onchange="onRole()">
+    <option value="super_admin">Super Admin</option>
+    <option value="operations_admin">Operations Admin</option>
+    <option value="services_admin">Services Admin</option>
+    <option value="finance">Finance</option>
+  </select>
+  <label>Portfolio data</label>
+  <div class="seg">
+    <button id="dLive" class="on" onclick="setData('live')">Populated</button>
+    <button id="dEmpty" onclick="setData('empty')">Sparse</button>
+  </div>
+</div>
+
+<div class="logpane">
+  <div class="log-head"><span>Event log</span><button onclick="clearLog()">clear</button></div>
+  <div class="log-body" id="logBody"></div>
+</div>
+
+<script>
+/* ============================================================
+   SPIKE 108 (iteration 2) — ENRICHED MODEL A executive dashboard.
+   Model A (uniform) is locked; this explores what CONTENT gives it
+   executive weight: money-flow, risk exposure, momentum, throughput —
+   all derivable from collections we already have.
+   ============================================================ */
+const S = { role:'super_admin', weight:'value', data:'live', name:'Francis' };
+const ROLE_LABEL = {super_admin:'Super Admin',operations_admin:'Operations Admin',services_admin:'Services Admin',finance:'Finance'};
+const SCOPE_NOTE = {
+  super_admin:'Both departments · all projects & services',
+  operations_admin:'All Projects (home dept) + 2 assigned Services (cross-dept)',
+  services_admin:'All Services (home dept) + 3 assigned Projects (cross-dept)',
+  finance:'Financial view · both departments'
+};
+const AVATAR = {super_admin:'F',operations_admin:'O',services_admin:'S',finance:'F'};
+const FACTOR = {super_admin:1,finance:1,operations_admin:0.7,services_admin:0.35}; /* scale external series by scope */
+
+/* ---- shared portfolio (₱). billed≥collectible; collected=billed−collectible; progress -1 = n/a ---- */
+const PROJECTS = [
+  {id:'p1', code:'CLMC-BGC-2026001', name:'BGC Tower Retrofit',        kind:'project', status:'On-going',            contract:8_400_000,  payable:620_000,   collectible:1_200_000, billed:3_000_000, progress:45, overdue:true, atRisk:true},
+  {id:'p2', code:'CLMC-AYL-2026002', name:'Ayala Land Lobby Fit-out',  kind:'project', status:'Under Client Review', contract:4_600_000,  payable:180_000,   collectible:900_000,   billed:1_600_000, progress:15},
+  {id:'p3', code:'CLMC-MRT-2026003', name:'Metro Line 7 MEP',          kind:'project', status:'On-going',            contract:12_200_000, payable:1_100_000, collectible:2_400_000, billed:4_500_000, progress:60, overdue:true, atRisk:true},
+  {id:'p4', code:'CLMC-NUV-2026004', name:'Nuvali Clubhouse MEP',      kind:'project', status:'Client Approved',     contract:3_200_000,  payable:0,         collectible:0,         billed:600_000,   progress:10},
+  {id:'p5', code:'CLMC-SMP-2026005', name:'SM Pampanga Expansion',     kind:'project', status:'On-going',            contract:6_800_000,  payable:480_000,   collectible:1_600_000, billed:2_800_000, progress:30},
+  {id:'p6', code:'CLMC-CTH-2026006', name:'City Hall Annex',           kind:'project', status:'For Proposal',        contract:2_100_000,  payable:0,         collectible:0,         billed:0,         progress:-1},
+  {id:'p7', code:'CLMC-SUB-2026007', name:'Subic Cold Storage',        kind:'project', status:'On-going',            contract:5_400_000,  payable:320_000,   collectible:640_000,   billed:1_800_000, progress:55, overdue:true, atRisk:true},
+  {id:'p8', code:'CLMC-RBN-2026008', name:'Robinsons Magnolia',        kind:'project', status:'Completed',           contract:3_900_000,  payable:0,         collectible:210_000,   billed:3_900_000, progress:100},
+  {id:'p9', code:'CLMC-DVO-2026009', name:'Davao Airport Annex',       kind:'project', status:'For Inspection',      contract:1_800_000,  payable:0,         collectible:0,         billed:0,         progress:-1},
+  {id:'p10',code:'CLMC-CEB-2026010', name:'Cebu IT Park Tower',        kind:'project', status:'On-going',            contract:9_100_000,  payable:740_000,   collectible:1_900_000, billed:3_400_000, progress:40},
+  {id:'p11',code:'CLMC-ILO-2026011', name:'Iloilo Convention',         kind:'project', status:'On-Hold',             contract:2_700_000,  payable:60_000,    collectible:300_000,   billed:900_000,   progress:25},
+  {id:'p12',code:'CLMC-BAG-2026012', name:'Baguio Residences',         kind:'project', status:'Loss',                contract:3_400_000,  payable:0,         collectible:0,         billed:0,         progress:-1},
+];
+const SERVICES = [
+  {id:'s1', code:'CLMC-FSS-2026001',  name:'Fire Suppression Service',        kind:'service', status:'On-going',            contract:1_200_000, payable:40_000, collectible:180_000, billed:500_000, progress:70, overdue:true, atRisk:true},
+  {id:'s2', code:'CLMC-HVAC-2026002', name:'HVAC Maintenance',                kind:'service', status:'On-going',            contract:900_000,   payable:20_000, collectible:90_000,  billed:350_000, progress:50},
+  {id:'s3', code:'CLMC-EIA-2026003',  name:'Environmental Impact Assessment', kind:'service', status:'Under Client Review', contract:600_000,   payable:0,      collectible:120_000, billed:200_000, progress:20},
+  {id:'s4', code:'CLMC-ELE-2026004',  name:'Electrical Audit',                kind:'service', status:'Completed',           contract:400_000,   payable:0,      collectible:40_000,  billed:400_000, progress:100},
+  {id:'s5', code:'CLMC-GEN-2026005',  name:'Genset Servicing',                kind:'service', status:'On-going',            contract:700_000,   payable:15_000, collectible:60_000,  billed:250_000, progress:35},
+];
+const ALL = [...PROJECTS, ...SERVICES];
+const ACTIVE = new Set(['For Inspection','For Proposal','Under Client Review','Client Approved','On-going','On-Hold']);
+
+/* per-role external series */
+const FUNNEL_LABELS=['Draft','For Approval','Sent to client','Client review','Won'];
+const FUNNEL_COUNT={super_admin:[14,9,7,5,3],finance:[14,9,7,5,3],operations_admin:[9,6,4,3,2],services_admin:[5,3,3,2,1]};
+const FUNNEL_VALUE={super_admin:[42,28,20,14,9],finance:[42,28,20,14,9],operations_admin:[27,18,12,9,6],services_admin:[11,7,7,4,2]}; /* ₱M potential */
+const WINRATE={super_admin:73,finance:73,operations_admin:70,services_admin:67};
+const SPEND_LABELS=['Feb','Mar','Apr','May','Jun','Jul'];
+const SPEND={super_admin:[1.2,1.6,1.1,2.0,1.8,2.3],finance:[1.2,1.6,1.1,2.0,1.8,2.3],operations_admin:[1.0,1.3,0.9,1.7,1.5,1.9],services_admin:[0.4,0.5,0.3,0.6,0.7,0.8]};
+const COLLECT={super_admin:[1.4,1.1,1.8,1.3,2.1,1.9],finance:[1.4,1.1,1.8,1.3,2.1,1.9],operations_admin:[1.1,0.9,1.5,1.0,1.7,1.5],services_admin:[0.4,0.3,0.6,0.4,0.7,0.6]};
+const PROC_LABELS=['MRFs pending','PRs pending','POs in-flight','Delivered (mo)'];
+const PROC={super_admin:[18,15,12,9],finance:[18,15,12,9],operations_admin:[12,10,8,6],services_admin:[5,4,3,2]};
+const SUPPLIERS=[['MetroSteel',1.8],['PowerGen',1.2],['Subic Electric',0.9],['Davao Aggregates',0.6],['Cebu HVAC',0.45]]; /* ₱M, both-dept */
+const AGING={labels:['Current','1–30 days','31–60 days','60+ days'],data:[2.1,1.4,0.6,0.34]};
+const RETENTION={held:620_000, release:120_000, days:8};
+
+const STATUS_COLOR={'For Inspection':'#94a3b8','For Proposal':'#60a5fa','Under Client Review':'#3b82f6','Client Approved':'#1a73e8','On-going':'#1557b0','Completed':'#059669','On-Hold':'#f59e0b','Loss':'#cbd5e1'};
+const STATUS_PILL={'For Inspection':['#475569','#f1f5f9'],'For Proposal':['#1d4ed8','#eff6ff'],'Under Client Review':['#1d4ed8','#eff6ff'],'Client Approved':['#1557b0','#e0edff'],'On-going':['#1557b0','#e0edff'],'Completed':['#047857','#ecfdf5'],'On-Hold':['#b45309','#fffbeb'],'Loss':['#64748b','#f1f5f9']};
+const STATUS_ORDER=['On-going','Under Client Review','Client Approved','For Proposal','For Inspection','On-Hold','Completed','Loss'];
+
+/* ---- scope + aggregates ---- */
+function scope(){
+  if(S.data==='empty') return S.role==='services_admin'?[SERVICES[2]]:(S.role==='finance'?[PROJECTS[7]]:[]);
+  if(S.role==='super_admin'||S.role==='finance') return ALL;
+  if(S.role==='operations_admin') return [...PROJECTS,...SERVICES.filter(s=>['s1','s2'].includes(s.id))];
+  if(S.role==='services_admin') return [...SERVICES,...PROJECTS.filter(p=>['p1','p10','p7'].includes(p.id))];
+  return ALL;
+}
+const isActive=x=>ACTIVE.has(x.status);
+const nProj=it=>it.filter(x=>x.kind==='project'&&isActive(x)).length;
+const nSvc=it=>it.filter(x=>x.kind==='service'&&isActive(x)).length;
+const sum=(it,f)=>it.reduce((a,x)=>a+(x[f]||0),0);
+const contractActive=it=>it.filter(isActive).reduce((a,x)=>a+x.contract,0);
+const collected=it=>it.reduce((a,x)=>a+Math.max(0,x.billed-x.collectible),0);
+const overdueAmt=it=>it.filter(x=>x.overdue).reduce((a,x)=>a+x.collectible,0);
+const riskItems=it=>it.filter(x=>x.atRisk);
+const riskExposure=it=>riskItems(it).reduce((a,x)=>a+x.contract,0);
+const avgProgress=it=>{const o=it.filter(x=>x.status==='On-going'&&x.progress>=0);return o.length?Math.round(o.reduce((a,x)=>a+x.progress,0)/o.length):0;};
+function peso(v){const s=v<0?'-':'';v=Math.abs(v);if(v>=1e6)return s+'₱'+(v/1e6).toFixed(1)+'M';if(v>=1e3)return s+'₱'+Math.round(v/1e3)+'K';return s+'₱'+v;}
+const M=v=>'₱'+v.toFixed(1)+'M';
+
+/* ---- KPI (DASH-02, kept) ---- */
+function kpis(it){
+  const net=sum(it,'collectible')-sum(it,'payable');
+  return [
+    {n:nProj(it)+nSvc(it), l:'Active projects & services', sub:`${nProj(it)} projects · ${nSvc(it)} services`, deep:'Projects & Services'},
+    {n:peso(contractActive(it)), l:'Contract value', sub:'active portfolio', deep:'Contract value'},
+    {n:peso(sum(it,'payable')), l:'Payables owed', t:'w', deep:'Finance · Payables'},
+    {n:peso(sum(it,'collectible')), l:'Collectibles due', deep:'Finance · Collectibles'},
+  ];
+}
+
+/* ---- Chart.js ---- */
+let CHARTS=[];
+function destroyCharts(){CHARTS.forEach(c=>{try{c.destroy();}catch(e){}});CHARTS=[];}
+const BASE={responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{display:false}}};
+const gx={grid:{color:'#f1f5f9'},ticks:{color:'#94a3b8'}}, gy={grid:{display:false},ticks:{color:'#475569',font:{size:11}}};
+
+function buildChart(kind,it){
+  const el=document.getElementById('ch-'+kind); if(!el) return;
+  const f=FACTOR[S.role]||1, val=S.weight==='value';
+  if(kind==='status'){
+    const acc={}; it.forEach(x=>{acc[x.status]=(acc[x.status]||0)+(val?x.contract/1e6:1);});
+    const labels=STATUS_ORDER.filter(s=>acc[s]); const data=labels.map(s=>+acc[s].toFixed(2));
+    CHARTS.push(new Chart(el,{type:'bar',data:{labels,datasets:[{data,backgroundColor:labels.map(s=>STATUS_COLOR[s]),borderRadius:5,barThickness:18}]},
+      options:{...BASE,indexAxis:'y',scales:{x:{...gx,beginAtZero:true,ticks:{...gx.ticks,callback:v=>val?'₱'+v+'M':v}},y:gy}}}));
+  } else if(kind==='funnel'){
+    const data=val?FUNNEL_VALUE[S.role]:FUNNEL_COUNT[S.role]; const blues=['#93c5fd','#60a5fa','#3b82f6','#1a73e8','#1557b0'];
+    CHARTS.push(new Chart(el,{type:'bar',data:{labels:FUNNEL_LABELS,datasets:[{data,backgroundColor:blues,borderRadius:5,barThickness:20}]},
+      options:{...BASE,indexAxis:'y',scales:{x:{...gx,beginAtZero:true,ticks:{...gx.ticks,callback:v=>val?'₱'+v+'M':v}},y:gy}}}));
+  } else if(kind==='cashflow'){
+    CHARTS.push(new Chart(el,{type:'line',data:{labels:SPEND_LABELS,datasets:[
+      {label:'Cash in (collections)',data:COLLECT[S.role],borderColor:'#059669',backgroundColor:'rgba(5,150,105,.10)',fill:true,tension:.35,borderWidth:2,pointRadius:2},
+      {label:'Cash out (procurement)',data:SPEND[S.role],borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.06)',fill:true,tension:.35,borderWidth:2,pointRadius:2,borderDash:[4,3]}]},
+      options:{...BASE,scales:{y:{...gx,beginAtZero:true,ticks:{...gx.ticks,callback:v=>'₱'+v+'M'}},x:{grid:{display:false},ticks:{color:'#475569'}}}}}));
+  } else if(kind==='proc'){
+    const data=PROC[S.role];
+    CHARTS.push(new Chart(el,{type:'bar',data:{labels:PROC_LABELS,datasets:[{data,backgroundColor:['#f59e0b','#3b82f6','#1a73e8','#059669'],borderRadius:5,barThickness:34}]},
+      options:{...BASE,scales:{y:{...gx,beginAtZero:true,ticks:{...gx.ticks,precision:0}},x:{grid:{display:false},ticks:{color:'#475569',font:{size:10}}}}}}));
+  } else if(kind==='supplier'){
+    const rows=SUPPLIERS.map(s=>[s[0],+(s[1]*f).toFixed(2)]);
+    CHARTS.push(new Chart(el,{type:'bar',data:{labels:rows.map(r=>r[0]),datasets:[{data:rows.map(r=>r[1]),backgroundColor:'#1a73e8',borderRadius:5,barThickness:16}]},
+      options:{...BASE,indexAxis:'y',scales:{x:{...gx,beginAtZero:true,ticks:{...gx.ticks,callback:v=>'₱'+v+'M'}},y:gy}}}));
+  } else if(kind==='aging'){
+    const data=AGING.data.map(v=>+(v*f).toFixed(2));
+    CHARTS.push(new Chart(el,{type:'bar',data:{labels:AGING.labels,datasets:[{data,backgroundColor:['#059669','#f59e0b','#ea580c','#ea4335'],borderRadius:5,barThickness:32}]},
+      options:{...BASE,scales:{y:{...gx,beginAtZero:true,ticks:{...gx.ticks,callback:v=>'₱'+v+'M'}},x:{grid:{display:false},ticks:{color:'#475569',font:{size:10}}}}}}));
+  }
+}
+
+/* chart cards config */
+const CH_CARDS=[
+  {k:'status', title:'Portfolio by status', sub:()=>S.weight==='value'?'Active ₱ contract value by status':'Count of projects & services by status'},
+  {k:'funnel', title:'Proposal funnel', sub:()=>S.weight==='value'?'Pipeline ₱ potential by stage':'Proposal count by stage', badge:()=>`Win rate ${WINRATE[S.role]}%`},
+  {k:'cashflow', title:'Cash flow — 6 months', sub:()=>'Collections in vs procurement out, ₱M', legend:'<span class="legend"><span><i style="background:#059669"></i>Cash in</span><span><i style="background:#ef4444"></i>Cash out</span></span>'},
+  {k:'proc', title:'Procurement throughput', sub:()=>'MRF → PR → PO → Delivered (this month)'},
+  {k:'supplier', title:'Top suppliers by spend', sub:()=>'Concentration risk, ₱M'},
+  {k:'aging', title:'Receivables aging', sub:()=>'Outstanding by age, ₱M'},
+];
+
+/* ---- portfolio table (DASH-06, enriched) ---- */
+function table(it){
+  const rows=[...it].sort((a,b)=>(b.atRisk?1:0)-(a.atRisk?1:0)||b.collectible-a.collectible);
+  const cap=9, shown=rows.slice(0,cap), more=rows.length-shown.length;
+  const body=shown.map(x=>{
+    const [pc,pb]=STATUS_PILL[x.status]||['#64748b','#f1f5f9'];
+    const prog=x.progress>=0?`<div class="prog"><div class="bar"><div class="fill" style="width:${x.progress}%"></div></div><span class="pct">${x.progress}%</span></div>`:'<span style="color:#cbd5e1">—</span>';
+    return `<tr class="${x.atRisk?'risk-row':''}" onclick="logNav('${x.code}')">
+      <td class="code">${x.code}</td>
+      <td><span class="kind-dot kind-${x.kind}"></span><span class="pname">${x.name}</span>${x.atRisk?'<span class="risk-pill">⚠ at-risk</span>':''}</td>
+      <td><span class="stat" style="color:${pc};background:${pb}">${x.status}</span></td>
+      <td>${prog}</td>
+      <td class="num money">${peso(x.contract)}</td>
+      <td class="num"><span class="money ${x.payable?'':'zero'}">${peso(x.payable)}</span></td>
+      <td class="num"><span class="money ${x.collectible?'':'zero'}">${peso(x.collectible)}</span></td>
+    </tr>`;}).join('');
+  return `<div class="ptable-card">
+    <div class="ptable-head"><h3>Portfolio health</h3><span class="cnt">${rows.length} in scope${more>0?` · showing top ${cap}`:''}</span></div>
+    <div class="ptable-scroll"><table>
+      <thead><tr><th>Code</th><th>Name</th><th>Status</th><th>Progress</th><th class="num">Contract</th><th class="num">Payable</th><th class="num">Collectible</th></tr></thead>
+      <tbody>${body}${more>0?`<tr class="empty-row"><td colspan="7">+${more} more in scope</td></tr>`:''}</tbody>
+    </table></div></div>`;
+}
+
+/* ---- render ---- */
+function render(){
+  const it=scope();
+  document.getElementById('av').textContent=AVATAR[S.role];
+  [...document.querySelectorAll('#wseg button')].forEach(b=>b.classList.toggle('on',b.dataset.w===S.weight));
+
+  const header=`<div class="dash-head">
+    <div><h1>Executive Dashboard</h1><div class="scope">${SCOPE_NOTE[S.role]}</div></div>
+    <div class="refresh-wrap"><span class="role-chip">${ROLE_LABEL[S.role]}</span><span class="updated">Updated just now</span><button class="refresh" onclick="doRefresh()">↻ Refresh</button></div>
+  </div>`;
+
+  if(!it.length){
+    document.getElementById('inner').innerHTML=header+`<div class="calm"><div class="ck">✓</div><h3>Not enough data in scope yet</h3><p>KPI tiles, charts and the portfolio table populate as projects & services enter your scope.</p></div>`;
+    destroyCharts(); return;
+  }
+
+  const kpiHtml=kpis(it).map(k=>`<div class="kpi" onclick="logNav('${(k.deep||k.l)}')"><div class="n ${k.t||''}">${k.n}</div><div class="l">${k.l}</div>${k.sub?`<div class="sub">${k.sub}</div>`:''}</div>`).join('');
+
+  const billed=sum(it,'billed'), coll=collected(it), out=sum(it,'collectible'), ovd=overdueAmt(it), net=out-sum(it,'payable'), backlog=contractActive(it)-billed;
+  const cashHtml=`<div class="cash">
+    <div class="cash-flow">
+      <div class="cstep"><div class="cl">Billed</div><div class="cv">${peso(billed)}</div></div><span class="carrow">→</span>
+      <div class="cstep"><div class="cl">Collected</div><div class="cv">${peso(coll)}</div></div><span class="carrow">→</span>
+      <div class="cstep"><div class="cl">Outstanding</div><div class="cv">${peso(out)}</div></div><span class="carrow">→</span>
+      <div class="cstep"><div class="cl">Overdue</div><div class="cv ovd">${peso(ovd)}</div></div>
+    </div>
+    <div class="cash-aside">
+      <div class="cchip ret"><div class="cl">Backlog to bill</div><div class="cv">${peso(backlog)}</div><div class="csub">contract not yet invoiced</div></div>
+      <div class="cchip net ${net<0?'neg':''}"><div class="cl">Net cash position</div><div class="cv">${peso(net)}</div><div class="csub">${peso(out)} in · ${peso(sum(it,'payable'))} out</div></div>
+      <div class="cchip ret"><div class="cl">Retention held</div><div class="cv">${peso(Math.round(RETENTION.held*(FACTOR[S.role]||1)))}</div><div class="csub">₱${Math.round(RETENTION.release*(FACTOR[S.role]||1)/1e3)}K releasing in ${RETENTION.days}d</div></div>
+    </div>
+  </div>`;
+
+  const rk=riskItems(it), stuck=Math.max(0,Math.round(rk.length*0.6));
+  const riskHtml = rk.length
+    ? `<div class="risk warn">
+        <span class="seg" onclick="logNav('At-risk portfolio')"><span class="dot">⚠</span> <b>${rk.length}</b>&nbsp;at-risk · <b>${peso(riskExposure(it))}</b>&nbsp;exposed</span>
+        <span class="seg" onclick="logNav('Overdue collectibles')">${it.filter(x=>x.overdue).length} overdue collectibles · <b>${peso(ovd)}</b></span>
+        <span class="seg">${stuck} stage${stuck===1?'':'s'} stuck &gt; 14 days</span>
+        <span class="seg">portfolio avg <b style="color:var(--warning-dark)">${avgProgress(it)}%</b> complete</span>
+      </div>`
+    : `<div class="risk ok"><span>✓ No at-risk items in scope — portfolio is on track (avg ${avgProgress(it)}% complete).</span></div>`;
+
+  const chartCards=CH_CARDS.map(c=>`<div class="chart-card">
+    <div class="ch-top"><div><h3>${c.title}</h3><div class="ch-sub">${c.sub()}</div></div>${c.badge?`<span class="winbadge">${c.badge()}</span>`:''}</div>
+    <div class="canvas-wrap"><canvas id="ch-${c.k}"></canvas></div>${c.legend||''}
+  </div>`).join('');
+
+  document.getElementById('inner').innerHTML=header
+    +`<div class="cc-kpi">${kpiHtml}</div>`
+    +cashHtml
+    +riskHtml
+    +`<p class="sec-label">Visualizations</p><div class="dash-charts">${chartCards}</div>`
+    +`<p class="sec-label">Portfolio</p>`+table(it);
+
+  destroyCharts();
+  CH_CARDS.forEach(c=>buildChart(c.k,it));
+}
+
+/* controls + log */
+function onRole(){S.role=document.getElementById('role').value;log('role',`role → ${ROLE_LABEL[S.role]} (${SCOPE_NOTE[S.role]})`);render();}
+function setWeight(w){S.weight=w;log('weight',`weight charts by → ${w==='value'?'₱ value':'count'}`);render();}
+function setData(d){S.data=d;document.getElementById('dLive').classList.toggle('on',d==='live');document.getElementById('dEmpty').classList.toggle('on',d==='empty');log('calc',`data → ${d==='live'?'populated':'sparse'}`);render();}
+function doRefresh(){log('calc','recomputed on load (compute-on-load · batched reads, no live listener)');}
+function logNav(w){log('nav',`deep-link → ${w}`);}
+function log(type,msg){const b=document.getElementById('logBody');const t=new Date().toLocaleTimeString('en-US',{hour12:false});const r=document.createElement('div');r.className='e';r.innerHTML=`<span class="t">${t}</span><span class="${type}">${msg}</span>`;b.insertBefore(r,b.firstChild);while(b.children.length>40)b.removeChild(b.lastChild);}
+function clearLog(){document.getElementById('logBody').innerHTML='';}
+
+log('info','enriched Model A ready — flip Role (bottom-left) × Weight (top).');
+render();
+</script>
+</body>
+</html>
