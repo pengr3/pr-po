@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: Polish, Home Revamp & Mobile
-status: in-progress
-stopped_at: Phase 109 (Home — Executive Dashboard) DEFERRED 2026-07-14 (user decision — "value not justified now"). Paused discuss-phase 109 abandoned: HANDOFF.json + 109 .continue-here.md removed; spike 108 (A/B/C model shootout → enriched Model A) preserved as committed reference. DASH-01…07 parked (v4.2 active scope 43→36). Advancing to Phase 110 (Entity Add/Edit Modals, MODAL-01…07) — no 110-CONTEXT.md yet → /gsd-discuss-phase 110 (or /gsd-plan-phase 110).
-last_updated: "2026-07-14T02:20:32Z"
-last_activity: 2026-07-14 — Resumed via /gsd-resume-work; found paused discuss-phase 109 (HANDOFF.json, task 4/9 inside spike 108). User decided to SKIP Phase 109 (Executive Dashboard) — DEFERRED, not deleted. Marked 109 deferred across ROADMAP/REQUIREMENTS/STATE, dropped 109 from Phase 111 deps (mobile-Home = Command Center only), moved DASH-01…07 to deferred, removed HANDOFF.json + 109 .continue-here.md. Spike 108 stays committed. Prior 2026-07-13: Phase 108 marked COMPLETE (browser UAT 5/5).
+status: paused
+stopped_at: Phase 110 context gathered
+last_updated: "2026-07-14T03:45:05.243Z"
+last_activity: 2026-07-14 — Resumed via /gsd-resume-work → user skipped Phase 109 (deferred, not deleted) → advancing to Phase 110 (details in frontmatter last_activity).
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 3
   total_plans: 15
   completed_plans: 15
+  percent: 43
 ---
 
 # Project State
@@ -710,9 +711,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 Last activity: 2026-07-14 - Resumed via /gsd-resume-work; found paused discuss-phase 109 (HANDOFF.json). User decided to SKIP Phase 109 (Executive Dashboard) — deferred, not deleted. Marked 109 DEFERRED across ROADMAP/REQUIREMENTS/STATE, dropped 109 from Phase 111 deps (mobile-Home = Command Center only), moved DASH-01…07 to deferred (v4.2 active 43→36), removed HANDOFF.json + 109 .continue-here.md; spike 108 stays committed. Advancing to Phase 110.
 Previous activity: 2026-07-13 - Phase 108 (Home — Per-Role Attention Feeds) marked COMPLETE (browser UAT 5/5, operator-confirmed). HOME-09…13 delivered; 20 role-scoped feed sources + ROLE_SOURCES registry.
-Last session: 2026-07-14
-Stopped at: Phase 109 (Executive Dashboard) DEFERRED by user decision; v4.2 at 3/6 active phases done (106·107·108); advancing to Phase 110 (Entity Add/Edit Modals).
-Resume file: None
+Last session: 2026-07-14T03:45:05.209Z
+Stopped at: Phase 110 context gathered
+Resume file: .planning/phases/110-entity-add-edit-modals/110-CONTEXT.md
 Next action: `/gsd-discuss-phase 110` (or `/gsd-plan-phase 110`) — Entity Add/Edit Modals (MODAL-01…07): convert Client/Project/Service Add + list-Edit from the inline `.add-form` toggle to modals reusing the `components.js` pattern; detail-page inline auto-save untouched. No 110-CONTEXT.md yet. Older loose ends (still open, low-priority): firestore.rules PROD deploy cadence; New Engagement cross-role type-scoping browser check; Phase 106 AUDIT-02 live data-pass → Phase 112. Parked: Phase 109 (revive via /gsd-discuss-phase 109; spike 108 preserved).
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
