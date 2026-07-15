@@ -1,0 +1,36 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-07-15T10:27:35.043Z",
+  "phase": "110",
+  "phase_name": "entity-add-edit-modals",
+  "phase_dir": ".planning/phases/110-entity-add-edit-modals",
+  "plan": null,
+  "task": null,
+  "total_tasks": 12,
+  "status": "paused",
+  "pause_point": "planning-complete — ready to execute (0/6 plans executed)",
+  "completed_tasks": [
+    {"id": "pattern-map", "name": "gsd-pattern-mapper → 110-PATTERNS.md (7/7 analogs)", "status": "done", "commit": "475f32a"},
+    {"id": "plan", "name": "gsd-planner → 6 PLAN.md files, 2 waves", "status": "done", "commit": "475f32a"},
+    {"id": "verify", "name": "gsd-plan-checker → PASSED on revision 1 (1 blocker + 2 warnings fixed)", "status": "done", "commit": "475f32a"},
+    {"id": "gates", "name": "Requirements 7/7 + Decision coverage 7/7 gates passed", "status": "done", "commit": "475f32a"}
+  ],
+  "remaining_tasks": [
+    {"id": "exec-wave1", "name": "Execute Wave 1: 110-01 (client-modal.js), 110-02 (engagement-create.js launcher), 110-03 (entity-edit-modal.js) — parallel", "status": "not_started"},
+    {"id": "exec-wave2", "name": "Execute Wave 2: 110-04 (clients.js), 110-05 (projects.js), 110-06 (services.js) — parallel, after Wave 1", "status": "not_started"},
+    {"id": "uat", "name": "Manual browser UAT against production Firebase (user's established pattern — no automated tests)", "status": "not_started"}
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {"action": "Manual browser UAT after execution", "context": "Static SPA, production Firebase, no staging — verify Add/Edit modals for Client/Project/Service; confirm detail-page inline auto-save (project-detail.js/service-detail.js) is untouched (MODAL-07)", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Skipped research and UI-SPEC for this phase", "rationale": "config research:false; CONTEXT.md already locks D-01..D-07 and everything reuses existing components (proposal-modal.js, .modal CSS, New Engagement modal)", "phase": "110"},
+    {"decision": "Plan 03 service-edit personnel sync must branch by editingKind", "rationale": "plan-checker BLOCKER: syncPersonnelToAssignments (assigned_project_codes) vs syncServicePersonnelToAssignments (assigned_service_codes) are NOT interchangeable; wrong call silently corrupts prod user data", "phase": "110"},
+    {"decision": "Shared Draft-inclusive ENGAGEMENT_STATUS_OPTIONS in entity-edit-modal.js", "rationale": "UNIFIED_STATUS_OPTIONS asymmetry: services.js has 'Draft', projects.js does not; D-04 makes new engagements start Draft so a Draft project must stay editable", "phase": "110"},
+    {"decision": "Reformatted CONTEXT.md D-05 header **D-05 — Add gating:** -> **D-05:**", "rationale": "GSD decision-parser regex requires **D-NN:** format; old header made the gating decision untracked. Meaning-preserving.", "phase": "110"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "Run `/gsd:execute-phase 110` (after `/clear`). Wave 1 (110-01/02/03) can run in parallel; Wave 2 (110-04/05/06) after Wave 1 lands.",
+  "context_notes": "Phase 110 = convert Client/Project/Service Add + list-Edit from inline .add-form toggles to modals. Planning is fully complete, verified, and committed as 475f32a; working tree clean. This is a clean phase-boundary pause, not a mid-task pause. Key landmine already baked into the plans' acceptance criteria: the kind-branched personnel sync (project vs service). MODAL-07 hard constraint: do NOT touch project-detail.js / service-detail.js inline auto-save. Advisory (planning-only, not execution): the GSD decision-coverage gate only scans plan frontmatter must_haves + requires **D-NN:** CONTEXT.md format — saved to memory feedback_decision_coverage_gate_mechanics."
+}
