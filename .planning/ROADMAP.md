@@ -46,7 +46,7 @@ No active milestone. Run `/gsd-new-milestone` to define the next version (questi
 
 **Requirements**: D-01 … D-17 (no formal REQ-IDs exist for this phase — the requirement set IS the `113-CONTEXT.md` locked decision set)
 **Depends on:** None — independent of v4.2 phases 106–112
-**Plans:** 6/11 plans executed
+**Plans:** 7/11 plans executed
 
 **Numbering note:** numbered 113 (not 106) deliberately. Main's ROADMAP is stale and says numbering continues from 106, but branch `v4.2` has already used 106–112. 113 avoids a collision when main merges into v4.2.
 
@@ -68,7 +68,7 @@ Plans:
 - [x] 113-04-PLAN.md — W4: projects.js / services.js / service-detail.js — scoped portfolio listeners + 4 sync call sites removed
 - [x] 113-05-PLAN.md — W4: project-detail.js / project-plan.js / expense-modal.js — paired project_code lookups + preloaded-doc breakdown + 3 sync call sites removed
 - [x] 113-06-PLAN.md — W4: mrf-form.js / procurement.js — scoped MRF pickers, services Shape-E retirement, PO-Delivered doc-ID journal lookup
-- [ ] 113-07-PLAN.md — W4: proposal-modal.js / clients.js / engagement-create.js — last unscoped reads + last 2 sync call sites removed
+- [x] 113-07-PLAN.md — W4: proposal-modal.js / clients.js / engagement-create.js — last unscoped reads + last 2 sync call sites removed
 - [ ] 113-08-PLAN.md — W4: assignments.js / user-management.js — Assignments tab repointed to write personnel_user_ids (D-05/D-06), display surfaces repointed (D-10)
 
 **Wave 5** *(blocked on Wave 4 completion)*
