@@ -1043,8 +1043,23 @@ async function initMyRequests() {
  */
 function loadProjects() {
     try {
+        // Phase 113 D-02/D-16: scoped roles get a bare personnel_user_ids array-contains query
+        // (no second where clause on the same query -> no composite index needed). The 'active'
+        // filter is re-applied client-side below on the scoped branch since pairing it in the
+        // query would require a new index. See-all roles keep the original active-only query.
         const projectsRef = collection(db, 'projects');
-        const q = query(projectsRef, where('active', '==', true));
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        let q;
+        if (assignedCodes === null) {
+            q = query(projectsRef, where('active', '==', true));
+        } else {
+            const uid = window.getCurrentUser?.()?.uid;
+            if (!uid) {
+                // Fail-closed: no resolvable uid — never attach the scoped listener.
+                return;
+            }
+            q = query(projectsRef, where('personnel_user_ids', 'array-contains', uid));
+        }
 
         projectsListener = onSnapshot(q, (snapshot) => {
             // Cache projects for re-population on assignment change
@@ -1053,6 +1068,10 @@ function loadProjects() {
                 const data = doc.data();
                 // Phase 88 D-05 — Draft projects cannot accept MRFs.
                 if (data.project_status === 'Draft') return;
+                // Phase 113 D-02: the scoped branch above dropped where('active','==',true) from
+                // the query itself, so re-apply it here. The see-all branch already filtered
+                // active in the query.
+                if (assignedCodes !== null && data.active !== true) return;
                 cachedProjects.push({ id: doc.id, ...data });
             });
 
@@ -1089,14 +1108,19 @@ function loadServices() {
         // ASSIGN-04: services_user may only read their assigned services.
         // An unscoped query would include docs they're not assigned to, which
         // Firestore's per-document list rule denies for the entire query.
+        // Phase 113 D-02/D-13: scoped branch is a bare personnel_user_ids array-contains query
+        // (legacy service_code 'in' array retired). The listener stays attached even for a
+        // zero-assignment user so a later assignment appears live without a reload. The 'active'
+        // filter for this branch is already enforced downstream in rebuildPSOptions().
         const assignedCodes = window.getAssignedServiceCodes?.();
         let q;
         if (assignedCodes !== null) {
-            // services_user: scope by assignment; active filtered client-side below
-            if (assignedCodes.length === 0) {
+            const uid = window.getCurrentUser?.()?.uid;
+            if (!uid) {
+                // Fail-closed: no resolvable uid — never attach the scoped listener.
                 return;
             }
-            q = query(servicesRef, where('service_code', 'in', assignedCodes));
+            q = query(servicesRef, where('personnel_user_ids', 'array-contains', uid));
         } else {
             // All other roles: active filter in query (no per-document rule restriction)
             q = query(servicesRef, where('active', '==', true));
@@ -1151,9 +1175,11 @@ function rebuildPSOptions() {
         let projects = cachedProjects;
         if (assignedCodes !== null) {
             const uid = window.getCurrentUser?.()?.uid;
-            // Coded projects: include if in assignedCodes.
-            // Codeless projects: include if user is in personnel_user_ids
-            // (syncPersonnelToAssignments is skipped for codeless projects — no code to sync).
+            // Coded projects: include if in assignedCodes (personnel-derived, Phase 113).
+            // Codeless projects: include if user is in personnel_user_ids. A codeless assigned
+            // project is returned by the array-contains query above yet contributes no code to
+            // getAssignedProjectCodes() (there's no code to derive), so this clause is what keeps
+            // it visible here — still correct and load-bearing under the personnel-derived model.
             projects = cachedProjects.filter(p =>
                 assignedCodes.includes(p.project_code) ||
                 (!p.project_code && uid && (p.personnel_user_ids || []).includes(uid))
@@ -1180,6 +1206,11 @@ function rebuildPSOptions() {
         let services = cachedServices;
         if (assignedCodes !== null) {
             const uid = window.getCurrentUser?.()?.uid;
+            // Coded services: include if in assignedCodes (personnel-derived, Phase 113) and active.
+            // Codeless services: include if user is in personnel_user_ids and active. A codeless
+            // assigned service is returned by the array-contains query above yet contributes no
+            // code to getAssignedServiceCodes() (there's no code to derive), so this clause is what
+            // keeps it visible here — still correct and load-bearing under the personnel-derived model.
             services = cachedServices.filter(s =>
                 (assignedCodes.includes(s.service_code) && s.active === true) ||
                 (!s.service_code && uid && (s.personnel_user_ids || []).includes(uid) && s.active === true)
