@@ -4,7 +4,7 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, purgeStoragePrefix } from '../firebase.js';
-import { showLoading, showToast, generateProjectCode, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, formatCurrency } from '../utils.js';
+import { showLoading, showToast, generateProjectCode, normalizePersonnel, downloadCSV, escapeHTML, formatCurrency } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 import { createEngagement } from '../engagement-create.js';
 import { renderTrancheBuilder, readTranchesFromDOM, addTranche, removeTranche, recalculateTranches } from '../tranche-builder.js';
@@ -743,14 +743,7 @@ async function addProject() {
             budget,
             contractCost: contract_cost,
             personnel: selectedPersonnel,
-            collectionTranches: finalTranches,
-            onAfterCreate: ({ code }) => {
-                // Phase 78 D-04: skip personnel sync when project_code is null (clientless project)
-                if (code) {
-                    syncPersonnelToAssignments(code, [], selectedPersonnel.map(u => u.id).filter(Boolean))
-                        .catch(err => console.error('[Projects] Assignment sync failed:', err));
-                }
-            }
+            collectionTranches: finalTranches
         });
 
         showToast(`Project "${project_name}" created successfully${project_code ? '' : ' (no code yet — assign a client to issue code)'}!`, 'success');
@@ -845,7 +838,30 @@ const debouncedFilter = debounce(applyFilters, 300);
 // Load projects with real-time listener
 async function loadProjects() {
     try {
-        const listener = onSnapshot(collection(db, 'projects'), (snapshot) => {
+        // Phase 113 D-02/D-16: once the projects list rule tightens, an unscoped
+        // `collection(db, 'projects')` query would be denied outright for a scoped role —
+        // every document array-contains returns already satisfies that rule's per-document
+        // predicate, so scoped roles must issue the array-contains query, not the bare listener.
+        const currentUser = window.getCurrentUser?.();
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        let projectsSource;
+        if (assignedCodes === null) {
+            // See-all: PROJECT_SEE_ALL_ROLES member or an all_projects === true holder (D-09).
+            projectsSource = collection(db, 'projects');
+        } else {
+            // Scoped: operations_user, services_user, AND services_admin (D-16 — services_admin
+            // is deliberately absent from PROJECT_SEE_ALL_ROLES). Fail-closed on a missing uid —
+            // never fall through to the unscoped source.
+            const uid = currentUser?.uid;
+            if (!uid) {
+                allProjects = [];
+                applyFilters();
+                return;
+            }
+            projectsSource = query(collection(db, 'projects'), where('personnel_user_ids', 'array-contains', uid));
+        }
+
+        const listener = onSnapshot(projectsSource, (snapshot) => {
             allProjects = [];
             snapshot.forEach(doc => {
                 allProjects.push({ id: doc.id, ...doc.data() });
@@ -1330,10 +1346,7 @@ async function saveEdit() {
         return;
     }
 
-    // Capture old personnel BEFORE save for sync diff
     const existingProject = allProjects.find(p => p.id === editingProject);
-    const oldNormalized = normalizePersonnel(existingProject);
-    const oldUserIds = oldNormalized.userIds;
 
     // Phase 85 D-09: read + validate collection_tranches
     const collectionTranches = readTranchesFromDOM('projectForm');
@@ -1434,12 +1447,6 @@ async function saveEdit() {
             recordEditHistory(editingProject, 'update', editChanges)
                 .catch(err => console.error('[EditHistory] saveEdit failed:', err));
         }
-
-        // Sync personnel assignment changes (fire-and-forget)
-        const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
-        const projectCode = existingProject?.project_code;
-        syncPersonnelToAssignments(projectCode, oldUserIds, newUserIds)
-            .catch(err => console.error('[Projects] Assignment sync failed:', err));
 
         showToast('Project updated successfully', 'success');
         editingProject = null;
