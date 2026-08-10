@@ -579,6 +579,10 @@ service cloud.firestore {
     // =============================================
     // services collection
     // =============================================
+    // Phase 113 (assignment-source-of-truth-and-project-read-enforcement, Plan 01):
+    // the personnel_user_ids alternatives below are the forward path (D-02/D-08/D-13).
+    // The isAssignedToService(...) terms are transitional — read from the legacy,
+    // frozen-after-this-phase assigned_service_codes array — and are removed in plan 113-10.
     match /services/{serviceId} {
       // Get (single document): super_admin, services roles, finance, procurement, operations_admin
       // operations_admin needs get access to support generateProjectCode() which queries
@@ -596,9 +600,16 @@ service cloud.firestore {
       // only see assigned projects, and service-detail.js canDrive (personnel_user_ids.includes(uid)).
       // The matching JS query in services.js is array-contains on personnel_user_ids, so every
       // returned doc satisfies this per-doc predicate. WRITES remain blocked for ops users.
+      // Phase 113 D-09: getUserData().all_services == true hoisted to a top-level OR term so the
+      // see-all escape hatch is honoured for every role reaching this branch, not just services_user
+      // (isAssignedToService() already checked it internally, but a personnel-only services_user with
+      // all_services would otherwise fall through to a personnel check that can't see the flag).
+      // Phase 113 D-08/D-13: services_user additionally accepts the personnel-derived predicate so a
+      // services_user assigned AFTER the sync pipelines retire still sees their own service.
       allow list: if isActiveUser() && (
+        getUserData().all_services == true ||
         hasRole(['super_admin', 'operations_admin', 'services_admin', 'finance', 'procurement']) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code)) ||
+        (isRole('services_user') && (isAssignedToService(resource.data.service_code) || request.auth.uid in resource.data.personnel_user_ids)) ||
         (isRole('operations_user') && request.auth.uid in resource.data.personnel_user_ids)
       );
 
@@ -607,12 +618,15 @@ service cloud.firestore {
 
       // Update: super_admin and services_admin unrestricted; services_user scoped to assigned services
       // Phase 104 D-15 — Finance records the retention release (field-masked; mirrors projects:238-242)
+      // Phase 113: each isAssignedToService(...) branch below additionally accepts the personnel-derived
+      // predicate (request.auth.uid in resource.data.personnel_user_ids) as an OR alternative, so write
+      // authority survives for a user assigned after the legacy arrays freeze (D-07/D-08).
       allow update: if hasRole(['super_admin', 'services_admin']) ||
-                       (isRole('services_user') && isAssignedToService(resource.data.service_code)) ||
+                       (isRole('services_user') && (isAssignedToService(resource.data.service_code) || request.auth.uid in resource.data.personnel_user_ids)) ||
                        // Quick 260627-kg0: assigned cross-dept operations_user gets EXACTLY the native services_user authority (same isAssignedToService gate).
-                       (isRole('operations_user') && isAssignedToService(resource.data.service_code)) ||
+                       (isRole('operations_user') && (isAssignedToService(resource.data.service_code) || request.auth.uid in resource.data.personnel_user_ids)) ||
                        // Quick 260706-mco: assigned cross-dept operations_admin gets the same isAssignedToService gate.
-                       (isRole('operations_admin') && isAssignedToService(resource.data.service_code)) ||
+                       (isRole('operations_admin') && (isAssignedToService(resource.data.service_code) || request.auth.uid in resource.data.personnel_user_ids)) ||
                        (hasRole(['finance']) &&
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['retention_released_at', 'updated_at']));
 
@@ -742,6 +756,10 @@ service cloud.firestore {
     // =============================================
     // project_tasks collection (Phase 86 — PM-11, D-18)
     // =============================================
+    // Phase 113 (assignment-source-of-truth-and-project-read-enforcement, Plan 01):
+    // the parent-project personnel_user_ids get() alternatives below are the forward path
+    // (D-07/D-08). The isAssignedToProject(...) terms are transitional — read from the legacy,
+    // frozen-after-this-phase assigned_project_codes array — and are removed in plan 113-10.
     // Native PM tasks for projects. project_code denormalized for project-scoped
     // operations_user assignments (mirrors mrfs.project_code pattern).
     //
@@ -765,26 +783,54 @@ service cloud.firestore {
       // Create: admins or operations_user assigned to this project
       // Quick 260627-kg0: assigned cross-dept services_user gets the same member-write.
       // Quick 260706-mco: assigned cross-dept services_admin gets the same member-write.
+      // Phase 113 D-07: each isAssignedToProject(...) call below is OR-ed with a guarded
+      // get() on the parent project doc (via the denormalized project_id) so a user assigned
+      // to the project AFTER the legacy array freezes still has create authority. The legacy
+      // term is listed FIRST so the extra document reads only happen when it misses.
       allow create: if hasRole(['super_admin', 'operations_admin']) ||
                        (isRole('operations_user') &&
-                        isAssignedToProject(request.resource.data.project_code)) ||
+                        (isAssignedToProject(request.resource.data.project_code) ||
+                         (('project_id' in request.resource.data) && request.resource.data.project_id != '' &&
+                          exists(/databases/$(database)/documents/projects/$(request.resource.data.project_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/projects/$(request.resource.data.project_id)).data.personnel_user_ids))) ||
                        (isRole('services_user') &&
-                        isAssignedToProject(request.resource.data.project_code)) ||
+                        (isAssignedToProject(request.resource.data.project_code) ||
+                         (('project_id' in request.resource.data) && request.resource.data.project_id != '' &&
+                          exists(/databases/$(database)/documents/projects/$(request.resource.data.project_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/projects/$(request.resource.data.project_id)).data.personnel_user_ids))) ||
                        (isRole('services_admin') &&
-                        isAssignedToProject(request.resource.data.project_code));
+                        (isAssignedToProject(request.resource.data.project_code) ||
+                         (('project_id' in request.resource.data) && request.resource.data.project_id != '' &&
+                          exists(/databases/$(database)/documents/projects/$(request.resource.data.project_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/projects/$(request.resource.data.project_id)).data.personnel_user_ids)));
 
       // Update — two-tier:
       //  Tier 1 (full WBS edit): admins or assigned ops_user
       //  Tier 2 (progress-only): admins OR uid in resource.data.assignees
       //         (Phase 83 affectedKeys().hasOnly() technique mirrors notifications block)
+      // Phase 113 D-07: Tier 1's isAssignedToProject(...) calls are OR-ed with the same guarded
+      // parent-doc personnel check as create (using resource.data.project_id — the existing
+      // document's own parent id, not attacker-supplied request.resource.data).
       allow update: if (
         // Tier 1: full edit
         hasRole(['super_admin', 'operations_admin']) ||
-        (isRole('operations_user') && isAssignedToProject(resource.data.project_code)) ||
+        (isRole('operations_user') &&
+         (isAssignedToProject(resource.data.project_code) ||
+          (('project_id' in resource.data) && resource.data.project_id != '' &&
+           exists(/databases/$(database)/documents/projects/$(resource.data.project_id)) &&
+           request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids))) ||
         // Quick 260627-kg0: assigned cross-dept services_user gets Tier-1 edit too.
-        (isRole('services_user') && isAssignedToProject(resource.data.project_code)) ||
+        (isRole('services_user') &&
+         (isAssignedToProject(resource.data.project_code) ||
+          (('project_id' in resource.data) && resource.data.project_id != '' &&
+           exists(/databases/$(database)/documents/projects/$(resource.data.project_id)) &&
+           request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids))) ||
         // Quick 260706-mco: assigned cross-dept services_admin gets Tier-1 edit too.
-        (isRole('services_admin') && isAssignedToProject(resource.data.project_code))
+        (isRole('services_admin') &&
+         (isAssignedToProject(resource.data.project_code) ||
+          (('project_id' in resource.data) && resource.data.project_id != '' &&
+           exists(/databases/$(database)/documents/projects/$(resource.data.project_id)) &&
+           request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids)))
       ) || (
         // Tier 2: progress-only update — request changes ONLY 'progress' + 'updated_at'
         // D-15 + D-14: only operations_user (or admins) may write progress; finance/services/procurement
@@ -810,15 +856,32 @@ service cloud.firestore {
       // Delete: admins or operations_user assigned to this project (D-14)
       // Quick 260627-kg0: assigned cross-dept services_user may delete too.
       // Quick 260706-mco: assigned cross-dept services_admin may delete too.
+      // Phase 113 D-07: same guarded parent-doc personnel OR-alternative as update Tier 1.
       allow delete: if hasRole(['super_admin', 'operations_admin']) ||
-                       (isRole('operations_user') && isAssignedToProject(resource.data.project_code)) ||
-                       (isRole('services_user') && isAssignedToProject(resource.data.project_code)) ||
-                       (isRole('services_admin') && isAssignedToProject(resource.data.project_code));
+                       (isRole('operations_user') &&
+                        (isAssignedToProject(resource.data.project_code) ||
+                         (('project_id' in resource.data) && resource.data.project_id != '' &&
+                          exists(/databases/$(database)/documents/projects/$(resource.data.project_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids))) ||
+                       (isRole('services_user') &&
+                        (isAssignedToProject(resource.data.project_code) ||
+                         (('project_id' in resource.data) && resource.data.project_id != '' &&
+                          exists(/databases/$(database)/documents/projects/$(resource.data.project_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids))) ||
+                       (isRole('services_admin') &&
+                        (isAssignedToProject(resource.data.project_code) ||
+                         (('project_id' in resource.data) && resource.data.project_id != '' &&
+                          exists(/databases/$(database)/documents/projects/$(resource.data.project_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.project_id)).data.personnel_user_ids)));
     }
 
     // =============================================
     // service_tasks collection (Phase 105 — service plan parity, D-02, D-03, D-06)
     // =============================================
+    // Phase 113 (assignment-source-of-truth-and-project-read-enforcement, Plan 01):
+    // the parent-service personnel_user_ids get() alternatives below are the forward path
+    // (D-07/D-08). The isAssignedToService(...) terms are transitional — read from the legacy,
+    // frozen-after-this-phase assigned_service_codes array — and are removed in plan 113-10.
     // Native PM tasks for services. Mirrors project_tasks exactly (D-01 zero-divergence).
     // service_code is denormalized for service-scoped services_user assignments
     // (identical pattern to project_code in project_tasks).
@@ -848,26 +911,54 @@ service cloud.firestore {
       // Create: admins or services_user assigned to this service
       // Quick 260627-kg0: assigned cross-dept operations_user gets the same member-write.
       // Quick 260706-mco: assigned cross-dept operations_admin gets the same member-write.
+      // Phase 113 D-07: each isAssignedToService(...) call below is OR-ed with a guarded
+      // get() on the parent service doc (via the denormalized service_id) so a user assigned
+      // to the service AFTER the legacy array freezes still has create authority. The legacy
+      // term is listed FIRST so the extra document reads only happen when it misses.
       allow create: if hasRole(['super_admin', 'services_admin']) ||
                        (isRole('services_user') &&
-                        isAssignedToService(request.resource.data.service_code)) ||
+                        (isAssignedToService(request.resource.data.service_code) ||
+                         (('service_id' in request.resource.data) && request.resource.data.service_id != '' &&
+                          exists(/databases/$(database)/documents/services/$(request.resource.data.service_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/services/$(request.resource.data.service_id)).data.personnel_user_ids))) ||
                        (isRole('operations_user') &&
-                        isAssignedToService(request.resource.data.service_code)) ||
+                        (isAssignedToService(request.resource.data.service_code) ||
+                         (('service_id' in request.resource.data) && request.resource.data.service_id != '' &&
+                          exists(/databases/$(database)/documents/services/$(request.resource.data.service_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/services/$(request.resource.data.service_id)).data.personnel_user_ids))) ||
                        (isRole('operations_admin') &&
-                        isAssignedToService(request.resource.data.service_code));
+                        (isAssignedToService(request.resource.data.service_code) ||
+                         (('service_id' in request.resource.data) && request.resource.data.service_id != '' &&
+                          exists(/databases/$(database)/documents/services/$(request.resource.data.service_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/services/$(request.resource.data.service_id)).data.personnel_user_ids)));
 
       // Update — two-tier:
       //  Tier 1 (full WBS edit): admins or assigned services_user
       //  Tier 2 (progress-only): admins OR uid in resource.data.assignees
       //         (affectedKeys().hasOnly() technique mirrors project_tasks + notifications block)
+      // Phase 113 D-07: Tier 1's isAssignedToService(...) calls are OR-ed with the same guarded
+      // parent-doc personnel check as create (using resource.data.service_id — the existing
+      // document's own parent id, not attacker-supplied request.resource.data).
       allow update: if (
         // Tier 1: full edit
         hasRole(['super_admin', 'services_admin']) ||
-        (isRole('services_user') && isAssignedToService(resource.data.service_code)) ||
+        (isRole('services_user') &&
+         (isAssignedToService(resource.data.service_code) ||
+          (('service_id' in resource.data) && resource.data.service_id != '' &&
+           exists(/databases/$(database)/documents/services/$(resource.data.service_id)) &&
+           request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.service_id)).data.personnel_user_ids))) ||
         // Quick 260627-kg0: assigned cross-dept operations_user gets Tier-1 edit too.
-        (isRole('operations_user') && isAssignedToService(resource.data.service_code)) ||
+        (isRole('operations_user') &&
+         (isAssignedToService(resource.data.service_code) ||
+          (('service_id' in resource.data) && resource.data.service_id != '' &&
+           exists(/databases/$(database)/documents/services/$(resource.data.service_id)) &&
+           request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.service_id)).data.personnel_user_ids))) ||
         // Quick 260706-mco: assigned cross-dept operations_admin gets Tier-1 edit too.
-        (isRole('operations_admin') && isAssignedToService(resource.data.service_code))
+        (isRole('operations_admin') &&
+         (isAssignedToService(resource.data.service_code) ||
+          (('service_id' in resource.data) && resource.data.service_id != '' &&
+           exists(/databases/$(database)/documents/services/$(resource.data.service_id)) &&
+           request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.service_id)).data.personnel_user_ids)))
       ) || (
         // Tier 2: progress-only update — request changes ONLY 'progress' + 'updated_at'
         // services_user (or admins) may write progress; finance/operations/procurement
@@ -893,10 +984,23 @@ service cloud.firestore {
       // Delete: admins or services_user assigned to this service
       // Quick 260627-kg0: assigned cross-dept operations_user may delete too.
       // Quick 260706-mco: assigned cross-dept operations_admin may delete too.
+      // Phase 113 D-07: same guarded parent-doc personnel OR-alternative as update Tier 1.
       allow delete: if hasRole(['super_admin', 'services_admin']) ||
-                       (isRole('services_user') && isAssignedToService(resource.data.service_code)) ||
-                       (isRole('operations_user') && isAssignedToService(resource.data.service_code)) ||
-                       (isRole('operations_admin') && isAssignedToService(resource.data.service_code));
+                       (isRole('services_user') &&
+                        (isAssignedToService(resource.data.service_code) ||
+                         (('service_id' in resource.data) && resource.data.service_id != '' &&
+                          exists(/databases/$(database)/documents/services/$(resource.data.service_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.service_id)).data.personnel_user_ids))) ||
+                       (isRole('operations_user') &&
+                        (isAssignedToService(resource.data.service_code) ||
+                         (('service_id' in resource.data) && resource.data.service_id != '' &&
+                          exists(/databases/$(database)/documents/services/$(resource.data.service_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.service_id)).data.personnel_user_ids))) ||
+                       (isRole('operations_admin') &&
+                        (isAssignedToService(resource.data.service_code) ||
+                         (('service_id' in resource.data) && resource.data.service_id != '' &&
+                          exists(/databases/$(database)/documents/services/$(resource.data.service_id)) &&
+                          request.auth.uid in get(/databases/$(database)/documents/services/$(resource.data.service_id)).data.personnel_user_ids)));
     }
 
     // =============================================
