@@ -19,6 +19,7 @@ import {
 } from './firebase.js';
 import { signOut } from './firebase.js';
 import { initPermissionsObserver, destroyPermissionsObserver } from './permissions.js';
+import { initAssignedCodesListeners, destroyAssignedCodesListeners } from './utils.js';
 
 // ========================================
 // PERMISSION CHANGE LISTENER (MODULE LEVEL)
@@ -242,6 +243,19 @@ export function initAuthObserver() {
                                 window.initNotifications(currentUser);
                             }
 
+                            // Phase 113 D-08: bootstrap the personnel-derived assignment cache for active
+                            // users BEFORE the initial route renders, so getAssignedProjectCodes()/
+                            // getAssignedServiceCodes() never race an empty cache on first paint. A cache
+                            // failure must not block sign-in -- the fail-closed [] default it falls back to
+                            // (see app/utils.js) already means "sees nothing", the safe outcome.
+                            if (userData.status === 'active') {
+                                try {
+                                    await initAssignedCodesListeners(currentUser);
+                                } catch (e) {
+                                    console.error('[Auth] Failed to initialize personnel assignment cache:', e);
+                                }
+                            }
+
                             // Status-based routing (AUTH-08)
                             const currentHash = window.location.hash;
 
@@ -264,6 +278,7 @@ export function initAuthObserver() {
                             } else if (userData.status === 'deactivated') {
                                 if (userDocUnsubscribe) { userDocUnsubscribe(); userDocUnsubscribe = null; }
                                 if (window.destroyNotifications) window.destroyNotifications();
+                                destroyAssignedCodesListeners();
                                 await signOut(auth);
                                 window.location.hash = '#/login';
                                 return;
@@ -302,8 +317,27 @@ export function initAuthObserver() {
                                 } else {
                                     destroyPermissionsObserver();
                                 }
+
+                                // Phase 113 D-08: which dimensions (projects/services) are scoped is a
+                                // function of role, so a role change must tear down and rebuild the
+                                // personnel cache. Teardown always runs; rebuild only for active users.
+                                destroyAssignedCodesListeners();
+                                if (userData.status === 'active' && userData.role) {
+                                    try {
+                                        await initAssignedCodesListeners(currentUser);
+                                    } catch (e) {
+                                        console.error('[Auth] Failed to re-initialize personnel assignment cache on role change:', e);
+                                    }
+                                }
                             }
 
+                            // Phase 113 D-08: this legacy-array/all_* condition is now VESTIGIAL for the
+                            // assigned_*_codes half (those fields are frozen and no longer read by
+                            // getAssignedProjectCodes()/getAssignedServiceCodes()) -- retained only because
+                            // all_projects/all_services are still live escape hatches (D-09). The
+                            // personnel-cache listeners added in initAssignedCodesListeners() fire this
+                            // same 'assignmentsChanged' event on personnel_user_ids changes; both paths
+                            // feed the same handlers (projects.js:309, services.js:327) by design.
                             if (JSON.stringify(userData.assigned_project_codes) !== JSON.stringify(previousAssignedCodes) ||
                                 userData.all_projects !== previousAllProjects ||
                                 JSON.stringify(userData.assigned_service_codes) !== JSON.stringify(previousAssignedServiceCodes) ||
@@ -371,6 +405,10 @@ export function initAuthObserver() {
 
             // Phase 83: Detach bell-listener and reset module state
             if (window.destroyNotifications) window.destroyNotifications();
+
+            // Phase 113 D-08 / T-113-12: tear down the personnel assignment cache so listeners
+            // do not survive a logout.
+            destroyAssignedCodesListeners();
 
             // Clear current user
             currentUser = null;
