@@ -797,3 +797,113 @@ describe("cross-dept Assignments-tab modal save (2-field write)", () => {
     );
   });
 });
+
+// =============================================
+// Test Suite: Phase 113 — additive personnel predicate (transitional)
+// (assignment-source-of-truth-and-project-read-enforcement, Plan 01) — proves the
+// widened services/project_tasks/service_tasks branches accept the NEW
+// personnel_user_ids predicate, still accept the LEGACY assigned_*_codes predicate,
+// still honour the all_services escape hatch, and grant nothing to a non-member role.
+// =============================================
+
+describe("Phase 113 — additive personnel predicate (transitional)", () => {
+  beforeEach(seedUsers);
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+
+      // Service assigned to active-services-user ONLY via personnel_user_ids (not the
+      // legacy assigned_service_codes array, which only lists SVC-001 for this user).
+      await setDoc(doc(db, "services", "SVC-PERSONNEL"), {
+        service_code: "SVC-PERSONNEL",
+        personnel_user_ids: ["active-services-user"],
+        client_code: "TEST",
+        active: true,
+      });
+
+      // Parent project assigned to active-services-user ONLY via personnel_user_ids.
+      await setDoc(doc(db, "projects", "proj-personnel"), {
+        project_code: "CLMC_TEST_2026999",
+        personnel_user_ids: ["active-services-user"],
+      });
+
+      // project_tasks doc whose Tier-1 write authority is reachable ONLY through the
+      // parent project's personnel_user_ids (project_code is NOT in active-services-user's
+      // legacy assigned_project_codes — that field isn't even set on this fixture user).
+      await setDoc(doc(db, "project_tasks", "TASK-P1"), {
+        project_id: "proj-personnel",
+        project_code: "CLMC_TEST_2026999",
+        assignees: [],
+        progress: 0,
+      });
+
+      // service_tasks doc whose Tier-1 write authority is reachable ONLY through the
+      // parent service's personnel_user_ids.
+      await setDoc(doc(db, "service_tasks", "TASK-S1"), {
+        service_id: "SVC-PERSONNEL",
+        service_code: "SVC-PERSONNEL",
+        assignees: [],
+        progress: 0,
+      });
+    });
+  });
+
+  it("active-services-user succeeds on the NEW personnel_user_ids array-contains list query", async () => {
+    const db = testEnv.authenticatedContext("active-services-user").firestore();
+    await assertSucceeds(
+      getDocs(query(collection(db, "services"), where("personnel_user_ids", "array-contains", "active-services-user")))
+    );
+  });
+
+  it("active-services-user still succeeds on the LEGACY service_code 'in' list query (additivity)", async () => {
+    const db = testEnv.authenticatedContext("active-services-user").firestore();
+    await assertSucceeds(
+      getDocs(query(collection(db, "services"), where("service_code", "in", ["SVC-001"])))
+    );
+  });
+
+  it("active-services-admin (all_services: true) succeeds on an unscoped services list (D-09 escape hatch)", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(getDocs(collection(db, "services")));
+  });
+
+  it("active-services-user updates a service reachable ONLY via personnel_user_ids (widened services update)", async () => {
+    const db = testEnv.authenticatedContext("active-services-user").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "services", "SVC-PERSONNEL"), {
+        project_status: "On-going",
+        updated_at: "2026-08-10T00:00:00.000Z"
+      })
+    );
+  });
+
+  it("active-services-user Tier-1-edits a project_tasks doc via the parent project's personnel_user_ids", async () => {
+    const db = testEnv.authenticatedContext("active-services-user").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "project_tasks", "TASK-P1"), {
+        name: "renamed",
+        updated_at: "2026-08-10T00:00:00.000Z"
+      })
+    );
+  });
+
+  it("active-services-user Tier-1-edits a service_tasks doc via the parent service's personnel_user_ids", async () => {
+    const db = testEnv.authenticatedContext("active-services-user").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "service_tasks", "TASK-S1"), {
+        name: "renamed",
+        updated_at: "2026-08-10T00:00:00.000Z"
+      })
+    );
+  });
+
+  it("active-procurement (non-member role) CANNOT update project_tasks TASK-P1 (no leaked authority)", async () => {
+    const db = testEnv.authenticatedContext("active-procurement").firestore();
+    await assertFails(
+      updateDoc(doc(db, "project_tasks", "TASK-P1"), {
+        name: "x"
+      })
+    );
+  });
+});
