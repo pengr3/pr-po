@@ -2893,16 +2893,21 @@ async function loadServicesForNewMRF() {
     }
     try {
         // Quick 260627-kg0: service-MRF availability is assignment-driven, not role-literal.
-        // A scoped user (services_user OR an operations_user assigned to services) loads only their
-        // assigned services; an operations_user with no service assignments early-returns just below.
+        // Phase 113 D-02/D-13: scoped branch is a bare personnel_user_ids array-contains query (no
+        // second where clause on the same query -> no composite index needed). The legacy
+        // service_code 'in' query (Shape E) is retired, along with its zero-assignment early
+        // return — the array-contains query naturally returns nothing for a user with zero
+        // assignments. The 'active' filter for the scoped branch is re-applied client-side below
+        // since pairing it in the query would require a new composite index.
         const assignedServiceCodes = window.getAssignedServiceCodes?.();
-        if (assignedServiceCodes !== null && assignedServiceCodes.length === 0) return;
-
         let q;
         if (assignedServiceCodes !== null) {
-            // Scoped (services_user or cross-dept operations_user): scope to assigned codes
-            // (mirrors mrf-form.js loadServices pattern).
-            q = query(collection(db, 'services'), where('service_code', 'in', assignedServiceCodes));
+            const uid = window.getCurrentUser?.()?.uid;
+            if (!uid) {
+                // Fail-closed: no resolvable uid — do not issue the query.
+                return;
+            }
+            q = query(collection(db, 'services'), where('personnel_user_ids', 'array-contains', uid));
         } else {
             // Exempt roles (admin/finance/procurement): unscoped active filter.
             q = query(collection(db, 'services'), where('active', '==', true));
@@ -2913,6 +2918,10 @@ async function loadServicesForNewMRF() {
             const data = docSnap.data();
             // Phase 88 D-05 — Draft services are pre-proposal; not eligible for MRF operations.
             if (data.project_status === 'Draft') return;
+            // Phase 113 D-02: the scoped branch above dropped where('active','==',true) from the
+            // query itself, so re-apply it here. The see-all branch already filtered active in
+            // the query.
+            if (assignedServiceCodes !== null && data.active !== true) return;
             cachedServicesForNewMRF.push({ id: docSnap.id, ...data });
         });
         // Sort alphabetically A-Z by service code
@@ -2923,15 +2932,34 @@ async function loadServicesForNewMRF() {
     }
 }
 
+// Phase 113 D-02/D-16: this query had NO scoping of any kind before Phase 113. The `projScope`
+// local inside isMrfInAssignedScope() (below) is an unrelated function that filters MRF RECORDS
+// client-side and shares no code path or variable with this function — CONTEXT.md's preliminary
+// audit call that this was "partially scoped already via projScope" was disproved by RESEARCH.md;
+// this function is converted like every other Shape B site (mrf-form.js loadProjects, etc).
 async function loadProjects() {
     if (projectsData.length > 0 && (Date.now() - _projectsCachedAt) < CACHE_TTL_MS) {
         return; // Listener still has fresh data
     }
     try {
-        const q = query(
-            collection(db, 'projects'),
-            where('active', '==', true)
-        );
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        let q;
+        if (assignedCodes === null) {
+            q = query(
+                collection(db, 'projects'),
+                where('active', '==', true)
+            );
+        } else {
+            const uid = window.getCurrentUser?.()?.uid;
+            if (!uid) {
+                // Fail-closed: no resolvable uid — never attach the scoped listener.
+                return;
+            }
+            q = query(
+                collection(db, 'projects'),
+                where('personnel_user_ids', 'array-contains', uid)
+            );
+        }
 
         const listener = onSnapshot(q, (snapshot) => {
             projectsData = [];
@@ -2939,6 +2967,10 @@ async function loadProjects() {
                 const data = doc.data();
                 // Phase 88 D-05 — Draft projects are pre-proposal; not eligible for MRF/PR/PO operations.
                 if (data.project_status === 'Draft') return;
+                // Phase 113 D-02: the scoped branch above dropped where('active','==',true) from
+                // the query itself, so re-apply it here. The see-all branch already filtered
+                // active in the query.
+                if (assignedCodes !== null && data.active !== true) return;
                 projectsData.push({ id: doc.id, ...data });
             });
 
@@ -2977,6 +3009,9 @@ async function loadProjects() {
  * item matches neither branch and stays hidden. For a single-department *_user (both scopes
  * non-null arrays) this is unchanged from before: assigned-only, no-leak.
  */
+// Phase 113 D-04: deliberately left untouched — plan 113-03 already repointed the two helpers
+// this function calls onto personnel-derived codes, so the no-leak union logic below carries the
+// fix over with zero changes to its own body.
 function isMrfInAssignedScope(mrf) {
     const projScope = window.getAssignedProjectCodes?.();   // null = no project filter (see-all role/home dept)
     const svcScope  = window.getAssignedServiceCodes?.();   // null = no service filter (see-all role/home dept)
