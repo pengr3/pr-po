@@ -12,9 +12,16 @@ import { formatCurrency, downloadCSV, escapeHTML, getRFPTotal, getRFPFees } from
  * @param {object} [options]
  * @param {string} [options.mode='project'] - 'project' | 'service'
  * @param {string} [options.displayName] - Display name for modal header (falls back to identifier)
- * @param {number} [options.budget] - Budget amount; only used in service mode (project mode fetches it)
+ * @param {number} [options.budget] - Budget amount; always required in service mode. In project
+ *   mode, supplied by callers that already hold the project document (e.g. project-detail.js's
+ *   openFullBreakdown); when both budget and projectCode are present in project mode the modal
+ *   performs no `projects` query at all.
+ * @param {string} [options.projectCode] - Phase 113 D-02: project_code, supplied by callers that
+ *   already hold the project document. When both budget and projectCode are present in project
+ *   mode the modal performs no `projects` query at all (see budget doc above). Only used in
+ *   project mode; ignored in service mode.
  */
-export async function showExpenseBreakdownModal(identifier, { mode = 'project', displayName, budget } = {}) {
+export async function showExpenseBreakdownModal(identifier, { mode = 'project', displayName, budget, projectCode } = {}) {
     // Remove any existing instance of this modal
     const existingModal = document.getElementById('expenseBreakdownModal');
     if (existingModal) existingModal.remove();
@@ -36,6 +43,10 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
     // Query branching — only this section differs between modes
     // -----------------------------------------------------------------------
     let posSnapshot, trsSnapshot;
+    // Phase 113 D-02: resolved project_code for project mode, shared by the RFP lookup and the
+    // collectibles/billing_requests lookup below (replaces 2 more `projects` re-queries). Stays
+    // '' in service mode (unused there — services key off `identifier` directly).
+    let resolvedProjectCode = '';
 
     if (mode === 'service') {
         // identifier = service_code; budget passed in via options
@@ -45,12 +56,24 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
             getDocs(query(collection(db, 'transport_requests'), where('service_code', '==', identifier)))
         ]);
     } else {
-        // identifier = project_name; budget fetched from projects collection
-        const projectSnapshot = await getDocs(
-            query(collection(db, 'projects'), where('project_name', '==', identifier))
-        );
-        const project = projectSnapshot.docs[0]?.data() || {};
-        budget = parseFloat(project.budget || 0);
+        // identifier = project_name.
+        // Phase 113 D-02: if the caller already holds the project document (project-detail.js's
+        // openFullBreakdown does, passing both budget and projectCode from currentProject), use
+        // them directly and skip the `projects` lookup entirely. The fallback below stays because
+        // finance.js's window.showProjectExpenseModal supplies neither value and is reachable only
+        // by `finance` / `super_admin`, both see-all for `projects` under D-01, so a name-based
+        // list query is something they can satisfy — do not "tidy it away".
+        if (projectCode) {
+            budget = parseFloat(budget || 0);
+            resolvedProjectCode = projectCode;
+        } else {
+            const projectSnapshot = await getDocs(
+                query(collection(db, 'projects'), where('project_name', '==', identifier))
+            );
+            const project = projectSnapshot.docs[0]?.data() || {};
+            budget = parseFloat(project.budget || 0);
+            resolvedProjectCode = project.project_code || '';
+        }
         [posSnapshot, trsSnapshot] = await Promise.all([
             getDocs(query(collection(db, 'pos'), where('project_name', '==', identifier))),
             getDocs(query(collection(db, 'transport_requests'), where('project_name', '==', identifier)))
@@ -67,14 +90,11 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         );
         rfpSnap.forEach(d => rfpsForPayable.push(d.data()));
     } else {
-        const projectSnapshot2 = await getDocs(
-            query(collection(db, 'projects'), where('project_name', '==', identifier))
-        );
-        const projectForRfp = projectSnapshot2.docs[0]?.data() || {};
-        const projectCode = projectForRfp.project_code || '';
-        if (projectCode) {
+        // Phase 113 D-02: reuses resolvedProjectCode from the budget-resolution step above —
+        // no second `projects` lookup.
+        if (resolvedProjectCode) {
             const rfpSnap = await getDocs(
-                query(collection(db, 'rfps'), where('project_code', '==', projectCode))
+                query(collection(db, 'rfps'), where('project_code', '==', resolvedProjectCode))
             );
             rfpSnap.forEach(d => rfpsForPayable.push(d.data()));
         }
@@ -103,21 +123,16 @@ export async function showExpenseBreakdownModal(identifier, { mode = 'project', 
         );
         brSnap.forEach(d => billingReqsForModal.push({ id: d.id, ...d.data() }));
     } else {
-        // project mode — need project_code (we already fetched the project doc above for budget;
-        // re-use the same lookup to extract project_code)
-        const projectSnapshot3 = await getDocs(
-            query(collection(db, 'projects'), where('project_name', '==', identifier))
-        );
-        const projectForColl = projectSnapshot3.docs[0]?.data() || {};
-        const projectCodeForColl = projectForColl.project_code || '';
-        if (projectCodeForColl) {
+        // project mode — Phase 113 D-02: reuses resolvedProjectCode from the budget-resolution
+        // step above (no third `projects` lookup).
+        if (resolvedProjectCode) {
             const collSnap = await getDocs(
-                query(collection(db, 'collectibles'), where('project_code', '==', projectCodeForColl))
+                query(collection(db, 'collectibles'), where('project_code', '==', resolvedProjectCode))
             );
             collSnap.forEach(d => collectiblesForTab.push({ id: d.id, ...d.data() }));
-            // Phase 99.1 D-17 — reuse projectCodeForColl (no extra projects fetch)
+            // Phase 99.1 D-17 — reuse resolvedProjectCode (no extra projects fetch)
             const brSnap = await getDocs(
-                query(collection(db, 'billing_requests'), where('project_code', '==', projectCodeForColl))
+                query(collection(db, 'billing_requests'), where('project_code', '==', resolvedProjectCode))
             );
             brSnap.forEach(d => billingReqsForModal.push({ id: d.id, ...d.data() }));
         }
