@@ -3,7 +3,7 @@
    Shared utility functions used across views
    ======================================== */
 
-import { db, collection, getDocs, getDoc, updateDoc, doc, query, where, orderBy, limit, arrayUnion, arrayRemove, onSnapshot } from './firebase.js';
+import { db, collection, getDocs, query, where, orderBy, limit, onSnapshot } from './firebase.js';
 
 /* ========================================
    SECURITY UTILITIES
@@ -785,7 +785,6 @@ window.escapeHTML = escapeHTML;
 window.getAssignedProjectCodes = getAssignedProjectCodes;
 window.generateServiceCode = generateServiceCode;
 window.getAssignedServiceCodes = getAssignedServiceCodes;
-window.syncServicePersonnelToAssignments = syncServicePersonnelToAssignments;
 window.initAssignedCodesListeners = initAssignedCodesListeners;
 window.destroyAssignedCodesListeners = destroyAssignedCodesListeners;
 
@@ -833,158 +832,6 @@ export function normalizePersonnel(project) {
 
     // Empty/missing
     return { userIds: [], names: [] };
-}
-
-/* ========================================
-   PERSONNEL-ASSIGNMENT SYNC
-   ======================================== */
-
-/**
- * Sync personnel assignments to user assigned_project_codes.
- * When personnel are added/removed from a project, atomically update
- * each affected user's assigned_project_codes using arrayUnion/arrayRemove.
- *
- * Designed to be called fire-and-forget (.catch()) -- never blocks the caller.
- *
- * @param {string} projectCode - The project_code to add/remove from users
- * @param {string[]} previousUserIds - User IDs before the mutation
- * @param {string[]} newUserIds - User IDs after the mutation
- * @returns {Promise<Array>} Array of errors (empty if all succeeded)
- */
-export async function syncPersonnelToAssignments(projectCode, previousUserIds, newUserIds) {
-    if (!projectCode) {
-        console.warn('[PersonnelSync] No project_code provided, skipping sync (legacy project?)');
-        return [];
-    }
-
-    const prevSet = new Set((previousUserIds || []).filter(Boolean));
-    const newSet = new Set((newUserIds || []).filter(Boolean));
-
-    const addedUserIds = [...newSet].filter(id => !prevSet.has(id));
-    const removedUserIds = [...prevSet].filter(id => !newSet.has(id));
-
-    if (addedUserIds.length === 0 && removedUserIds.length === 0) {
-        return [];
-    }
-
-    const errors = [];
-
-    // Process additions -- check all_projects flag before adding
-    for (const userId of addedUserIds) {
-        try {
-            // Try to check all_projects flag; skip read errors gracefully
-            // (operations_user can't read other users' docs -- just proceed with the add)
-            let skipUser = false;
-            try {
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists() && userDoc.data().all_projects === true) {
-                    skipUser = true;
-                }
-            } catch (readErr) {
-                // Cannot read user doc (permission), proceed with add
-            }
-            if (skipUser) continue;
-
-            await updateDoc(doc(db, 'users', userId), {
-                assigned_project_codes: arrayUnion(projectCode)
-            });
-        } catch (err) {
-            console.error(`[PersonnelSync] Failed to add project to user ${userId}:`, err);
-            errors.push(err);
-        }
-    }
-
-    // Process removals -- arrayRemove on non-existent value is a no-op
-    for (const userId of removedUserIds) {
-        try {
-            await updateDoc(doc(db, 'users', userId), {
-                assigned_project_codes: arrayRemove(projectCode)
-            });
-        } catch (err) {
-            console.error(`[PersonnelSync] Failed to remove project from user ${userId}:`, err);
-            errors.push(err);
-        }
-    }
-
-    if (errors.length > 0) {
-        console.warn(`[PersonnelSync] Completed with ${errors.length} error(s)`);
-    }
-
-    return errors;
-}
-
-/**
- * Sync personnel assignments to user assigned_service_codes.
- * When personnel are added/removed from a service, atomically update
- * each affected user's assigned_service_codes using arrayUnion/arrayRemove.
- *
- * Designed to be called fire-and-forget (.catch()) -- never blocks the caller.
- *
- * @param {string} serviceCode - The service_code to add/remove from users
- * @param {string[]} previousUserIds - User IDs before the mutation
- * @param {string[]} newUserIds - User IDs after the mutation
- * @returns {Promise<Array>} Array of errors (empty if all succeeded)
- */
-export async function syncServicePersonnelToAssignments(serviceCode, previousUserIds, newUserIds) {
-    if (!serviceCode) {
-        console.warn('[ServicePersonnelSync] No service_code provided, skipping sync');
-        return [];
-    }
-
-    const prevSet = new Set((previousUserIds || []).filter(Boolean));
-    const newSet = new Set((newUserIds || []).filter(Boolean));
-
-    const addedUserIds = [...newSet].filter(id => !prevSet.has(id));
-    const removedUserIds = [...prevSet].filter(id => !newSet.has(id));
-
-    if (addedUserIds.length === 0 && removedUserIds.length === 0) {
-        return [];
-    }
-
-    const errors = [];
-
-    // Process additions -- check all_services flag before adding
-    for (const userId of addedUserIds) {
-        try {
-            // Try to check all_services flag; skip read errors gracefully
-            // (services_user can't read other users' docs -- just proceed with the add)
-            let skipUser = false;
-            try {
-                const userDoc = await getDoc(doc(db, 'users', userId));
-                if (userDoc.exists() && userDoc.data().all_services === true) {
-                    skipUser = true;
-                }
-            } catch (readErr) {
-                // Cannot read user doc (permission), proceed with add
-            }
-            if (skipUser) continue;
-
-            await updateDoc(doc(db, 'users', userId), {
-                assigned_service_codes: arrayUnion(serviceCode)
-            });
-        } catch (err) {
-            console.error(`[ServicePersonnelSync] Failed to add service to user ${userId}:`, err);
-            errors.push(err);
-        }
-    }
-
-    // Process removals -- arrayRemove on non-existent value is a no-op
-    for (const userId of removedUserIds) {
-        try {
-            await updateDoc(doc(db, 'users', userId), {
-                assigned_service_codes: arrayRemove(serviceCode)
-            });
-        } catch (err) {
-            console.error(`[ServicePersonnelSync] Failed to remove service from user ${userId}:`, err);
-            errors.push(err);
-        }
-    }
-
-    if (errors.length > 0) {
-        console.warn(`[ServicePersonnelSync] Completed with ${errors.length} error(s)`);
-    }
-
-    return errors;
 }
 
 /* ========================================
