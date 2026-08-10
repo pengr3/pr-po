@@ -3,7 +3,7 @@
    Shared utility functions used across views
    ======================================== */
 
-import { db, collection, getDocs, getDoc, updateDoc, doc, query, where, orderBy, limit, arrayUnion, arrayRemove } from './firebase.js';
+import { db, collection, getDocs, getDoc, updateDoc, doc, query, where, orderBy, limit, arrayUnion, arrayRemove, onSnapshot } from './firebase.js';
 
 /* ========================================
    SECURITY UTILITIES
@@ -318,15 +318,146 @@ export async function generateProjectCode(clientCode, year = null) {
 const PROJECT_SEE_ALL_ROLES = ['super_admin', 'finance', 'procurement', 'operations_admin']; // projects = operations home dept
 const SERVICE_SEE_ALL_ROLES = ['super_admin', 'finance', 'procurement', 'services_admin'];   // services = services home dept
 
+/* ========================================
+   PHASE 113 D-08: PERSONNEL-DERIVED ASSIGNMENT CACHE
+   ======================================== */
+
+// Module-scope unsubscribe handles for the personnel-derived assignment cache listeners.
+// These are pure listener plumbing (not read from inside getAssignedProjectCodes/
+// getAssignedServiceCodes bodies), so module scope is safe for them.
+//
+// The CACHE VALUES THEMSELVES, however, live on `window._personnelAssignedCodes` (not
+// module scope) -- see initAssignedCodesListeners()'s doc comment for why: this repo's
+// scripts/verify-crossdept-admin-scoping.js extracts getAssignedProjectCodes /
+// getAssignedServiceCodes as standalone text and evals them against a stubbed
+// `global.window`, so a module-scope let/const referenced from inside a helper body would
+// throw ReferenceError there.
+let _assignedCodesProjectsUnsub = null;
+let _assignedCodesServicesUnsub = null;
+let _assignedCodesInitializedForUid = null;
+
+/**
+ * Bootstrap the personnel-derived assignment cache (Phase 113 D-08).
+ * Attaches real-time `where('personnel_user_ids', 'array-contains', user.uid)` listeners on
+ * `projects` and/or `services` -- ONLY for dimensions where the actor is actually scoped (i.e.
+ * where getAssignedProjectCodes()/getAssignedServiceCodes() would NOT short-circuit to `null`) --
+ * and derives the code lists those two helpers read from `window._personnelAssignedCodes`.
+ *
+ * Idempotent: a second call for the same user.uid while listeners are already attached is a
+ * no-op. Fail-closed: the cache is reset to `{ projects: [], services: [] }` BEFORE anything is
+ * attached, so a user with no resolvable uid, or a load that never finishes, sees nothing rather
+ * than everything.
+ *
+ * @param {{uid?: string, role?: string, all_projects?: boolean, all_services?: boolean}|null} user
+ * @returns {Promise<void>} resolves once the FIRST snapshot of every attached dimension has
+ *   arrived (resolves immediately if neither dimension is scoped for this actor).
+ */
+export async function initAssignedCodesListeners(user) {
+    if (user && user.uid && _assignedCodesInitializedForUid === user.uid) {
+        return; // Idempotent: listeners already attached for this uid.
+    }
+    _assignedCodesInitializedForUid = user?.uid || null;
+
+    // Fail-closed default while loading (T-113-13): never leave the cache undefined.
+    window._personnelAssignedCodes = { projects: [], services: [] };
+
+    if (!user || !user.uid) {
+        return; // No resolvable uid -- fail-closed empty cache, nothing to attach.
+    }
+
+    const scopedForProjects = !PROJECT_SEE_ALL_ROLES.includes(user.role) && user.all_projects !== true;
+    const scopedForServices = !SERVICE_SEE_ALL_ROLES.includes(user.role) && user.all_services !== true;
+
+    const waiters = [];
+
+    if (scopedForProjects) {
+        let isFirstSnapshot = true;
+        waiters.push(new Promise((resolve) => {
+            _assignedCodesProjectsUnsub = onSnapshot(
+                query(collection(db, 'projects'), where('personnel_user_ids', 'array-contains', user.uid)),
+                (snapshot) => {
+                    const codes = [];
+                    snapshot.forEach((d) => {
+                        const code = d.data().project_code;
+                        if (code) codes.push(code); // codeless assigned projects contribute no code (handled by consumer-site carve-outs)
+                    });
+                    const previous = window._personnelAssignedCodes.projects;
+                    window._personnelAssignedCodes.projects = codes;
+                    if (!isFirstSnapshot && JSON.stringify(codes) !== JSON.stringify(previous)) {
+                        window.dispatchEvent(new CustomEvent('assignmentsChanged', { detail: { user: window.getCurrentUser?.() } }));
+                    }
+                    if (isFirstSnapshot) { isFirstSnapshot = false; resolve(); }
+                },
+                (error) => {
+                    // Keep the last known value -- do NOT clear to null (that would mean "see everything").
+                    console.error('[AssignedCodes] projects listener error (keeping last known value):', error);
+                    if (isFirstSnapshot) { isFirstSnapshot = false; resolve(); }
+                }
+            );
+        }));
+    }
+
+    if (scopedForServices) {
+        let isFirstSnapshot = true;
+        waiters.push(new Promise((resolve) => {
+            _assignedCodesServicesUnsub = onSnapshot(
+                query(collection(db, 'services'), where('personnel_user_ids', 'array-contains', user.uid)),
+                (snapshot) => {
+                    const codes = [];
+                    snapshot.forEach((d) => {
+                        const code = d.data().service_code;
+                        if (code) codes.push(code);
+                    });
+                    const previous = window._personnelAssignedCodes.services;
+                    window._personnelAssignedCodes.services = codes;
+                    if (!isFirstSnapshot && JSON.stringify(codes) !== JSON.stringify(previous)) {
+                        window.dispatchEvent(new CustomEvent('assignmentsChanged', { detail: { user: window.getCurrentUser?.() } }));
+                    }
+                    if (isFirstSnapshot) { isFirstSnapshot = false; resolve(); }
+                },
+                (error) => {
+                    console.error('[AssignedCodes] services listener error (keeping last known value):', error);
+                    if (isFirstSnapshot) { isFirstSnapshot = false; resolve(); }
+                }
+            );
+        }));
+    }
+
+    await Promise.all(waiters);
+}
+
+/**
+ * Tear down the personnel-derived assignment cache listeners (Phase 113 D-08 / T-113-12).
+ * Unsubscribes both listeners (if attached), clears the module-level handles, and resets
+ * `window._personnelAssignedCodes` to the fail-closed default so no stale personnel data
+ * survives a logout, a deactivation, or a role change.
+ */
+export function destroyAssignedCodesListeners() {
+    if (_assignedCodesProjectsUnsub) {
+        _assignedCodesProjectsUnsub();
+        _assignedCodesProjectsUnsub = null;
+    }
+    if (_assignedCodesServicesUnsub) {
+        _assignedCodesServicesUnsub();
+        _assignedCodesServicesUnsub = null;
+    }
+    _assignedCodesInitializedForUid = null;
+    window._personnelAssignedCodes = { projects: [], services: [] };
+}
+
 /**
  * Get the set of project codes the current user is allowed to see.
- * Quick 260627-kg0: ASSIGNMENT-DRIVEN — returns assigned_project_codes for BOTH operations_user AND
- * services_user (a services_user assigned to a project is scoped-IN to it).
+ * Quick 260627-kg0: ASSIGNMENT-DRIVEN — scoped for BOTH operations_user AND services_user (a
+ * services_user assigned to a project is scoped-IN to it).
  * Quick 260706-mco: returns null ("no filter") only for PROJECT_SEE_ALL_ROLES (super_admin / finance /
  * procurement / operations_admin — its HOME department) or when the all_projects escape-hatch flag is
  * set. services_admin is intentionally NOT in PROJECT_SEE_ALL_ROLES, so it falls through to the
- * all_projects check and the fail-closed assigned_project_codes default like any cross-dept *_user.
- * Returns an empty array if a scoped user has zero project assignments.
+ * all_projects check and the fail-closed default like any cross-dept *_user.
+ * Phase 113 D-08: the returned codes are DERIVED from live `personnel_user_ids` membership on the
+ * `projects` documents themselves (see initAssignedCodesListeners()), not from the frozen
+ * `user.assigned_project_codes` array on the user document — that legacy field is deliberately no
+ * longer read here. Returns an empty array (deliberate FAIL-CLOSED posture) if a scoped user has
+ * zero project assignments, or if the personnel cache hasn't populated yet.
  *
  * @returns {string[]|null} Array of allowed project_codes, or null for "no filter"
  */
@@ -337,9 +468,9 @@ export function getAssignedProjectCodes() {
 
     if (user.all_projects === true) return null;         // "All projects" escape hatch (no-op for a services_user)
 
-    // Any non-exempt role (operations_user, services_user, or unknown/future) is scoped to its
-    // assigned_project_codes. Missing array => [] = sees nothing (deliberate FAIL-CLOSED default).
-    return Array.isArray(user.assigned_project_codes) ? user.assigned_project_codes : [];
+    // Any non-exempt role (operations_user, services_user, or unknown/future) is scoped to the
+    // personnel-derived cache. Missing/malformed cache => [] = sees nothing (FAIL-CLOSED default).
+    return Array.isArray(window._personnelAssignedCodes?.projects) ? window._personnelAssignedCodes.projects : [];
 }
 
 /**
@@ -400,13 +531,17 @@ export async function generateServiceCode(clientCode, year = null) {
 
 /**
  * Get the set of service codes the current user is allowed to see.
- * Quick 260627-kg0: ASSIGNMENT-DRIVEN — returns assigned_service_codes for BOTH services_user AND
- * operations_user (an operations_user assigned to a service is scoped-IN to it).
+ * Quick 260627-kg0: ASSIGNMENT-DRIVEN — scoped for BOTH services_user AND operations_user (an
+ * operations_user assigned to a service is scoped-IN to it).
  * Quick 260706-mco: returns null ("no filter") only for SERVICE_SEE_ALL_ROLES (super_admin / finance /
  * procurement / services_admin — its HOME department) or when the all_services escape-hatch flag is
  * set. operations_admin is intentionally NOT in SERVICE_SEE_ALL_ROLES, so it falls through to the
- * all_services check and the fail-closed assigned_service_codes default like any cross-dept *_user.
- * Returns an empty array if a scoped user has zero service assignments.
+ * all_services check and the fail-closed default like any cross-dept *_user.
+ * Phase 113 D-08: the returned codes are DERIVED from live `personnel_user_ids` membership on the
+ * `services` documents themselves (see initAssignedCodesListeners()), not from the frozen
+ * `user.assigned_service_codes` array on the user document — that legacy field is deliberately no
+ * longer read here. Returns an empty array (deliberate FAIL-CLOSED posture) if a scoped user has
+ * zero service assignments, or if the personnel cache hasn't populated yet.
  *
  * @returns {string[]|null} Array of allowed service_codes, or null for "no filter"
  */
@@ -417,8 +552,9 @@ export function getAssignedServiceCodes() {
 
     if (user.all_services === true) return null;         // "All services" escape hatch (no-op for an operations_user)
 
-    // Any non-exempt role is scoped to its assigned_service_codes (FAIL-CLOSED: missing => [] = sees nothing).
-    return Array.isArray(user.assigned_service_codes) ? user.assigned_service_codes : [];
+    // Any non-exempt role is scoped to the personnel-derived cache (FAIL-CLOSED: missing/malformed
+    // cache => [] = sees nothing).
+    return Array.isArray(window._personnelAssignedCodes?.services) ? window._personnelAssignedCodes.services : [];
 }
 
 /**
@@ -650,6 +786,8 @@ window.getAssignedProjectCodes = getAssignedProjectCodes;
 window.generateServiceCode = generateServiceCode;
 window.getAssignedServiceCodes = getAssignedServiceCodes;
 window.syncServicePersonnelToAssignments = syncServicePersonnelToAssignments;
+window.initAssignedCodesListeners = initAssignedCodesListeners;
+window.destroyAssignedCodesListeners = destroyAssignedCodesListeners;
 
 /* ========================================
    PERSONNEL UTILITIES
