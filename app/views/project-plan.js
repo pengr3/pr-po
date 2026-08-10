@@ -255,7 +255,25 @@ export async function init(activeTab = null, param = null) {
     showLoading(true);
     try {
         // 1. Load the project doc by project_code
-        const projSnap = await getDocs(query(collection(db, 'projects'), where('project_code', '==', projectCode)));
+        // Phase 113 D-02/D-16: structural twin of project-detail.js's project_code lookup — the two
+        // must stay in lockstep. A bare equality clause is a LIST query, provably unsatisfiable under
+        // the tightened array-contains-only rule (113-10) for scoped roles. getAssignedProjectCodes()
+        // delegates the see-all/scoped decision (no role literal hard-coded here); scoped roles pair
+        // the equality clause with personnel_user_ids array-contains on the SAME query, served by the
+        // projects x project_code x personnel_user_ids composite index deployed in plan 113-02. A
+        // scoped actor with no resolvable uid falls through to the existing projSnap.empty path below
+        // (fail-closed, same "Project not found" empty state — no query is even issued).
+        const assignedCodes = window.getAssignedProjectCodes?.();
+        let projectsQuery = query(collection(db, 'projects'), where('project_code', '==', projectCode));
+        if (assignedCodes !== null) {
+            const uid = window.getCurrentUser?.()?.uid;
+            if (uid) {
+                projectsQuery = query(collection(db, 'projects'), where('project_code', '==', projectCode), where('personnel_user_ids', 'array-contains', uid));
+            } else {
+                projectsQuery = null;
+            }
+        }
+        const projSnap = projectsQuery ? await getDocs(projectsQuery) : { empty: true, docs: [] };
         if (projSnap.empty) {
             const surface = document.getElementById('planViewSurface');
             if (surface) {
