@@ -238,17 +238,60 @@ async function showClientDetail(clientId) {
     showLoading(true);
 
     try {
+        // Phase 113 D-13/D-16/T-113-32: the `clients` tab is universally accessible
+        // with an unguarded row onclick, so this is a genuinely all-roles surface.
+        // Each dimension (projects / services) is decided INDEPENDENTLY via its own
+        // getAssigned*Codes() helper — a single actor can be scoped on one dimension
+        // and see-all on the other (e.g. services_admin is scoped for projects, see-all
+        // for services; operations_admin is the mirror). A scoped actor opening a
+        // client's detail now sees only the projects/services of that client they are
+        // personnel on, not the client's full roster — that is the intended posture,
+        // not a bug to "fix" back later.
+        const currentUser = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser() : null;
+        const uid = currentUser?.uid || null;
+
+        const assignedProjectCodes = (typeof window.getAssignedProjectCodes === 'function')
+            ? window.getAssignedProjectCodes()
+            : null;
+        let projectsPromise;
+        if (assignedProjectCodes === null) {
+            projectsPromise = getDocs(query(collection(db, 'projects'), where('client_code', '==', client.client_code)));
+        } else if (uid) {
+            // Served by the projects x client_code x personnel_user_ids composite index (113-02).
+            projectsPromise = getDocs(query(
+                collection(db, 'projects'),
+                where('client_code', '==', client.client_code),
+                where('personnel_user_ids', 'array-contains', uid)
+            ));
+        } else {
+            projectsPromise = Promise.resolve(null); // fail-closed: no resolvable uid
+        }
+
+        const assignedServiceCodes = (typeof window.getAssignedServiceCodes === 'function')
+            ? window.getAssignedServiceCodes()
+            : null;
+        let servicesPromise;
+        if (assignedServiceCodes === null) {
+            servicesPromise = getDocs(query(collection(db, 'services'), where('client_code', '==', client.client_code)));
+        } else if (uid) {
+            // Served by the services x client_code x personnel_user_ids composite index (113-02).
+            servicesPromise = getDocs(query(
+                collection(db, 'services'),
+                where('client_code', '==', client.client_code),
+                where('personnel_user_ids', 'array-contains', uid)
+            ));
+        } else {
+            servicesPromise = Promise.resolve(null); // fail-closed: no resolvable uid
+        }
+
         // Fetch linked projects and services in parallel
-        const [projectsSnap, servicesSnap] = await Promise.all([
-            getDocs(query(collection(db, 'projects'), where('client_code', '==', client.client_code))),
-            getDocs(query(collection(db, 'services'), where('client_code', '==', client.client_code)))
-        ]);
+        const [projectsSnap, servicesSnap] = await Promise.all([projectsPromise, servicesPromise]);
 
         const linkedProjects = [];
-        projectsSnap.forEach(d => linkedProjects.push({ id: d.id, ...d.data() }));
+        if (projectsSnap) projectsSnap.forEach(d => linkedProjects.push({ id: d.id, ...d.data() }));
 
         const linkedServices = [];
-        servicesSnap.forEach(d => linkedServices.push({ id: d.id, ...d.data() }));
+        if (servicesSnap) servicesSnap.forEach(d => linkedServices.push({ id: d.id, ...d.data() }));
 
         // Build client info section
         const clientInfoHtml = `
