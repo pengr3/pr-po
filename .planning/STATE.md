@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: milestone_shipped
-stopped_at: Completed 113-03-PLAN.md
-last_updated: "2026-08-10T17:09:57.313Z"
+stopped_at: Completed 113-04-PLAN.md
+last_updated: "2026-08-10T17:19:41.962Z"
 last_activity: 2026-08-10
 progress:
   total_phases: 57
   completed_phases: 51
   total_plans: 187
-  completed_plans: 192
+  completed_plans: 193
   percent: 89
 ---
 
@@ -84,7 +84,7 @@ See: .planning/PROJECT.md (updated 2026-06-16 after v4.0 ship)
 **Prior context — Phase 91.3 pre-planning (inserted 2026-06-03 via `/gsd-phase --insert 91`): RFP Fees (add Transfer / Cash-Out / Miscellaneous fees at RFP creation).** Urgent insertion. Pre-planning done 2026-06-03: **CONTEXT** (`91.3-CONTEXT.md`, commit `b8da6c1`) → **5 sketches** (`.planning/sketches/001–005`, winners locked, commit `241df3b`) → **UI-SPEC approved** (`91.3-UI-SPEC.md`, gsd-ui-checker 5 PASS/1 FLAG, commit `73956be`). **PLANNED 2026-06-03** (`/gsd-plan-phase 91.3` → 6 plans, 3 waves, commit `694bda6`; pattern-mapper mapped 22 modification anchors; plan-checker **VERIFICATION PASSED**, 0 blockers, 2 non-blocking warnings). **Next: `/clear` → `/gsd-execute-phase 91.3`.** Locked: fees on all 3 RFP types (PO-tranche, Delivery-Fee, TR), per-RFP attachment; Transfer/Cash-Out free-entry+optional, Misc repeatable label+amount, positive-only; sectioned RFP modal w/ progressive-disclosure fees + live total (sketch 001-B); dense Payables/PO-summary show collapsed fee-inclusive total + "incl. fees" cue (tap-toggle on touch + RFP-ID opens detail modal), full itemization in `openRecordPaymentModal` (no standalone detail modal exists); no-tranche Delivery-Fee/TR modals reuse the 4-section shell; positive-only inline validation disables Submit. **Field strategy RESOLVED (planning, strategy (a)):** `amount_requested` stays the base; additive `transfer_fee`/`cash_out_fee`/`misc_fees`/`total_with_fees`; shared legacy-safe helpers `getRFPTotal`/`getRFPFees`/`getRFPFeeBreakdown` in utils.js (Plan 01, Wave 1) feed every `amount_requested` consumer — incl. the tricky `derivePOSummary` authoritative-PO-total branch (fees added on top, else silently dropped); scoreboard fills `getPOPaymentFill`/`getTRPaymentFill` converted; collectibles sites excluded. UI-SPEC FLAG (non-blocking): tighten the modal's micro-text type ladder (cue pill / error / hint sit within ~1px). The Phase 98 record below remains the most-recently-completed work; this insert reprioritizes 91.3 ahead of any net-new phase.
 
 Phase: 113 (assignment-source-of-truth-and-project-read-enforcement) — EXECUTING
-Plan: 3 of 11
+Plan: 4 of 11
 
 **✅ Phase 113 Plan 01 (Additive indexes + widened assignment rule branches) COMPLETE 2026-08-10 — 3/3 tasks, inline sequential on main.** Additive-only groundwork for the phase: `firestore.indexes.json` grew 18→21 entries (3 new composite indexes pairing an equality field with `personnel_user_ids` array-contains, for `projects`×`project_code`, `projects`×`client_code`, `services`×`client_code` — Wave-4 client conversions will need these). `firestore.rules`: every `isAssignedTo*`-gated branch in `services` (list/update) and `project_tasks`/`service_tasks` (create/update-Tier1/delete) — 9 branches total — now additionally accepts a personnel-derived predicate (`request.auth.uid in personnel_user_ids`, guarded parent `get()` for the two task collections) as an OR alternative; legacy term stays first for short-circuit; `all_services==true` hoisted to a top-level OR term on `services` list (D-09). No helper function added (inlined per plan's explicit constraint); `projects` read rule and `users` update carve-out untouched (confirmed via diff hunk boundaries). Commits: `1b6acab` (Task 1: indexes + rules), `46c3ba6` (Task 2: 7-case emulator suite "Phase 113 — additive personnel predicate"), `6548f8c` (Task 3: `113-DEPLOY-1.md` runbook, no deploy executed). Emulator baseline 54 passing/2 failing → post-task 61 passing/2 failing (same 2 pre-existing, unrelated failures — Phase 84 D-12's `users.get` grant and the `operations_admin` `services.get` grant for `generateProjectCode()` — logged to `deferred-items.md`, not fixed, out of this plan's additive-only scope). Ready for the Wave-2 `firebase deploy --only firestore:indexes` / `--only firestore:rules` human gate per `113-DEPLOY-1.md`. **Next:** Plan 02.
 
@@ -273,6 +273,7 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 | Phase 102 P01 | ~5 | 1 task (Phase 102 CSS block: tranche-editor + finance-bar DLP states + portfolio borders) | 1 file |
 | Phase 113 P01 | 35min | 3 tasks | 3 files |
 | Phase 113 P03 | 7min | 3 tasks | 3 files |
+| Phase 113 P04 | ~10min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -716,6 +717,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 113-01]: 2 pre-existing, unrelated test/firestore.test.js failures logged to deferred-items.md rather than fixed — Confirmed present in the pre-task baseline, unchanged after — outside this plan's additive-only, services/project_tasks/service_tasks-only scope
 - [Phase 113]: Personnel-derived assignment cache lives on window._personnelAssignedCodes (not module scope) — Keeps scripts/verify-crossdept-admin-scoping.js's extract-and-eval technique working without ReferenceError; module-scope unsubscribe handles stay module-scope since eval'd bodies never reference them
 - [Phase 113]: initAssignedCodesListeners awaited before initial route render in app/auth.js — Closes the race where a scoped view could render before the first personnel snapshot arrives; a cache bootstrap failure is caught and swallowed since the fail-closed [] default is already the safe outcome
+- [Phase 113-04]: Removed createEngagement's onAfterCreate callback as a property entirely (not kept as an empty function) from addProject/addService, since engagement-create.js treats it as optional
+- [Phase 113-04]: services.js loadServices() collapsed to 2 branches keyed uniformly on getAssignedServiceCodes() !== null; the old assignedCodes.length === 0 early-return was deliberately not reintroduced so a newly-assigned user's service appears live without reload
 
 ### Pending Todos
 
@@ -785,8 +788,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-08-10
-Last session: 2026-08-10T17:09:57.280Z
-Stopped at: Completed 113-03-PLAN.md
+Last session: 2026-08-10T17:19:41.933Z
+Stopped at: Completed 113-04-PLAN.md
 Resume file: None
 Next action: Pick next thread. Carry-over loose ends: (1) Phase 86.9 Plan 03 untracked (write SUMMARY-03 + commit/clean DEBUG.md + debug-diag-86.9.js + fix ROADMAP 2/2→3/3); (2) Phase 86.5 (Gantt UI Polish 3) still unplanned; (3) firestore.rules PROD deploy still deferred until v3.3→main merge — NOTE the f785915 project_iterations update rule is now ALSO pending that prod deploy (on top of the Phase 87.4 attachment-gate rule); dev is current, prod is not. Housekeeping: ~17 stale .continue-here files + orphan 83-05 plan + untracked .claude/worktrees/.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
