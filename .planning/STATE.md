@@ -4,12 +4,12 @@ milestone: v4.0
 milestone_name: Procurement → Full Management Portal
 status: milestone_shipped
 stopped_at: Phase 113 context gathered
-last_updated: "2026-08-10T07:30:13.267Z"
-last_activity: "2026-07-22 - Completed quick task 260722-msg: fixed the cross-dept admin MRF-filing gap on the dedicated MRF form (app/views/mrf-form.js ~L406-407) — added services_admin to showProjects + operations_admin to showServices so an assigned cross-dept admin can now file an MRF against its assigned project/service (completes 260706-mco's mirror principle on the surface it never touched). Diagnosed first via /gsd:debug --diagnose (.planning/debug/crossdept-admin-mrf-filing.md). Client-side only — no firestore.rules change (mrfs create :399 already permitted both admins); downstream getAssignedProjectCodes/getAssignedServiceCodes already scope to assigned-only (no leak). Commit 1b55dee. PENDING on user: browser UAT (assigned admin sees only its assigned cross-dept item + home dept see-all; unassigned admin sees none). OUT OF SCOPE follow-up: procurement.js:3866 Create-MRF surface is unscoped/over-permissive. — Prior: 260706-mco (code) verified; its browser UAT + `firebase deploy --only firestore:rules` still pending per user (MCP deploy no-ops, use CLI)."
+last_updated: "2026-08-10T09:05:55.227Z"
+last_activity: 2026-08-10
 progress:
   total_phases: 57
   completed_phases: 51
-  total_plans: 176
+  total_plans: 187
   completed_plans: 189
   percent: 89
 ---
@@ -774,7 +774,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 ## Session Continuity
 
-Last activity: 2026-07-22 - Completed quick task 260722-msg: fixed the cross-dept admin MRF-filing gap on the dedicated MRF form (app/views/mrf-form.js ~L406-407) — added services_admin to showProjects + operations_admin to showServices so an assigned cross-dept admin can now file an MRF against its assigned project/service (completes 260706-mco's mirror principle on the surface it never touched). Diagnosed first via /gsd:debug --diagnose (.planning/debug/crossdept-admin-mrf-filing.md). Client-side only — no firestore.rules change (mrfs create :399 already permitted both admins); downstream getAssignedProjectCodes/getAssignedServiceCodes already scope to assigned-only (no leak). Commit 1b55dee. PENDING on user: browser UAT (assigned admin sees only its assigned cross-dept item + home dept see-all; unassigned admin sees none). OUT OF SCOPE follow-up: procurement.js:3866 Create-MRF surface is unscoped/over-permissive. — Prior: 260706-mco (code) verified; its browser UAT + `firebase deploy --only firestore:rules` still pending per user (MCP deploy no-ops, use CLI).
+Last activity: 2026-08-10
 Last session: 2026-08-10T07:30:13.237Z
 Stopped at: Phase 113 context gathered
 Resume file: .planning/phases/113-assignment-source-of-truth-and-project-read-enforcement/113-CONTEXT.md
