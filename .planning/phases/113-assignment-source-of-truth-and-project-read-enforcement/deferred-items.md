@@ -42,3 +42,39 @@ emulator command exits 0" / "zero failing tests" for the whole suite. Both bars 
 because of these 2 pre-existing, unrelated failures — the 7 new Phase 113 tests all pass, and the
 overall passing count grew by exactly +7 (54 → 61) with no new failures. See `113-01-SUMMARY.md`
 for the full pre/post counts.
+
+## 2. Production deploy of the Phase 113 additive indexes + rules (CARRY — blocking before prod ship)
+
+**Discovered during:** Plan 02 (Wave-2 deploy gate).
+
+Plan 113-02 as written deploys to production `clmc-procurement`. The operator redirected it to
+dev-first, so `clmc-procurement-dev` now serves the 3 `personnel_user_ids` composite indexes and the
+additively-widened `firestore.rules`, while **production still serves the pre-Phase-113 rules and 18
+indexes**.
+
+D-03 ("the additive rules + indexes are LIVE in production before any client query conversion ships")
+is therefore satisfied on dev only. The Wave-4 client conversions issue
+`where('personnel_user_ids','array-contains',uid)` queries that current PRODUCTION rules deny for a
+`services_user`, and Netlify auto-deploys from a push — so the production deploy must precede the
+next push of converted client code, and no later than plan 113-11's gate.
+
+**Required, in order, against production:**
+```
+firebase use                                   # expect clmc-procurement
+firebase deploy --only firestore:indexes       # then wait for Enabled in the console
+firebase deploy --only firestore:rules
+```
+Note this deploy also carries the standing un-deployed rules debt from phases 87.4 / 99 / 100 / 101 /
+102 / 103.1 / 104 / 105-01 plus the `fix(crossdept-sync)` carve-out at `8591740` — diff before shipping.
+
+## 3. Index `Enabled`-state check has no local automation
+
+**Discovered during:** Plan 02.
+
+`firebase firestore:indexes --project <alias>` returns export-shaped configuration and omits the
+Firestore Admin API's `state` field; `gcloud` is not installed and there is no local service-account
+key. Index build state can only be read from the Firebase console.
+
+**Action:** before plan 113-04's UAT exercises the paired queries, eyeball
+Firebase console → Firestore → Indexes on dev (and later prod) and confirm all 3
+`personnel_user_ids` indexes read `Enabled`, not `Building`.
