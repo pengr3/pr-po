@@ -30,6 +30,18 @@
  * (the two extracted function declarations) in a single shared scope so the
  * functions close over the consts.
  *
+ * PHASE 113 D-08 ADDITION — window._personnelAssignedCodes:
+ * As of Phase 113, the two helpers ALSO read `window._personnelAssignedCodes`
+ * (an object with `projects`/`services` string-array properties) instead of
+ * the frozen `user.assigned_project_codes` / `user.assigned_service_codes`
+ * fields on the stubbed user object. This is why the cache lives on `window`
+ * rather than in module scope: it must be reachable from inside the
+ * eval'd, extracted function bodies exactly the way `window.getCurrentUser`
+ * already is. Each matrix case below sets `global.window._personnelAssignedCodes`
+ * immediately before invoking the helpers, in place of the old mechanism of
+ * setting `assigned_project_codes`/`assigned_service_codes` on the stub.
+ *
+
  * USAGE:
  *   node scripts/verify-crossdept-admin-scoping.js
  *
@@ -187,11 +199,14 @@ function loadIsMrfInAssignedScope(procurementText) {
 // Test fixtures
 // ---------------------------------------------------------------------------
 
+// Phase 113 D-08: stubs no longer carry assigned_project_codes/assigned_service_codes --
+// those fields are frozen and deliberately no longer read by the repointed helpers. Only
+// role/uid/all_projects/all_services remain (the helpers still read those).
 const ROLE_STUBS = {
-    operations_admin: { role: 'operations_admin', uid: 'u-opsadmin', all_projects: false, assigned_project_codes: [], assigned_service_codes: ['S1'] },
-    services_admin: { role: 'services_admin', uid: 'u-svcadmin', all_services: false, assigned_project_codes: ['P1'], assigned_service_codes: [] },
-    operations_user: { role: 'operations_user', uid: 'u-opsuser', assigned_project_codes: ['P1'], assigned_service_codes: ['S1'] },
-    services_user: { role: 'services_user', uid: 'u-svcuser', assigned_project_codes: ['P1'], assigned_service_codes: ['S1'] },
+    operations_admin: { role: 'operations_admin', uid: 'u-opsadmin', all_projects: false },
+    services_admin: { role: 'services_admin', uid: 'u-svcadmin', all_services: false },
+    operations_user: { role: 'operations_user', uid: 'u-opsuser' },
+    services_user: { role: 'services_user', uid: 'u-svcuser' },
     super_admin: { role: 'super_admin', uid: 'u-super' },
     finance: { role: 'finance', uid: 'u-finance' },
     procurement: { role: 'procurement', uid: 'u-procurement' }
@@ -205,6 +220,20 @@ const EXPECTED_SCOPES = {
     super_admin: { projects: null, services: null },
     finance: { projects: null, services: null },
     procurement: { projects: null, services: null }
+};
+
+// Phase 113 D-08: the personnel-derived cache each role's stub is "populated" with for the
+// matrix run below. For roles the helper short-circuits to null (before ever touching the
+// cache), the values here are inert -- included anyway so isMrfInAssignedScope's Part-2 matrix
+// (which DOES consult non-null scoped arrays) has consistent fixtures to work from.
+const PERSONNEL_CACHE_BY_ROLE = {
+    operations_admin: { projects: [], services: ['S1'] },
+    services_admin: { projects: ['P1'], services: [] },
+    operations_user: { projects: ['P1'], services: ['S1'] },
+    services_user: { projects: ['P1'], services: ['S1'] },
+    super_admin: { projects: [], services: [] },
+    finance: { projects: [], services: [] },
+    procurement: { projects: [], services: [] }
 };
 
 // department-keyed MRF fixtures; LEGACY has NO `department` field (legacy doc)
@@ -246,6 +275,9 @@ function main() {
     for (const roleName of Object.keys(ROLE_STUBS)) {
         const stub = ROLE_STUBS[roleName];
         global.window.getCurrentUser = () => stub;
+        // Phase 113 D-08: populate the personnel-derived cache instead of setting
+        // assigned_project_codes/assigned_service_codes on the stub.
+        global.window._personnelAssignedCodes = PERSONNEL_CACHE_BY_ROLE[roleName];
         const projResult = getAssignedProjectCodes();
         const svcResult = getAssignedServiceCodes();
         const expected = EXPECTED_SCOPES[roleName];
@@ -256,21 +288,40 @@ function main() {
 
     // --- Landmine assertions (explicit): role branch wins BEFORE the all_* flag is read ---
     {
-        const stub = { role: 'operations_admin', all_projects: false, assigned_project_codes: [] };
+        const stub = { role: 'operations_admin', all_projects: false };
         global.window.getCurrentUser = () => stub;
+        global.window._personnelAssignedCodes = { projects: [], services: [] };
         assertEqual(getAssignedProjectCodes(), null, '[landmine] operations_admin with all_projects:false still returns projects=null');
     }
     {
-        const stub = { role: 'services_admin', all_services: false, assigned_service_codes: [] };
+        const stub = { role: 'services_admin', all_services: false };
         global.window.getCurrentUser = () => stub;
+        global.window._personnelAssignedCodes = { projects: [], services: [] };
         assertEqual(getAssignedServiceCodes(), null, '[landmine] services_admin with all_services:false still returns services=null');
     }
 
     // --- Not-logged-in returns null in both (bonus coverage) ---
     {
         global.window.getCurrentUser = () => null;
+        global.window._personnelAssignedCodes = undefined;
         assertEqual(getAssignedProjectCodes(), null, '[not-logged-in] getAssignedProjectCodes()');
         assertEqual(getAssignedServiceCodes(), null, '[not-logged-in] getAssignedServiceCodes()');
+    }
+
+    // --- Phase 113 D-08 fail-closed posture: an undefined cache must yield [] for a scoped
+    // role, never null and never undefined. These prove the FAIL-CLOSED default the plan
+    // requires -- a load-in-progress or a broken cache must never resolve to "see everything".
+    {
+        const stub = { role: 'services_user', uid: 'u-svcuser-failclosed' };
+        global.window.getCurrentUser = () => stub;
+        global.window._personnelAssignedCodes = undefined;
+        assertEqual(getAssignedProjectCodes(), [], '[fail-closed] services_user projects with undefined cache returns []');
+    }
+    {
+        const stub = { role: 'operations_user', uid: 'u-opsuser-failclosed' };
+        global.window.getCurrentUser = () => stub;
+        global.window._personnelAssignedCodes = undefined;
+        assertEqual(getAssignedServiceCodes(), [], '[fail-closed] operations_user services with undefined cache returns []');
     }
 
     // --- Part 2: isMrfInAssignedScope matrix (wire the real helpers onto window) ---
@@ -282,6 +333,7 @@ function main() {
     for (const roleName of Object.keys(EXPECTED_VISIBILITY)) {
         const stub = ROLE_STUBS[roleName];
         global.window.getCurrentUser = () => stub;
+        global.window._personnelAssignedCodes = PERSONNEL_CACHE_BY_ROLE[roleName];
         const row = [];
         for (const key of MRF_KEYS) {
             const mrf = MRF_SAMPLES[key];
