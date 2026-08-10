@@ -46,14 +46,14 @@ No active milestone. Run `/gsd-new-milestone` to define the next version (questi
 
 **Requirements**: D-01 … D-17 (no formal REQ-IDs exist for this phase — the requirement set IS the `113-CONTEXT.md` locked decision set)
 **Depends on:** None — independent of v4.2 phases 106–112
-**Plans:** 11 plans / 7 waves
+**Plans:** 1/11 plans executed
 
 **Numbering note:** numbered 113 (not 106) deliberately. Main's ROADMAP is stale and says numbering continues from 106, but branch `v4.2` has already used 106–112. 113 avoids a collision when main merges into v4.2.
 
 Plans:
 **Wave 1**
 
-- [ ] 113-01-PLAN.md — W1: 3 composite indexes + ADDITIVE firestore.rules widening (services list/update, project_tasks, service_tasks accept a personnel predicate) + emulator coverage
+- [x] 113-01-PLAN.md — W1: 3 composite indexes + ADDITIVE firestore.rules widening (services list/update, project_tasks, service_tasks accept a personnel predicate) + emulator coverage
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
