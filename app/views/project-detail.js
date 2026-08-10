@@ -5,7 +5,7 @@
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, writeBatch, getAggregateFromServer, sum, count, addDoc, serverTimestamp, orderBy, limit, arrayUnion } from '../firebase.js';
 import { storage, ref, uploadBytes, getDownloadURL, deleteObject, purgeStoragePrefix } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncPersonnelToAssignments, downloadCSV, escapeHTML, generateProjectCode, getRFPFees } from '../utils.js';
+import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, downloadCSV, escapeHTML, generateProjectCode, getRFPFees } from '../utils.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { createNotificationForUsers, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
@@ -217,7 +217,35 @@ export async function init(activeTab = null, param = null) {
 
     // Phase 78 D-06: Try project_code lookup first (existing behavior). If no match, fall back to Firestore doc ID lookup
     // for clientless projects whose URL param is the doc ID rather than a project_code.
-    const q = query(collection(db, 'projects'), where('project_code', '==', projectCode));
+    // Phase 113 D-02/D-16: a bare project_code equality clause is a LIST query, provably unsatisfiable
+    // under the tightened array-contains-only rule (113-10) for scoped roles (operations_user,
+    // services_user, services_admin — getAssignedProjectCodes() delegates the see-all/scoped decision,
+    // no role literal is hard-coded here). Scoped roles pair the equality clause with a
+    // personnel_user_ids array-contains clause on the SAME query, served by the
+    // projects x project_code x personnel_user_ids composite index deployed in plan 113-02.
+    // The getDoc(doc(db,'projects',projectCode)) fallback a few lines below is a single-document
+    // get() evaluated against the document's own fields, so it needs no query-shape change.
+    const assignedCodes = window.getAssignedProjectCodes?.();
+    let q;
+    if (assignedCodes === null) {
+        q = query(collection(db, 'projects'), where('project_code', '==', projectCode));
+    } else {
+        const uid = window.getCurrentUser?.()?.uid;
+        if (!uid) {
+            document.getElementById('projectDetailContainer').innerHTML = `
+                <div class="container" style="margin-top: 2rem;">
+                    <div class="card">
+                        <div class="card-body">
+                            <p>Project not found.</p>
+                            <a href="#/projects" class="btn btn-primary">Back to Projects</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        q = query(collection(db, 'projects'), where('project_code', '==', projectCode), where('personnel_user_ids', 'array-contains', uid));
+    }
     listener = onSnapshot(q, async (snapshot) => {
         if (snapshot.empty) {
             // Phase 78 D-06: fallback — projectCode might actually be a Firestore doc ID for a clientless project
@@ -1594,9 +1622,6 @@ async function selectDetailPersonnel(userId, userName) {
     if (!currentProject) return;
     if (detailSelectedPersonnel.some(u => u.id === userId)) return;
 
-    // Capture old state for sync diff
-    const previousUserIds = detailSelectedPersonnel.map(u => u.id).filter(Boolean);
-
     detailSelectedPersonnel.push({ id: userId, name: userName });
 
     // Save immediately to Firestore
@@ -1613,10 +1638,6 @@ async function selectDetailPersonnel(userId, userName) {
         recordEditHistory(currentProject.id, 'personnel_add', [
             { field: 'personnel', old_value: null, new_value: userName }
         ]).catch(err => console.error('[EditHistory] selectPersonnel failed:', err));
-        // Sync assignment (fire-and-forget)
-        const newUserIds = detailSelectedPersonnel.map(u => u.id).filter(Boolean);
-        syncPersonnelToAssignments(currentProject.project_code, previousUserIds, newUserIds)
-            .catch(err => console.error('[ProjectDetail] Assignment sync failed:', err));
     } catch (error) {
         console.error('[ProjectDetail] Error saving personnel:', error);
         showToast('Failed to add personnel', 'error');
@@ -1658,11 +1679,6 @@ async function removeDetailPersonnel(userId, userName) {
         recordEditHistory(currentProject.id, 'personnel_remove', [
             { field: 'personnel', old_value: userName || userId, new_value: null }
         ]).catch(err => console.error('[EditHistory] removePersonnel failed:', err));
-        // Sync assignment (fire-and-forget)
-        const previousUserIds = previousState.map(u => u.id).filter(Boolean);
-        const newUserIds = detailSelectedPersonnel.map(u => u.id).filter(Boolean);
-        syncPersonnelToAssignments(currentProject.project_code, previousUserIds, newUserIds)
-            .catch(err => console.error('[ProjectDetail] Assignment sync failed:', err));
     } catch (error) {
         console.error('[ProjectDetail] Error removing personnel:', error);
         showToast('Failed to remove personnel', 'error');
@@ -2210,13 +2226,12 @@ async function runCodeIssuance(clientId, clientCode, newProjectCode) {
             { field: 'code_issued_backfill_count', old_value: null, new_value: totalChildren }
         ]).catch(err => console.error('[EditHistory] code_issued failed:', err));
 
-        // 5. Sync personnel-to-assignments now that we have a project_code (skipped at create-time per Plan 01)
-        const newUserIds = (currentProject.personnel_user_ids || []).filter(Boolean);
-        if (newUserIds.length > 0) {
-            syncPersonnelToAssignments(newProjectCode, [], newUserIds)
-                .catch(err => console.error('[ProjectDetail] Post-issuance assignment sync failed:', err));
-        }
-
+        // 5. Phase 113 D-08: no backfill needed here. Under the personnel-authoritative model,
+        // personnel_user_ids on this project document was always written correctly by the
+        // personnel add/remove handlers above (they write personnel_user_ids directly, never
+        // through a sync helper) — code issuance changes project_code/client_code/client_id,
+        // it does not touch personnel_user_ids. Reads keyed on the live document field therefore
+        // self-heal with no migration step required.
         showToast(`Code ${newProjectCode} issued and applied to ${totalChildren} record${totalChildren === 1 ? '' : 's'}`, 'success');
 
         // 6. Redirect to the new code-based URL so the user lands on the canonical detail page
@@ -3771,7 +3786,7 @@ function attachWindowFunctions() {
     window.openFullBreakdown = async () => {
         if (!currentProject) return;
         await refreshExpense(true);
-        showExpenseBreakdownModal(currentProject.project_name, { mode: 'project' });
+        showExpenseBreakdownModal(currentProject.project_name, { mode: 'project', budget: currentProject.budget, projectCode: currentProject.project_code });
     };
     window.selectDetailPersonnel = selectDetailPersonnel;
     window.removeDetailPersonnel = removeDetailPersonnel;
