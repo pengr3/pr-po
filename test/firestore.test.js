@@ -688,3 +688,112 @@ describe("services_admin user document access", () => {
     );
   });
 });
+
+// =============================================
+// Test Suite: Cross-Department Personnel Assignment Sync
+// (services-user-project-hidden fix, 2026-08-10 — before this fix, syncPersonnelToAssignments /
+// syncServicePersonnelToAssignments silently failed here with PERMISSION_DENIED, leaving the
+// target user's assignment array unpopulated and the project/service invisible to them)
+// =============================================
+
+describe("operations_admin cross-dept assignment sync", () => {
+  beforeEach(seedUsers);
+
+  it("operations_admin can update assigned_project_codes on a services_user document", async () => {
+    const db = testEnv.authenticatedContext("active-ops-admin").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "users", "active-services-user"), {
+        assigned_project_codes: ["CLMC_TEST_2026001"]
+      })
+    );
+  });
+
+  it("operations_admin CANNOT change other fields on a services_user document via the sync path", async () => {
+    const db = testEnv.authenticatedContext("active-ops-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-services-user"), {
+        assigned_project_codes: ["CLMC_TEST_2026001"],
+        role: "operations_user"
+      })
+    );
+  });
+
+  it("operations_admin CANNOT update assigned_project_codes on a services_admin document", async () => {
+    const db = testEnv.authenticatedContext("active-ops-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-services-admin"), {
+        assigned_project_codes: ["CLMC_TEST_2026001"]
+      })
+    );
+  });
+
+  it("operations_admin CANNOT update assigned_project_codes on a finance user document", async () => {
+    const db = testEnv.authenticatedContext("active-ops-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-finance"), {
+        assigned_project_codes: ["CLMC_TEST_2026001"]
+      })
+    );
+  });
+});
+
+describe("services_admin cross-dept assignment sync", () => {
+  beforeEach(seedUsers);
+
+  it("services_admin can update assigned_service_codes on an operations_user document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "users", "active-ops-user"), {
+        assigned_service_codes: ["SVC-001"]
+      })
+    );
+  });
+
+  it("services_admin CANNOT change other fields on an operations_user document via the sync path", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-ops-user"), {
+        assigned_service_codes: ["SVC-001"],
+        role: "services_user"
+      })
+    );
+  });
+});
+
+// Assignments tab (app/views/assignments.js saveManageModal) writes the codes field AND the
+// legacy all_projects/all_services flag (set to false) in the SAME updateDoc call — a 2-key
+// diff, not the 1-key diff the Personnel-panel sync path uses. Reproduces the gap probe.
+describe("cross-dept Assignments-tab modal save (2-field write)", () => {
+  beforeEach(seedUsers);
+
+  it("operations_admin can update assigned_project_codes + all_projects together on a services_user document", async () => {
+    const db = testEnv.authenticatedContext("active-ops-admin").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "users", "active-services-user"), {
+        assigned_project_codes: ["CLMC_TEST_2026001"],
+        all_projects: false
+      })
+    );
+  });
+
+  it("services_admin can update assigned_service_codes + all_services together on an operations_user document", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "users", "active-ops-user"), {
+        assigned_service_codes: ["SVC-001"],
+        all_services: false
+      })
+    );
+  });
+
+  it("operations_admin CANNOT smuggle a third field alongside the codes+flag pair", async () => {
+    const db = testEnv.authenticatedContext("active-ops-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "users", "active-services-user"), {
+        assigned_project_codes: ["CLMC_TEST_2026001"],
+        all_projects: false,
+        role: "operations_user"
+      })
+    );
+  });
+});

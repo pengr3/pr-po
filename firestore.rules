@@ -139,13 +139,40 @@ service cloud.firestore {
                        request.resource.data.status == 'pending';
 
       // Update: super_admin OR (operations_admin AND target is operations_user) OR (services_admin AND target is services_user) OR own doc
+      //         OR (operations_admin syncing ONLY assigned_project_codes onto a services_user target)
+      //         OR (services_admin syncing ONLY assigned_service_codes onto an operations_user target)
       // SEC-AUDIT: Self-update is restricted to safe fields only.
       // A user updating their own doc CANNOT change role or status — those are admin-only fields.
       // Without this restriction, any user could escalate their own role to super_admin.
+      //
+      // services-user-project-hidden (2026-08-10): kg0/mco/msg extended cross-department Personnel
+      // assignment (syncPersonnelToAssignments / syncServicePersonnelToAssignments, utils.js) to write
+      // assigned_project_codes / assigned_service_codes onto a user OUTSIDE the acting admin's own
+      // department (e.g. operations_admin adding a services_user as project Personnel). The
+      // department-containment branches above never covered this case, so the write silently failed
+      // (PERMISSION_DENIED, swallowed by a fire-and-forget .catch()), leaving the target user's
+      // assignment array unpopulated -- hiding the project/service everywhere that array is read
+      // (Projects/Services lists, MRF form picker) despite the UI showing the Personnel add as
+      // successful. The two branches below are deliberately double-scoped: BOTH by target role
+      // (services_user / operations_user only -- never an admin/finance/procurement/super_admin doc)
+      // AND by field mask. The mask allows TWO possible payload shapes because two different UIs
+      // perform this same cross-dept sync with different field sets: the Personnel-panel path
+      // (utils.js syncPersonnelToAssignments) writes ONLY the codes array via arrayUnion/arrayRemove,
+      // while the Assignments-tab modal (assignments.js saveManageModal) writes the codes array
+      // together with the legacy all_projects/all_services flag (reset to false) in one updateDoc call.
+      // Both shapes are permitted; nothing else is. This preserves the Phase 49 audit's
+      // cross-contamination containment for role/status/all other fields, and for every non-*_user
+      // target doc.
       allow update: if isSignedIn() && (
         isRole('super_admin') ||
         (isRole('operations_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user') ||
         (isRole('services_admin') && get(/databases/$(database)/documents/users/$(userId)).data.role == 'services_user') ||
+        (isRole('operations_admin') &&
+         get(/databases/$(database)/documents/users/$(userId)).data.role == 'services_user' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assigned_project_codes', 'all_projects'])) ||
+        (isRole('services_admin') &&
+         get(/databases/$(database)/documents/users/$(userId)).data.role == 'operations_user' &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assigned_service_codes', 'all_services'])) ||
         (request.auth.uid == userId &&
          !('role' in request.resource.data) &&
          !('status' in request.resource.data) &&
