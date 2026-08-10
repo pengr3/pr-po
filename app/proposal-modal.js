@@ -204,24 +204,66 @@ function _isCallerAttachedToProposalParent(proposal) {
  * One-time load of active projects + clients for the Create/Edit modal dropdowns.
  * Caches in module scope (_modalProjectsData / _modalClientsData) for reuse on
  * subsequent opens. Refresh happens implicitly on next page load.
+ *
+ * Phase 113 T-113-31: `skipProjects` (default false) lets the preselected-project
+ * caller (Start Proposal button, `openCreateProposalModal`) skip the projects
+ * fetch entirely — the dropdown gets locked to one project a few lines after the
+ * call, so the full list is never rendered. The clients half still runs on that
+ * path. A skipped-projects load never sets `_modalProjectsLoaded`, so a later,
+ * unpreselected open still performs a real (possibly scoped) projects fetch.
+ *
+ * When projects ARE fetched, the query branches on `getAssignedProjectCodes()`:
+ * `null` (see-all role/flag) keeps the original unscoped `collection` read;
+ * otherwise a bare `personnel_user_ids array-contains uid` query is used (no
+ * second `where` clause, so no new composite index is needed). A scoped actor
+ * with no resolvable uid fails closed to an empty projects list rather than
+ * falling through to the unscoped fetch.
  */
-async function _loadModalDropdownData() {
+async function _loadModalDropdownData(skipProjects = false) {
     if (_modalProjectsLoaded) return;
     try {
+        if (skipProjects) {
+            const clientsSnap = await getDocs(collection(db, 'clients'));
+            _modalClientsData = [];
+            clientsSnap.forEach(d => {
+                _modalClientsData.push({ id: d.id, ...d.data() });
+            });
+            _modalClientsData.sort((a, b) =>
+                (a.client_code || a.company_name || '').localeCompare(b.client_code || b.company_name || '')
+            );
+            return;
+        }
+
+        const assignedProjectCodes = (typeof window.getAssignedProjectCodes === 'function')
+            ? window.getAssignedProjectCodes()
+            : null;
+        let projectsPromise;
+        if (assignedProjectCodes === null) {
+            // See-all role or all_projects === true — original unscoped fetch.
+            projectsPromise = getDocs(collection(db, 'projects'));
+        } else {
+            const uid = (typeof window.getCurrentUser === 'function') ? window.getCurrentUser()?.uid : null;
+            projectsPromise = uid
+                ? getDocs(query(collection(db, 'projects'), where('personnel_user_ids', 'array-contains', uid)))
+                : Promise.resolve(null); // fail-closed: no resolvable uid, no query issued
+        }
+
         const [projectsSnap, clientsSnap] = await Promise.all([
-            getDocs(collection(db, 'projects')),
+            projectsPromise,
             getDocs(collection(db, 'clients'))
         ]);
 
         _modalProjectsData = [];
-        projectsSnap.forEach(d => {
-            const data = { id: d.id, ...d.data() };
-            // Filter Draft + inactive projects out of the Create Proposal dropdown
-            // (mirrors proposals.js init() filter pattern).
-            if (data.project_status === 'Draft') return;
-            if (data.active === false) return;
-            _modalProjectsData.push(data);
-        });
+        if (projectsSnap) {
+            projectsSnap.forEach(d => {
+                const data = { id: d.id, ...d.data() };
+                // Filter Draft + inactive projects out of the Create Proposal dropdown
+                // (mirrors proposals.js init() filter pattern).
+                if (data.project_status === 'Draft') return;
+                if (data.active === false) return;
+                _modalProjectsData.push(data);
+            });
+        }
         _modalProjectsData.sort((a, b) =>
             (a.project_code || a.project_name || '').localeCompare(b.project_code || b.project_name || '')
         );
@@ -695,7 +737,9 @@ export async function openCreateProposalModal(preselectedProjectId = null, onClo
     _createModalOnClose = onClose;
     _createModalParentCollection = parentCollection;
     _createModalLockedProjectCode = lockedProjectCode;
-    await _loadModalDropdownData();
+    // Phase 113 T-113-31: skip the projects fetch entirely when the dropdown is
+    // about to be locked to one project below — the full list is never rendered.
+    await _loadModalDropdownData(!!preselectedProjectId);
     showCreateModal(null);
     if (preselectedProjectId) {
         const projectSelectEl = document.getElementById('proposalCreateProject');
@@ -705,6 +749,34 @@ export async function openCreateProposalModal(preselectedProjectId = null, onClo
                 syntheticOpt.value = preselectedProjectId;
                 syntheticOpt.textContent = lockedProjectCode + ' (Service)';
                 projectSelectEl.insertBefore(syntheticOpt, projectSelectEl.firstChild);
+            } else if (parentCollection === 'projects') {
+                // Projects parent, no lockedProjectCode supplied (project-detail.js's
+                // Start Proposal button). The projects list fetch was skipped above,
+                // so _modalProjectsData has no entry for this project — resolve it
+                // with a single doc get() (not a list query; the `projects` collection
+                // already grants a broad `allow read` to any active user, so this needs
+                // no personnel scoping) and splice it into the cache so saveProposal()'s
+                // project_code lookup and the option-change client auto-select both
+                // still work correctly. [Rule 1 fix — see SUMMARY.]
+                try {
+                    const projSnap = await getDoc(doc(db, 'projects', preselectedProjectId));
+                    if (projSnap.exists()) {
+                        const projData = { id: projSnap.id, ...projSnap.data() };
+                        if (!_modalProjectsData.some(p => p.id === projData.id)) {
+                            _modalProjectsData.push(projData);
+                        }
+                        const syntheticOpt = document.createElement('option');
+                        syntheticOpt.value = projData.id;
+                        syntheticOpt.dataset.code = projData.project_code || '';
+                        syntheticOpt.dataset.name = projData.project_name || '';
+                        syntheticOpt.textContent = projData.project_code
+                            ? `${projData.project_code} — ${projData.project_name || ''}`
+                            : (projData.project_name || '');
+                        projectSelectEl.insertBefore(syntheticOpt, projectSelectEl.firstChild);
+                    }
+                } catch (err) {
+                    console.error('[ProposalModal] preselected project lookup failed:', err);
+                }
             }
             projectSelectEl.value = preselectedProjectId;
             projectSelectEl.disabled = true;
