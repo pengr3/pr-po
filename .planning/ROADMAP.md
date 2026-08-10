@@ -37,3 +37,18 @@ Earlier milestones (v1.0–v3.2) are archived under `.planning/milestones/`.
 ## Next
 
 No active milestone. Run `/gsd-new-milestone` to define the next version (questioning → research → requirements → roadmap). Phase numbering continues from 106 (never reset).
+
+### Phase 113: Assignment Source-of-Truth and Project Read Enforcement
+
+**Goal:** Make `personnel_user_ids` the single authoritative record for cross-department assignment visibility, retire the two fire-and-forget sync pipelines that maintain the derived `assigned_project_codes` / `assigned_service_codes` arrays, and enforce `projects` read scoping server-side instead of as cosmetic client-side filtering.
+
+**Why now:** Live production defect — a `services_user` assigned to a project via the Personnel panel could not see it on `#/projects` nor file MRFs against it. Root cause confirmed by RED/GREEN Firestore emulator reproduction: `firestore.rules` `users.update` permitted only same-department admin→user writes, so `syncPersonnelToAssignments`' cross-department `updateDoc` was PERMISSION_DENIED and swallowed by a fire-and-forget `.catch()`, leaving the derived array unpopulated with zero UI feedback. Fourth recurrence of this bug class — quick-260627-kg0, quick-260706-mco and quick-260722-msg each patched a different read/UI layer without ever auditing the write layer. Debug trail: `.planning/debug/services-user-project-hidden.md`.
+
+**Requirements**: TBD (capture in CONTEXT.md)
+**Depends on:** None — independent of v4.2 phases 106–112
+**Plans:** 0 plans
+
+**Numbering note:** numbered 113 (not 106) deliberately. Main's ROADMAP is stale and says numbering continues from 106, but branch `v4.2` has already used 106–112. 113 avoids a collision when main merges into v4.2.
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 113 to break down)
