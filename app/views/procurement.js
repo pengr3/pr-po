@@ -7981,12 +7981,17 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
                     const mrfSnap = await getDocs(mrfQ);
                     if (!mrfSnap.empty) {
                         const mrfData = mrfSnap.docs[0].data();
-                        const projectName = mrfData.project_name;
-                        if (projectName) {
-                            const projQ = query(collection(db, 'projects'), where('project_name', '==', projectName));
-                            const projSnap = await getDocs(projQ);
-                            if (!projSnap.empty) {
-                                const projectDocId = projSnap.docs[0].id;
+                        // Phase 113 D-02: replaced the where('project_name','==',projectName) list
+                        // query with a direct document read keyed on the MRF's denormalized
+                        // project_id (Phase 78 D-04). Pre-Phase-78 MRFs may lack project_id — rather
+                        // than falling back to the retired name-based list query, the journal entry
+                        // is skipped and logged. This whole block is already best-effort inside a
+                        // "never block the status update — swallow" try/catch, so skipping is the
+                        // correct degradation (RESEARCH assumption A4: legacy-coverage rate unverified).
+                        if (mrfData.project_id) {
+                            const projSnap = await getDoc(doc(db, 'projects', mrfData.project_id));
+                            if (projSnap.exists()) {
+                                const projectDocId = projSnap.id;
                                 await addDoc(collection(db, 'projects', projectDocId, 'activity_entries'), {
                                     type: 'system',
                                     is_system: true,
@@ -7996,11 +8001,17 @@ async function updatePOStatus(poId, newStatus, currentStatus, isSubcon = false) 
                                     created_at: serverTimestamp(),
                                 });
                             }
+                        } else {
+                            console.log('[Procurement] PO Delivered project journal entry skipped — MRF has no project_id (pre-Phase-78 document)');
                         }
 
                         // Phase 104 D-12: also post to the owning SERVICE's activity_entries (services join on service_code).
                         // mrfData is already fetched above. An MRF belongs to either a project OR a service — the two branches
                         // are mutually exclusive in practice but both run defensively (own try/catch, never block status update).
+                        // Phase 113: left alone deliberately — this query is reachable only by roles with procurement_records
+                        // edit rights, all of which are in the services list rule's exempt set both before and after this
+                        // phase's scoping tightening, so it is not broken by the personnel-scoping conversion applied elsewhere.
+                        // Do not convert it speculatively to a doc-ID read; it has no denormalized service_id to key on.
                         try {
                             const serviceCode = mrfData?.service_code;
                             if (serviceCode) {
