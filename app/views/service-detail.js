@@ -6,7 +6,7 @@
 
 import { db, collection, doc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, getDocs, getAggregateFromServer, sum, count, addDoc, serverTimestamp, orderBy, limit, arrayUnion } from '../firebase.js';
 import { storage, ref, uploadBytes, getDownloadURL, deleteObject } from '../firebase.js';
-import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML, getRFPFees } from '../utils.js';
+import { formatCurrency, formatDate, showLoading, showToast, normalizePersonnel, getAssignedServiceCodes, downloadCSV, escapeHTML, getRFPFees } from '../utils.js';
 import { recordEditHistory, showEditHistoryModal } from '../edit-history.js';
 import { showExpenseBreakdownModal } from '../expense-modal.js';
 import { createNotificationForUsers, createNotificationForRoles, NOTIFICATION_TYPES } from '../notifications.js';
@@ -1144,8 +1144,6 @@ async function selectDetailServicePersonnel(userId, userName) {
     if (!currentService || !currentServiceDocId) return;
     if (selectedDetailPersonnel.some(u => u.id === userId)) return;
 
-    const previousUserIds = normalizePersonnel(currentService).userIds;
-
     selectedDetailPersonnel.push({ id: userId, name: userName });
 
     try {
@@ -1165,10 +1163,6 @@ async function selectDetailServicePersonnel(userId, userName) {
         recordEditHistory(currentServiceDocId, 'personnel_add', [
             { field: 'personnel', old_value: null, new_value: userName }
         ], 'services').catch(err => console.error('[EditHistory] selectDetailServicePersonnel failed:', err));
-
-        // Sync assignments (fire-and-forget)
-        syncServicePersonnelToAssignments(currentService.service_code, previousUserIds, newUserIds)
-            .catch(err => console.error('[ServiceDetail] Assignment sync failed:', err));
 
         // Update local state
         currentService.personnel_user_ids = newUserIds;
@@ -1194,7 +1188,6 @@ async function removeDetailServicePersonnel(userId, userName) {
     if (!currentService || !currentServiceDocId) return;
 
     const previousState = [...selectedDetailPersonnel];
-    const previousUserIds = normalizePersonnel(currentService).userIds;
 
     if (userId) {
         selectedDetailPersonnel = selectedDetailPersonnel.filter(u => u.id !== userId);
@@ -1219,10 +1212,6 @@ async function removeDetailServicePersonnel(userId, userName) {
         recordEditHistory(currentServiceDocId, 'personnel_remove', [
             { field: 'personnel', old_value: userName || userId, new_value: null }
         ], 'services').catch(err => console.error('[EditHistory] removeDetailServicePersonnel failed:', err));
-
-        // Sync assignments (fire-and-forget)
-        syncServicePersonnelToAssignments(currentService.service_code, previousUserIds, newUserIds)
-            .catch(err => console.error('[ServiceDetail] Assignment sync failed:', err));
 
         // Update local state
         currentService.personnel_user_ids = newUserIds;
