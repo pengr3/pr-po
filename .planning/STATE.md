@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.0
-milestone_name: milestone
+milestone_name: Procurement → Full Management Portal
 status: milestone_shipped
-stopped_at: v4.0 shipped 2026-06-16 (merged v3.3 → main PR #75; prod rules live; archived). Run /gsd-new-milestone for next.
-last_updated: 2026-06-16T00:00:00.000Z
-last_activity: 2026-06-16
+stopped_at: Phase 113 context gathered
+last_updated: "2026-08-10T07:30:13.267Z"
+last_activity: "2026-07-22 - Completed quick task 260722-msg: fixed the cross-dept admin MRF-filing gap on the dedicated MRF form (app/views/mrf-form.js ~L406-407) — added services_admin to showProjects + operations_admin to showServices so an assigned cross-dept admin can now file an MRF against its assigned project/service (completes 260706-mco's mirror principle on the surface it never touched). Diagnosed first via /gsd:debug --diagnose (.planning/debug/crossdept-admin-mrf-filing.md). Client-side only — no firestore.rules change (mrfs create :399 already permitted both admins); downstream getAssignedProjectCodes/getAssignedServiceCodes already scope to assigned-only (no leak). Commit 1b55dee. PENDING on user: browser UAT (assigned admin sees only its assigned cross-dept item + home dept see-all; unassigned admin sees none). OUT OF SCOPE follow-up: procurement.js:3866 Create-MRF surface is unscoped/over-permissive. — Prior: 260706-mco (code) verified; its browser UAT + `firebase deploy --only firestore:rules` still pending per user (MCP deploy no-ops, use CLI)."
 progress:
   total_phases: 57
-  completed_phases: 53
-  total_plans: 191
+  completed_phases: 51
+  total_plans: 176
   completed_plans: 189
-  percent: 93
+  percent: 89
 ---
 
 # Project State
@@ -87,6 +87,7 @@ Phase: 105
 Plan: Not started
 
 Phase 105 Plan 03 code-complete 2026-06-15 — 2 auto tasks committed:
+
 - `43281d4` Task 1: computeServiceProgress + buildServicePlanCardHtml + module state (currentTasks/currentTasksListenerUnsub/currentServiceProgress)
 - `b743b60` Task 2: wire service_tasks onSnapshot (ensureTasksListener) + teardown in init() AND destroy() + ${planCardHtml} in render tail
 
@@ -273,6 +274,7 @@ Next: Merge v3.3 → main (via /gsd-ship or manual PR), THEN run `firebase deplo
 
 ### Roadmap Evolution
 
+- Phase 113 added (2026-08-10, from a `/gsd:debug` session on `main`) — Assignment Source-of-Truth and Project Read Enforcement. Make `personnel_user_ids` the single authoritative record for cross-department assignment visibility, retire both fire-and-forget sync pipelines, and enforce `projects` reads server-side. Root cause of the driving defect confirmed by RED/GREEN Firestore emulator reproduction (`firestore.rules` `users.update` blocked the cross-dept sync write; failure swallowed by `.catch(console.error)`). Fourth recurrence of this bug class after kg0/mco/msg, each of which patched a read/UI layer without auditing the write layer. **Numbered 113, not 106** — `phase.add` assigned 106 from main's stale roadmap, but branch `v4.2` already uses 106–112; renumbered to avoid collision on merge. CONTEXT captured 2026-08-10 (commit `42c4540`) → `/gsd:plan-phase 113`. Production is UNFIXED; a `super_admin`-performs-the-assignment workaround is in use meanwhile.
 - Phase 99.3 inserted after Phase 99.2 (2026-06-06) — Collectibles Filter Bar + Urgency Sort. Completes spike 027c: the filter-bar + sort layer (Looker Studio date-range presets, search box, dept-only dropdown, group-by-Project toggle, sortByUrgency) was specified in 027c but dropped at the 99.2 plan-now scoping stage and never recorded as deferred; operator caught it after 99.2 UAT. Display/UX only, finance.js + existing CSS, no schema/rules. NOT YET PLANNED → /gsd-discuss-phase 99.3.
 - Phase 99.1 + 99.2 inserted after Phase 99 (2026-06-06) — Collectibles (money-in) revamp from VALIDATED spike series 025→027c. **99.1 (α)**: detail-page lifecycle footer + financial-summary modal revamp (spikes 025+026 → project-detail.js, service-detail.js, expense-modal.js). **99.2 (β)**: Finance Collectibles page — 4-chip scorecard, approved-not-filed unified banner, 10→5 col table redesign, mobile card (spikes 027a/b/c → finance.js + CSS). 99.2 owns the approved-not-filed orphan-state fix deferred from Phase 99. No schema change. Consolidated spec: `.planning/spikes/COLLECTIBLES-REVAMP-SPEC.md`. Both NOT YET PLANNED.
 - Phase 99 CLOSED — UNVALIDATED (2026-06-06, user direction) — executed 3/3 but UAT 5/6 (test 6 notifications left PARTIAL/unverified). Deferred items tracked in ROADMAP Phase 99.
@@ -773,9 +775,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-07-22 - Completed quick task 260722-msg: fixed the cross-dept admin MRF-filing gap on the dedicated MRF form (app/views/mrf-form.js ~L406-407) — added services_admin to showProjects + operations_admin to showServices so an assigned cross-dept admin can now file an MRF against its assigned project/service (completes 260706-mco's mirror principle on the surface it never touched). Diagnosed first via /gsd:debug --diagnose (.planning/debug/crossdept-admin-mrf-filing.md). Client-side only — no firestore.rules change (mrfs create :399 already permitted both admins); downstream getAssignedProjectCodes/getAssignedServiceCodes already scope to assigned-only (no leak). Commit 1b55dee. PENDING on user: browser UAT (assigned admin sees only its assigned cross-dept item + home dept see-all; unassigned admin sees none). OUT OF SCOPE follow-up: procurement.js:3866 Create-MRF surface is unscoped/over-permissive. — Prior: 260706-mco (code) verified; its browser UAT + `firebase deploy --only firestore:rules` still pending per user (MCP deploy no-ops, use CLI).
-Last session: 2026-06-15T06:15:45.348Z
-Stopped at: Phase 105 context gathered
-Resume file: None
+Last session: 2026-08-10T07:30:13.237Z
+Stopped at: Phase 113 context gathered
+Resume file: .planning/phases/113-assignment-source-of-truth-and-project-read-enforcement/113-CONTEXT.md
 Next action: Pick next thread. Carry-over loose ends: (1) Phase 86.9 Plan 03 untracked (write SUMMARY-03 + commit/clean DEBUG.md + debug-diag-86.9.js + fix ROADMAP 2/2→3/3); (2) Phase 86.5 (Gantt UI Polish 3) still unplanned; (3) firestore.rules PROD deploy still deferred until v3.3→main merge — NOTE the f785915 project_iterations update rule is now ALSO pending that prod deploy (on top of the Phase 87.4 attachment-gate rule); dev is current, prod is not. Housekeeping: ~17 stale .continue-here files + orphan 83-05 plan + untracked .claude/worktrees/.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
