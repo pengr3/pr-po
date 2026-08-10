@@ -78,3 +78,31 @@ key. Index build state can only be read from the Firebase console.
 **Action:** before plan 113-04's UAT exercises the paired queries, eyeball
 Firebase console → Firestore → Indexes on dev (and later prod) and confirm all 3
 `personnel_user_ids` indexes read `Enabled`, not `Building`.
+
+## 4. Stale `scripts/verify-phase-88.sh` reference to a removed symbol (pre-existing, unrelated to Phase 113)
+
+**Discovered during:** Plan 09, Task 1 (running the plan's literal `git grep -n "syncPersonnelToAssignments\|syncServicePersonnelToAssignments" -- app scripts index.html` acceptance check).
+
+`scripts/verify-phase-88.sh:86-95` greps `app/views/proposals.js` for the string
+`syncServicePersonnelToAssignments` and asserts it is present and imported from `utils.js`. That
+import was removed from `app/views/proposals.js` back in Phase 87.1 (`bdc5735`
+"strip orphaned modal/queue code from proposals.js" and `4fb3611` "remove engagement form code
+from proposals.js") — long before Phase 113 began. The script itself was never updated after that
+Phase 87.1 refactor, so it has been silently checking for a symbol that hasn't existed in that file
+since 2026 Phase 87.1, independent of anything Phase 113 changed.
+
+**Confirmed pre-existing:** `git log --oneline -S "syncServicePersonnelToAssignments" -- app/views/proposals.js`
+shows the string was removed by Phase 87.1 commits, not by any Phase 113 commit.
+
+**Verification impact on Plan 09 Task 1:** the plan's literal `git grep -n "..." -- app scripts index.html`
+acceptance check finds 6 lines inside `scripts/verify-phase-88.sh` (comments/assertions, not
+executable references to a real symbol) and therefore does not return "no matches" as literally
+written. The actual acceptance intent — zero live consumers of the two deleted sync helpers, and
+zero references inside `app/` — is fully satisfied; `git grep` scoped to `app` alone returns
+nothing. Not fixed here — `scripts/verify-phase-88.sh` is a historical, one-off Phase-88
+verification script outside `app/utils.js`'s task scope, and editing it would not change any
+runtime behavior.
+
+**Recommendation:** a future `/gsd:quick` pass should delete or update
+`scripts/verify-phase-88.sh`'s stale `syncServicePersonnelToAssignments` assertions (Phase 88 has
+long since shipped and this script has no CI trigger — it's a manual-run relic).
