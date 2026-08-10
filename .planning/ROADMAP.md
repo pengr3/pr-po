@@ -46,7 +46,7 @@ No active milestone. Run `/gsd-new-milestone` to define the next version (questi
 
 **Requirements**: D-01 … D-17 (no formal REQ-IDs exist for this phase — the requirement set IS the `113-CONTEXT.md` locked decision set)
 **Depends on:** None — independent of v4.2 phases 106–112
-**Plans:** 2/11 plans executed
+**Plans:** 3/11 plans executed
 
 **Numbering note:** numbered 113 (not 106) deliberately. Main's ROADMAP is stale and says numbering continues from 106, but branch `v4.2` has already used 106–112. 113 avoids a collision when main merges into v4.2.
 
@@ -61,7 +61,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 113-03-PLAN.md — W3: repoint getAssignedProjectCodes/getAssignedServiceCodes to a personnel-derived, listener-backed, fail-closed cache (utils.js + auth.js + scoping harness)
+- [x] 113-03-PLAN.md — W3: repoint getAssignedProjectCodes/getAssignedServiceCodes to a personnel-derived, listener-backed, fail-closed cache (utils.js + auth.js + scoping harness)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
