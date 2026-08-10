@@ -12,10 +12,12 @@
      - DOM reads + form-level validation (required fields, positive numbers,
        status enum, tranche sum=100, service_type enum, services-require-client)
      - showLoading / showToast / form toggle
-     - Personnel-to-assignment sync via the optional `onAfterCreate` callback
-       (project view uses `syncPersonnelToAssignments`; service view uses
-       `syncServicePersonnelToAssignments`). Keeping this in the callback lets
-       engagement-create.js avoid view-module imports.
+
+   Phase 113 D-08: `personnel_user_ids` written on the container document below
+   (see `finalShape`) IS the assignment — it is part of this function's own
+   awaited `addDoc` write, not a separate fire-and-forget sync step. The former
+   post-create personnel-to-assignment sync callback (and the `onAfterCreate`
+   option that carried it) has been removed entirely; no caller needs it.
    ======================================== */
 
 import { db, collection, addDoc, onSnapshot, query, where } from './firebase.js';
@@ -24,8 +26,6 @@ import {
     generateServiceCode,
     showLoading,
     showToast,
-    syncPersonnelToAssignments,
-    syncServicePersonnelToAssignments,
     escapeHTML
 } from './utils.js';
 import { recordEditHistory } from './edit-history.js';
@@ -40,8 +40,7 @@ export async function createEngagement({
     budget,
     contractCost,
     personnel,
-    collectionTranches,
-    onAfterCreate
+    collectionTranches
 }) {
     const isProject = type === 'project';
     const collectionName = isProject ? 'projects' : 'services';
@@ -125,15 +124,6 @@ export async function createEngagement({
     // Fire-and-forget: history failure must not block the create UX.
     recordEditHistory(docRef.id, 'create', changes, collectionName)
         .catch(err => console.error('[engagement-create] recordEditHistory failed:', err));
-
-    if (typeof onAfterCreate === 'function') {
-        try {
-            await onAfterCreate({ docRef, type, finalShape, code });
-        } catch (err) {
-            // Side-effect failures (e.g., assignment sync) must not roll back a successful create.
-            console.error('[engagement-create] onAfterCreate failed:', err);
-        }
-    }
 
     return { docRef, finalShape, code };
 }
@@ -392,18 +382,7 @@ async function submitNewEngagement() {
             budget,
             contractCost,
             personnel: selectedPersonnel,
-            collectionTranches: [], // Tranches not collected on Proposals form (Phase 85 D-09).
-            onAfterCreate: ({ code: generatedCode, type: createdType }) => {
-                // Assignment sync runs after a successful create.
-                const userIds = selectedPersonnel.map(u => u.id).filter(Boolean);
-                if (createdType === 'project' && generatedCode) {
-                    syncPersonnelToAssignments(generatedCode, [], userIds)
-                        .catch(err => console.error('[EngagementForm] Project assignment sync failed:', err));
-                } else if ((createdType === 'one-time' || createdType === 'recurring') && generatedCode) {
-                    syncServicePersonnelToAssignments(generatedCode, [], userIds)
-                        .catch(err => console.error('[EngagementForm] Service assignment sync failed:', err));
-                }
-            }
+            collectionTranches: [] // Tranches not collected on Proposals form (Phase 85 D-09).
         });
 
         // Success: clear form and show toast (stay on the page per D-03 inline pattern).
