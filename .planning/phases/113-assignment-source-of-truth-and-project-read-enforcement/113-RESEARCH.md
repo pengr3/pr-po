@@ -254,19 +254,21 @@ The canonical acceptance narrative from CONTEXT.md `<specifics>`: **the same ass
 
 **If this table is empty:** N/A — see rows above. All OTHER claims in this document are `[VERIFIED]` via direct code read (file:line citations throughout) or `[CITED]` via official Firebase documentation fetched during this research session.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should the residual subcollection exposure (activity_entries/progress_updates/issues/audit_log on an unassigned-but-guessable project ID) be closed in this phase or explicitly deferred?**
+All three questions below were put to the user during phase planning and resolved as locked decisions in `113-CONTEXT.md` (section "Scope resolutions from research"). The plan set implements all three. Nothing here is outstanding — the questions are retained for provenance, each annotated inline with the decision that closed it.
+
+1. **Should the residual subcollection exposure (activity_entries/progress_updates/issues/audit_log on an unassigned-but-guessable project ID) be closed in this phase or explicitly deferred?** — **RESOLVED: see D-14.** Deferred, not closed in this phase. Plan `113-10` Task 2(d) writes the residual into `firestore.rules` itself, threat `T-113-50` records the acceptance, and `113-CONTEXT.md` `<deferred>` books the fix as its own phase.
    - What we know: none of these subcollection rules currently check `personnel_user_ids`; they'll remain exactly as permissive after this phase as before.
    - What's unclear: whether this is an accepted risk (matches D-01's "not a containment boundary against admins" framing, arguably extends similarly to *_user roles who could theoretically enumerate doc IDs) or a genuine gap the user would want closed alongside the parent collection.
    - Recommendation: surface explicitly to the user during planning/discuss rather than silently leaving it — it's adjacent enough to this phase's exact concern (personnel_user_ids as the read-scoping authority) that a reasonable reader would assume it's covered.
 
-2. **Should `services.js`/`mrf-form.js`/`procurement.js`'s services-side legacy-array queries be converted in THIS phase or deferred to a follow-up?**
+2. **Should `services.js`/`mrf-form.js`/`procurement.js`'s services-side legacy-array queries be converted in THIS phase or deferred to a follow-up?** — **RESOLVED: see D-13.** Converted in THIS phase. The phase boundary was widened to assignment read enforcement across `projects` **and** `services`; the three named sites are MUST-CONVERT in the plan set, and plan `113-10` Task 2(b) removes the matching legacy rule branches.
    - What we know: D-07/D-08 logically require it (see Risks section); CONTEXT.md's phase boundary text is `projects`-centric.
    - What's unclear: whether the user intended "Assignment Source-of-Truth" to mean BOTH collections symmetrically (which D-07's "full project↔service parity" strongly implies) or whether `services` was deliberately left for a follow-up phase given the phase title emphasizes "Project Read Enforcement" specifically.
    - Recommendation: plan for both; if scope/time pressure forces a cut, cutting `services`-side conversion reintroduces a variant of the defect this phase exists to fix (see Risks) and should be a conscious, flagged decision, not a silent omission.
 
-3. **Get/list rule split for `projects` — adopt (mirroring `services`) or keep unified?**
+3. **Get/list rule split for `projects` — adopt (mirroring `services`) or keep unified?** — **RESOLVED: see D-15.** Split adopted, with BOTH `get` and `list` scoped on `personnel_user_ids` (the structural split of `services`, not its hybrid content). Implemented by plan `113-10` Task 2(a) and pinned by Task 3 cases 6, 7 and 10.
    - What we know: `services` already splits; several MUST-CONVERT sites (project-detail.js's doc-ID fallback, the recommended `procurement.js:7951` conversion) benefit from a permissive `get`/narrow `list` split.
    - What's unclear: whether unifying `projects`' rule (current state) versus splitting it (services' current state, itself inconsistent as documented above) is the intended target — this is a rules-authoring style decision with real functional consequences (a unified rule that's narrow enough for `list` will ALSO narrow every `get()`, potentially breaking the currently-safe doc-ID fallback pattern).
    - Recommendation: split, matching `services`' `get`/`list` structure, but write the SPLIT `services` rule's `list` branch fully in the new `personnel_user_ids`-only pattern (not copying its current hybrid) per D-02.
