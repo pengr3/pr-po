@@ -6,7 +6,7 @@
    ======================================== */
 
 import { db, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where, onSnapshot, purgeStoragePrefix } from '../firebase.js';
-import { showLoading, showToast, generateServiceCode, normalizePersonnel, syncServicePersonnelToAssignments, getAssignedServiceCodes, downloadCSV, escapeHTML, formatCurrency } from '../utils.js';
+import { showLoading, showToast, generateServiceCode, normalizePersonnel, getAssignedServiceCodes, downloadCSV, escapeHTML, formatCurrency } from '../utils.js';
 import { recordEditHistory } from '../edit-history.js';
 import { createEngagement } from '../engagement-create.js';
 import { renderTrancheBuilder, readTranchesFromDOM, addTranche, removeTranche, recalculateTranches } from '../tranche-builder.js';
@@ -768,11 +768,7 @@ async function addService() {
             budget,
             contractCost: contract_cost,
             personnel: selectedPersonnel,
-            collectionTranches: finalTranches,
-            onAfterCreate: ({ code }) => {
-                syncServicePersonnelToAssignments(code, [], selectedPersonnel.map(u => u.id).filter(Boolean))
-                    .catch(err => console.error('[Services] Assignment sync failed:', err));
-            }
+            collectionTranches: finalTranches
         });
 
         showToast(`Service "${service_name}" created successfully!`, 'success');
@@ -872,18 +868,22 @@ const debouncedServiceFilter = debounce(applyServiceFilters, 300);
 // Load services with real-time listener
 async function loadServices() {
     try {
-        // ASSIGN-04: services_user may only read their assigned services.
-        // An unscoped collection query would include docs they're not assigned to,
-        // which Firestore's per-document list rule would deny for the entire query.
+        // Phase 113 D-02/D-13: every scoped role (services_user, operations_user, and any future
+        // non-exempt role) now shares ONE query shape keyed on personnel_user_ids, matching the
+        // firestore.rules services.list per-doc predicate (request.auth.uid in
+        // resource.data.personnel_user_ids). An unscoped query would be denied for the whole list
+        // for a scoped role, so we must filter here — every doc array-contains returns already
+        // satisfies the rule predicate. The legacy `service_code in assignedCodes` branch (D-08's
+        // stale pattern) is gone: it would leave a services_user assigned after 113-09 deletes the
+        // sync helpers unable to see their own new service.
         const currentUser = window.getCurrentUser?.();
-        const role = currentUser?.role;
         const assignedCodes = getAssignedServiceCodes();
         let servicesQuery;
-        if (role === 'operations_user') {
-            // operations_user: scoped by the firestore.rules services.list per-doc predicate
-            // (request.auth.uid in resource.data.personnel_user_ids). An unscoped query would
-            // be denied for the whole list, so we must filter to assigned services here. Every
-            // doc returned by array-contains satisfies the rule predicate.
+        if (assignedCodes !== null) {
+            // Scoped role (D-09: not a SERVICE_SEE_ALL_ROLES member and not an all_services === true
+            // holder). Fail-closed on a missing uid — never attach the unscoped listener. The
+            // listener stays attached even when the user currently has zero assignments so a later
+            // assignment appears live (do not reintroduce an assignedCodes.length === 0 early return).
             const uid = currentUser?.uid;
             if (!uid) {
                 allServices = [];
@@ -891,14 +891,6 @@ async function loadServices() {
                 return;
             }
             servicesQuery = query(collection(db, 'services'), where('personnel_user_ids', 'array-contains', uid));
-        } else if (assignedCodes !== null) {
-            // services_user: scope query to assigned service_codes only
-            if (assignedCodes.length === 0) {
-                allServices = [];
-                applyServiceFilters();
-                return;
-            }
-            servicesQuery = query(collection(db, 'services'), where('service_code', 'in', assignedCodes));
         } else {
             servicesQuery = collection(db, 'services');
         }
@@ -1381,10 +1373,7 @@ async function saveServiceEdit() {
         return;
     }
 
-    // Capture old personnel BEFORE save for sync diff
     const existingService = allServices.find(s => s.id === editingService);
-    const oldNormalized = normalizePersonnel(existingService);
-    const oldUserIds = oldNormalized.userIds;
 
     // Phase 85 D-09: read + validate collection_tranches
     const collectionTranches = readTranchesFromDOM('serviceForm');
@@ -1489,12 +1478,6 @@ async function saveServiceEdit() {
             recordEditHistory(editingService, 'update', editChanges, 'services')
                 .catch(err => console.error('[EditHistory] saveServiceEdit failed:', err));
         }
-
-        // Sync personnel assignment changes (fire-and-forget)
-        const newUserIds = selectedPersonnel.map(u => u.id).filter(Boolean);
-        const serviceCode = existingService?.service_code;
-        syncServicePersonnelToAssignments(serviceCode, oldUserIds, newUserIds)
-            .catch(err => console.error('[Services] Assignment sync failed:', err));
 
         showToast('Service updated successfully', 'success');
         editingService = null;
