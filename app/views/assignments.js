@@ -20,7 +20,7 @@ let servicesData = [];         // All services (for modal checkboxes)
 let listeners = [];
 
 // Modal state — held until Save is clicked
-let pendingModalCodes = null;  // Set of codes currently checked in open modal, or null if no modal open
+let pendingModalIds = null;    // Set of container document IDs currently checked in open modal, or null if no modal open
 let currentModalUserId = null;
 let currentModalType = null;   // 'projects' | 'services'
 
@@ -171,7 +171,7 @@ export async function init(subTab = null) {
     window.filterModalItems = filterModalItems;
 
     // Reset modal state
-    pendingModalCodes = null;
+    pendingModalIds = null;
     currentModalUserId = null;
     currentModalType = null;
 
@@ -229,10 +229,28 @@ export async function destroy() {
     usersData = [];
     projectsData = [];
     servicesData = [];
-    pendingModalCodes = null;
+    pendingModalIds = null;
     currentModalUserId = null;
     currentModalType = null;
     activeSubTab = 'projects';
+}
+
+/* ========================================
+   PERSONNEL MEMBERSHIP HELPER
+   ======================================== */
+
+/**
+ * Get all items (projects or services) whose personnel_user_ids includes the given user id.
+ * Single shared source of truth used by getAssignmentCount, the cross-department row filter,
+ * and saveManageModal's old/new id diffing — so the displayed count and the row-visibility
+ * filter can never disagree (Phase 113 D-10).
+ * @param {object[]} itemsList - projectsData or servicesData
+ * @param {string} userId
+ * @returns {object[]} matching items (each carries at least an `id` field)
+ */
+function getPersonnelMemberships(itemsList, userId) {
+    if (!userId) return [];
+    return itemsList.filter(item => Array.isArray(item.personnel_user_ids) && item.personnel_user_ids.includes(userId));
 }
 
 /* ========================================
@@ -249,28 +267,30 @@ function renderUsersTable() {
     if (!container) return;
 
     // Guard: if modal is open, skip re-render
-    if (pendingModalCodes !== null) {
+    if (pendingModalIds !== null) {
         return;
     }
 
     // Filter users by sub-tab. Native department roles always show; plus (Quick 260627-kg0)
     // a cross-department *_user who HOLDS assignments in this department stays visible + manageable
     // here, so their assignments survive a role/department change instead of being orphaned in the
-    // admin grid (the underlying assigned_*_codes + personnel_user_ids are never wiped on role change).
+    // admin grid. Phase 113 D-10: personnel_user_ids on the live projects/services documents is the
+    // sole record now — a cross-department user stays visible whenever at least one container in
+    // this department lists them as personnel.
     let filteredUsers;
     if (activeSubTab === 'projects') {
         filteredUsers = usersData.filter(u =>
             u.role === 'operations_user' || u.role === 'operations_admin' ||
-            (u.role === 'services_user' && Array.isArray(u.assigned_project_codes) && u.assigned_project_codes.length > 0) ||
-            // Quick 260706-mco: cross-dept services_admin stays manageable once it holds project codes.
-            (u.role === 'services_admin' && Array.isArray(u.assigned_project_codes) && u.assigned_project_codes.length > 0)
+            (u.role === 'services_user' && getPersonnelMemberships(projectsData, u.id).length > 0) ||
+            // Quick 260706-mco: cross-dept services_admin stays manageable once it holds project personnel membership.
+            (u.role === 'services_admin' && getPersonnelMemberships(projectsData, u.id).length > 0)
         );
     } else {
         filteredUsers = usersData.filter(u =>
             u.role === 'services_user' || u.role === 'services_admin' ||
-            (u.role === 'operations_user' && Array.isArray(u.assigned_service_codes) && u.assigned_service_codes.length > 0) ||
-            // Quick 260706-mco: cross-dept operations_admin stays manageable once it holds service codes.
-            (u.role === 'operations_admin' && Array.isArray(u.assigned_service_codes) && u.assigned_service_codes.length > 0)
+            (u.role === 'operations_user' && getPersonnelMemberships(servicesData, u.id).length > 0) ||
+            // Quick 260706-mco: cross-dept operations_admin stays manageable once it holds service personnel membership.
+            (u.role === 'operations_admin' && getPersonnelMemberships(servicesData, u.id).length > 0)
         );
     }
 
@@ -336,6 +356,9 @@ function renderUsersTable() {
 /**
  * Get a display string for how many items are assigned to a user.
  * Handles legacy all_projects/all_services flag with migrate-on-edit pattern.
+ * Count is derived from live personnel_user_ids membership (Phase 113 D-10) —
+ * a container that does not exist cannot appear in the count, so no
+ * cross-reference-against-existing-codes step is needed.
  * @param {object} user - User document data
  * @param {string} type - 'projects' | 'services'
  * @returns {string} Display label
@@ -343,15 +366,11 @@ function renderUsersTable() {
 function getAssignmentCount(user, type) {
     if (type === 'projects') {
         if (user.all_projects === true) return 'All (legacy)';
-        const codes = user.assigned_project_codes || [];
-        const existingCodes = new Set(projectsData.map(p => p.project_code));
-        const validCount = codes.filter(c => existingCodes.has(c)).length;
+        const validCount = getPersonnelMemberships(projectsData, user.id).length;
         return validCount === 0 ? 'None' : `${validCount} project(s)`;
     } else {
         if (user.all_services === true) return 'All (legacy)';
-        const codes = user.assigned_service_codes || [];
-        const existingCodes = new Set(servicesData.map(s => s.service_code));
-        const validCount = codes.filter(c => existingCodes.has(c)).length;
+        const validCount = getPersonnelMemberships(servicesData, user.id).length;
         return validCount === 0 ? 'None' : `${validCount} service(s)`;
     }
 }
@@ -362,9 +381,11 @@ function getAssignmentCount(user, type) {
 
 /**
  * Open the Manage Assignments modal for a given user.
- * Pre-populates checkboxes from user's current codes.
+ * Pre-populates checkboxes from the user's current personnel_user_ids membership
+ * across the loaded container set (Phase 113 D-05/D-10 — personnel_user_ids on the
+ * container document is authoritative, not the legacy user-document code arrays).
  * For users with all_projects/all_services=true, pre-checks all items
- * so they are not stripped on Save (migrate-on-edit pattern, Pitfall 1).
+ * so they are not stripped on Save (migrate-on-edit pattern, D-09).
  *
  * @param {string} userId - User document ID
  * @param {string} type - 'projects' | 'services'
@@ -376,53 +397,54 @@ function openManageModal(userId, type) {
         return;
     }
 
-    // Determine starting set of codes (migrate-on-edit for legacy all_* flag)
-    let currentCodes;
+    const items = type === 'projects' ? projectsData : servicesData;
+
+    // Determine starting set of container document IDs (migrate-on-edit for legacy all_* flag)
+    let currentIds;
     if (type === 'projects') {
         if (user.all_projects === true) {
-            // Pre-populate with ALL project codes — migrate on Save
-            currentCodes = projectsData.map(p => p.project_code).filter(Boolean);
+            // Pre-check EVERY project — migrate on Save
+            currentIds = items.map(p => p.id);
         } else {
-            currentCodes = Array.isArray(user.assigned_project_codes) ? user.assigned_project_codes : [];
+            currentIds = getPersonnelMemberships(items, userId).map(p => p.id);
         }
     } else {
         if (user.all_services === true) {
-            // Pre-populate with ALL service codes — migrate on Save
-            currentCodes = servicesData.map(s => s.service_code).filter(Boolean);
+            // Pre-check EVERY service — migrate on Save
+            currentIds = items.map(s => s.id);
         } else {
-            currentCodes = Array.isArray(user.assigned_service_codes) ? user.assigned_service_codes : [];
+            currentIds = getPersonnelMemberships(items, userId).map(s => s.id);
         }
     }
 
     // Set modal state
-    pendingModalCodes = new Set(currentCodes);
+    pendingModalIds = new Set(currentIds);
     currentModalUserId = userId;
     currentModalType = type;
 
     const userName = user.full_name || user.display_name || 'User';
     const typeLabel = type === 'projects' ? 'Projects' : 'Services';
-    const items = type === 'projects' ? projectsData : servicesData;
 
     const itemsHtml = items.length === 0
         ? `<p style="color: #64748b; padding: 1rem; text-align: center;">No ${typeLabel.toLowerCase()} available to assign.</p>`
         : items.map(item => {
             const code = type === 'projects' ? item.project_code : item.service_code;
             const name = type === 'projects' ? item.project_name : item.service_name;
-            const isChecked = pendingModalCodes.has(code);
+            const isChecked = pendingModalIds.has(item.id);
             const label = code && name ? `${code} — ${name}` : (code || name || '(Unknown)');
 
             return `
                 <label class="assign-modal-item" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 6px; cursor: pointer; user-select: none; transition: background 0.15s;"
                        onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                     <input type="checkbox"
-                           data-code="${code}"
+                           data-id="${item.id}"
                            ${isChecked ? 'checked' : ''}
                            style="cursor: pointer; width: 16px; height: 16px; flex-shrink: 0;"
                            onchange="
                                if (this.checked) {
-                                   window._pendingModalCodes && window._pendingModalCodes.add(this.dataset.code);
+                                   window._pendingModalIds && window._pendingModalIds.add(this.dataset.id);
                                } else {
-                                   window._pendingModalCodes && window._pendingModalCodes.delete(this.dataset.code);
+                                   window._pendingModalIds && window._pendingModalIds.delete(this.dataset.id);
                                }
                            ">
                     <span style="font-size: 0.875rem; color: #374151; line-height: 1.4;">${escapeHTML(label)}</span>
@@ -430,8 +452,8 @@ function openManageModal(userId, type) {
             `;
         }).join('');
 
-    // Expose pendingModalCodes on window so inline onchange handlers can update it
-    window._pendingModalCodes = pendingModalCodes;
+    // Expose pendingModalIds on window so inline onchange handlers can update it
+    window._pendingModalIds = pendingModalIds;
 
     const modalHtml = `
         <div id="manageAssignModal"
@@ -475,7 +497,7 @@ function openManageModal(userId, type) {
                 <!-- Modal Footer -->
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-top: 1px solid #e5e7eb; flex-shrink: 0;">
                     <span id="modalSelectionCount" style="font-size: 0.8rem; color: #64748b;">
-                        ${pendingModalCodes.size} selected
+                        ${pendingModalIds.size} selected
                     </span>
                     <div style="display: flex; gap: 0.75rem;">
                         <button class="btn btn-secondary"
@@ -502,7 +524,7 @@ function openManageModal(userId, type) {
         checkboxItems.addEventListener('change', () => {
             const countEl = document.getElementById('modalSelectionCount');
             if (countEl) {
-                countEl.textContent = `${pendingModalCodes.size} selected`;
+                countEl.textContent = `${pendingModalIds.size} selected`;
             }
         });
     }
@@ -538,54 +560,110 @@ function filterModalItems(searchValue) {
 
 /**
  * Save the current modal checkbox selection to Firestore.
- * - Writes explicit assigned_project_codes or assigned_service_codes array
- * - Sets all_projects/all_services to false (migrate-on-edit for legacy flags)
- * - For projects: fires reverse personnel sync on project documents
- * - For services: no reverse sync (intentional asymmetry, per research)
+ *
+ * Writes personnel_user_ids / personnel_names DIRECTLY onto the affected
+ * projects/services documents (arrayUnion for newly-checked containers,
+ * arrayRemove for newly-unchecked ones) — the container document is now the
+ * only record of an assignment (Phase 113 D-05). Every container write is
+ * awaited and a failure is surfaced in a toast; nothing is fire-and-forgotten.
+ *
+ * SUPERSEDE NOTICE (Phase 113 D-06): Quick 260706-mco's lock on this function —
+ * "saveManageModal @571-573 (writes all_projects:false — the landmine source,
+ * do NOT change)" (260706-mco-PLAN.md:142, restated at :296) — is DELIBERATELY
+ * SUPERSEDED as of this rewrite. That lock existed to stop the all_projects:false /
+ * all_services:false write from silently scoping an admin out of their own home
+ * department while assigned_project_codes/assigned_service_codes were still the
+ * arrays read by getAssignedProjectCodes()/getAssignedServiceCodes(). Phase 113
+ * D-08 repointed both helpers onto live personnel_user_ids membership, so those
+ * legacy arrays are no longer read for visibility anywhere in the app — the
+ * landmine this lock protected against no longer exists.
  */
 async function saveManageModal() {
-    if (pendingModalCodes === null || !currentModalUserId || !currentModalType) {
+    if (pendingModalIds === null || !currentModalUserId || !currentModalType) {
         console.warn('[Assignments] saveManageModal called with no open modal');
         return;
     }
 
     const userId = currentModalUserId;
     const type = currentModalType;
-    const newCodes = [...pendingModalCodes];
+    const newIds = [...pendingModalIds];
 
-    const field = type === 'projects' ? 'assigned_project_codes' : 'assigned_service_codes';
     const allFlag = type === 'projects' ? 'all_projects' : 'all_services';
+    const items = type === 'projects' ? projectsData : servicesData;
 
-    // Capture old codes for reverse sync (projects only)
     const user = usersData.find(u => u.id === userId);
-    const oldCodes = type === 'projects'
-        ? (Array.isArray(user?.assigned_project_codes) ? user.assigned_project_codes : [])
-        : [];
+    const userName = user?.full_name || user?.email || 'Unknown';
+
+    // Old id set derived from personnel membership over the SAME container array
+    // the modal was built from — NOT from assigned_project_codes/assigned_service_codes.
+    const oldIds = new Set(getPersonnelMemberships(items, userId).map(item => item.id));
+    const newIdSet = new Set(newIds);
+    const addedIds = newIds.filter(id => !oldIds.has(id));
+    const removedIds = [...oldIds].filter(id => !newIdSet.has(id));
+    const shouldClearAllFlag = type === 'projects' ? user?.all_projects === true : user?.all_services === true;
 
     // Close modal first (gives immediate feedback, avoids modal state race)
     const modal = document.getElementById('manageAssignModal');
     if (modal) modal.remove();
-    pendingModalCodes = null;
+    pendingModalIds = null;
     currentModalUserId = null;
     currentModalType = null;
-    delete window._pendingModalCodes;
+    delete window._pendingModalIds;
 
-    try {
-        // Write codes to user doc, clear legacy all_* flag
-        await updateDoc(doc(db, 'users', userId), {
-            [field]: newCodes,
-            [allFlag]: false
-        });
-        // Reverse sync for projects only
-        if (type === 'projects' && user) {
-            syncAssignmentToPersonnel(userId, user, oldCodes, newCodes)
-                .catch(err => console.error('[Assignments] Personnel sync failed:', err));
-        }
-
+    if (addedIds.length === 0 && removedIds.length === 0) {
         showToast('Assignments saved', 'success');
-    } catch (error) {
-        console.error('[Assignments] Error saving assignments:', error);
-        showToast('Error saving assignments', 'error');
+        renderUsersTable();
+        return;
+    }
+
+    const containerErrors = [];
+
+    for (const id of addedIds) {
+        const item = items.find(i => i.id === id);
+        const label = item ? (item.project_code || item.service_code || item.project_name || item.service_name || id) : id;
+        try {
+            await updateDoc(doc(db, type, id), {
+                personnel_user_ids: arrayUnion(userId),
+                personnel_names: arrayUnion(userName)
+            });
+        } catch (error) {
+            console.error(`[Assignments] Failed to add ${userName} to ${label}:`, error);
+            containerErrors.push({ label, action: 'add', error });
+        }
+    }
+
+    for (const id of removedIds) {
+        const item = items.find(i => i.id === id);
+        const label = item ? (item.project_code || item.service_code || item.project_name || item.service_name || id) : id;
+        try {
+            await updateDoc(doc(db, type, id), {
+                personnel_user_ids: arrayRemove(userId),
+                personnel_names: arrayRemove(userName)
+            });
+        } catch (error) {
+            console.error(`[Assignments] Failed to remove ${userName} from ${label}:`, error);
+            containerErrors.push({ label, action: 'remove', error });
+        }
+    }
+
+    if (containerErrors.length === 0) {
+        showToast('Assignments saved', 'success');
+    } else {
+        showToast(`Assignments: ${containerErrors.length} container write(s) failed`, 'error');
+    }
+
+    // D-09: clear the legacy all_* flag only when the target user actually holds it,
+    // as its OWN independently-erroring write — kept separate from the container-write
+    // error path above because this write can legitimately be denied cross-department
+    // once the users update carve-out is dropped (plan 113-10, D-17), and the admin
+    // must be told that specifically rather than reading a generic "assignments failed".
+    if (shouldClearAllFlag) {
+        try {
+            await updateDoc(doc(db, 'users', userId), { [allFlag]: false });
+        } catch (error) {
+            console.error(`[Assignments] Failed to clear legacy ${allFlag} flag:`, error);
+            showToast(`Could not clear the legacy "${allFlag}" flag — a Super Admin must clear it manually`, 'error');
+        }
     }
 
     // Re-render table to pick up any blocked snapshot updates
@@ -604,10 +682,10 @@ function closeManageModal() {
     const modal = document.getElementById('manageAssignModal');
     if (modal) modal.remove();
 
-    pendingModalCodes = null;
+    pendingModalIds = null;
     currentModalUserId = null;
     currentModalType = null;
-    delete window._pendingModalCodes;
+    delete window._pendingModalIds;
 
     // Re-render to pick up any blocked snapshot updates
     renderUsersTable();
@@ -632,72 +710,4 @@ function switchAssignmentSubTab(subTab) {
     if (servicesBtn) servicesBtn.classList.toggle('active', subTab === 'services');
 
     renderUsersTable();
-}
-
-/* ========================================
-   REVERSE PERSONNEL SYNC (projects only)
-   ======================================== */
-
-/**
- * When a user's project assignments change, update the project documents'
- * personnel_user_ids and personnel_names arrays to match.
- * This is a fire-and-forget operation — errors are logged but do not block
- * the assignment save.
- *
- * @param {string} userId - The user's document ID
- * @param {object} user - User object with full_name / email
- * @param {string[]} oldCodes - Previous assigned_project_codes
- * @param {string[]} newCodes - New assigned_project_codes
- */
-async function syncAssignmentToPersonnel(userId, user, oldCodes, newCodes) {
-    const oldSet = new Set(oldCodes);
-    const newSet = new Set(newCodes);
-    const addedCodes = newCodes.filter(c => !oldSet.has(c));
-    const removedCodes = oldCodes.filter(c => !newSet.has(c));
-
-    if (addedCodes.length === 0 && removedCodes.length === 0) return;
-
-    const userName = user?.full_name || user?.email || 'Unknown';
-    const errors = [];
-
-    // Add user as personnel on newly assigned projects
-    for (const code of addedCodes) {
-        const project = projectsData.find(p => p.project_code === code);
-        if (!project) {
-            console.warn(`[Assignments] Project not found for code: ${code}`);
-            continue;
-        }
-        try {
-            await updateDoc(doc(db, 'projects', project.id), {
-                personnel_user_ids: arrayUnion(userId),
-                personnel_names: arrayUnion(userName)
-            });
-        } catch (err) {
-            console.error(`[Assignments] Failed to add ${userName} to ${code}:`, err);
-            errors.push({ code, action: 'add', error: err.message });
-        }
-    }
-
-    // Remove user as personnel from unassigned projects
-    for (const code of removedCodes) {
-        const project = projectsData.find(p => p.project_code === code);
-        if (!project) {
-            console.warn(`[Assignments] Project not found for code: ${code}`);
-            continue;
-        }
-        try {
-            await updateDoc(doc(db, 'projects', project.id), {
-                personnel_user_ids: arrayRemove(userId),
-                personnel_names: arrayRemove(userName)
-            });
-        } catch (err) {
-            console.error(`[Assignments] Failed to remove ${userName} from ${code}:`, err);
-            errors.push({ code, action: 'remove', error: err.message });
-        }
-    }
-
-    if (errors.length > 0) {
-        console.warn('[Assignments] Personnel sync had', errors.length, 'error(s):', errors);
-        showToast(`Personnel sync: ${errors.length} error(s)`, 'error');
-    }
 }
