@@ -479,17 +479,15 @@ function renderUsersTable() {
             ? '<span class="status-badge approved" style="background: #d1fae5; color: #065f46;">Active</span>'
             : '<span class="status-badge" style="background: #e5e7eb; color: #475569;">Deactivated</span>';
 
-        // Assigned projects display (cross-reference against existing projects)
+        // Assigned projects display — derived from live personnel_user_ids membership
+        // on projectsData (Phase 113 D-10), not the frozen assigned_project_codes array.
         let assignedProjectsDisplay = '-';
         if (user.role === 'operations_user') {
             if (user.all_projects === true) {
                 assignedProjectsDisplay = 'All projects';
-            } else if (Array.isArray(user.assigned_project_codes) && user.assigned_project_codes.length > 0) {
-                const existingCodes = new Set(projectsData.map(p => p.project_code));
-                const validCount = user.assigned_project_codes.filter(c => existingCodes.has(c)).length;
-                assignedProjectsDisplay = validCount > 0 ? `${validCount} projects` : 'No projects';
             } else {
-                assignedProjectsDisplay = 'No projects';
+                const validCount = projectsData.filter(p => Array.isArray(p.personnel_user_ids) && p.personnel_user_ids.includes(user.id)).length;
+                assignedProjectsDisplay = validCount > 0 ? `${validCount} projects` : 'No projects';
             }
         }
 
