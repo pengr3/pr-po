@@ -34,11 +34,49 @@
     const { db } = await import('/app/firebase.js');
     const { collection, getDocs, doc, getDoc, setDoc, updateDoc, serverTimestamp } =
         await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
-    const { clmcCounterId } = await import('/app/utils.js');
 
     if (!db) {
         console.error('[SeedCounters] db unavailable — make sure the app is running and you are logged in.');
         return;
+    }
+
+    // Counter document key. Defined INLINE rather than imported, deliberately.
+    //
+    // An earlier version imported clmcCounterId from /app/utils.js to guarantee this script and
+    // the generator could never disagree about the key. That turned out to be fragile: browsers
+    // cache ES modules aggressively, so a tab holding a pre-Phase-113 utils.js threw
+    // "clmcCounterId is not a function" partway through the scan. Defining it here makes the
+    // migration self-contained and immune to module staleness.
+    //
+    // The drift risk that motivated the import is handled by the cross-check below instead: if
+    // the import succeeds, the two implementations are compared on real input and any mismatch
+    // ABORTS. Must stay identical to clmcCounterId() in app/utils.js.
+    const counterKey = (clientCode, year) => `${clientCode}_${year}`;
+
+    // Cross-check against utils.js when it is loadable, and use it as a staleness probe.
+    try {
+        const utils = await import('/app/utils.js');
+        if (typeof utils.clmcCounterId !== 'function') {
+            console.warn(
+                '[SeedCounters] app/utils.js loaded but does not export clmcCounterId. That export ' +
+                'was added in Phase 113 — this tab is almost certainly running a CACHED copy of ' +
+                'utils.js, which means the page is also running the OLD code generators. ' +
+                'Hard-refresh (Ctrl+Shift+R) before doing anything else. Proceeding with the ' +
+                'inline key, which is correct regardless.'
+            );
+        } else if (utils.clmcCounterId('ACME', 2026) !== counterKey('ACME', 2026)) {
+            console.error(
+                '[SeedCounters] ABORTED: key format drift. app/utils.js produces ' +
+                `"${utils.clmcCounterId('ACME', 2026)}" but this script produces "${counterKey('ACME', 2026)}". ` +
+                'Seeding with a different key than the generator reads would create a second, empty ' +
+                'counter and restart the sequence at 001, minting duplicate CLMC codes. ' +
+                'Reconcile the two before re-running.'
+            );
+            return;
+        }
+    } catch (err) {
+        console.warn('[SeedCounters] Could not import app/utils.js to cross-check the key format:', err?.message || err);
+        console.warn('[SeedCounters] Proceeding with the inline key. Verify app/utils.js clmcCounterId() still returns `${clientCode}_${year}`.');
     }
 
     const CODE_RE = /^CLMC-(.+)-(\d{4})(\d{3})$/;
@@ -80,7 +118,7 @@
             if (!m) { malformed.push({ origin, docId, code }); return; }
             const [, clientCode, year, seqStr] = m;
             const seq = parseInt(seqStr, 10);
-            const key = clmcCounterId(clientCode, Number(year));
+            const key = counterKey(clientCode, Number(year));
             const cur = maxByKey.get(key);
             if (!cur || seq > cur.max) {
                 maxByKey.set(key, { clientCode, year: Number(year), max: seq, sources: [`${origin}:${docId}=${code}`] });
