@@ -14,7 +14,7 @@
 - ✅ **v3.2 Supplier Search, Proof of Procurement & Payables** — Phases 63–82 (shipped 2026-04-28)
 - ✅ **v4.0 Procurement → Full Management Portal** — Phases 83–105 (shipped 2026-06-16)
 - ◆ **v4.1 Assignment Source-of-Truth & Read Enforcement** — Phase 113 (active; 10/11 plans, production deploy outstanding)
-- 📋 **v4.2 Home Command Center & Mobile** — Phases 106–112, defined on branch `v4.2` (not merged to main)
+- 📋 **v4.2 Home Command Center & Mobile** — Phases 106–112, defined on branch `v4.2` (to be rebased onto main after v4.1 ships)
 
 ## Phases
 
@@ -64,8 +64,11 @@ load-bearing: indexes (4) → `code_counters` rules + client bundle → seed cou
 Deploying the rules before seeding makes the first service creation for an unseeded client/year
 throw.
 
-After v4.1 ships, `v4.2` (phases 106–112, Home command center / mobile / data-layer audit) is
-already defined on its own branch and awaits a merge from main.
+`v4.2` (phases 106–112, Home command center / mobile / data-layer audit) is already defined on its
+own branch. Plan: **rebase `v4.2` onto `main` later**, once v4.1 has shipped — not merge main into
+it now. Phase 113 touched `firestore.rules`, `app/utils.js` and most view files, so expect conflicts
+there and resolve them in v4.1's favour (the tightened rules and the personnel-derived getters are
+the newer contract).
 
 Phase numbering continues from 114 (never reset).
 
