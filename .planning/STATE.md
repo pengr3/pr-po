@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.0
-milestone_name: Procurement → Full Management Portal
-status: milestone_shipped
-stopped_at: Completed 113-08-PLAN.md
-last_updated: "2026-08-10T18:11:00.295Z"
-last_activity: 2026-08-10
+milestone: v4.1
+milestone_name: Assignment Source-of-Truth & Read Enforcement
+status: in_progress
+stopped_at: Phase 113 — 10/11 plans; 113-11 production deploy outstanding
+last_updated: "2026-08-11T00:00:00.000Z"
+last_activity: 2026-08-11
 progress:
-  total_phases: 57
+  total_phases: 58
   completed_phases: 51
-  total_plans: 187
+  total_plans: 198
   completed_plans: 197
   percent: 89
 ---
@@ -21,9 +21,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-16 after v4.0 ship)
 
 **Core value:** Projects tab must work — it's the foundation where project name and code originate, and everything in the procurement system connects to it.
-**Current focus:** Phase 113 — assignment-source-of-truth-and-project-read-enforcement
+**Current focus:** v4.1 — Assignment Source-of-Truth & Read Enforcement (Phase 113, 10/11 plans)
 
 ## Current Position
+
+**◆ MILESTONE v4.1 — Assignment Source-of-Truth & Read Enforcement — ACTIVE, defined 2026-08-11 (retroactively).** Phase 113 only. Defined after execution because the work ran as an urgent response to a live production defect, outside any milestone; the v4.1 number was reclaimed because its earlier definition attempt (branch `v4.1`, commit `6e2966c`) never materialised — that branch's STATE still reads `milestone: v4.0` and its roadmap `## Next` is empty. Artifacts: `milestones/v4.1-ROADMAP.md` + `milestones/v4.1-REQUIREMENTS.md` (D-01…D-17). Independent of branch `v4.2` (phases 106–112, Home/mobile), which remains unmerged.
+
+**◆ Phase 113 — 10/11 plans complete, executed 2026-08-10/11 on `main`, sequential (worktrees disabled per the recorded Windows long-path failure).** Makes `personnel_user_ids` the single authoritative assignment record, retires both fire-and-forget sync pipelines, and enforces `projects` read scoping server-side. Fourth recurrence of a bug class that three prior quick fixes each patched at a different layer without auditing the write layer.
+
+**Key outcomes.** D-01-vs-D-16 resolved by operator as **Option B — `services_admin` scoped**, unblocked by replacing CLMC code generation's cross-collection range scan with an atomic `code_counters/{client}_{year}` transaction (`cf0fa92`) rather than accepting the exemption; that also closed the simultaneous-create race the old generator documented and accepted. `projects` read split into scoped `allow get`/`allow list` (D-15). All 22 transitional `isAssignedTo*` predicates removed. `users.update` cross-department carve-out dropped (D-17) with 4 tests inverted as permanent regression coverage. D-14 subcollection residual documented **in `firestore.rules` itself**, not just in planning docs.
+
+**Two read surfaces RESEARCH.md never enumerated** were found at the 113-09 gate and fixed: `service-detail.js` (`e859d55`, found by browser UAT) and `service-plan.js` (`9f527da`, found by enumerating read sites from the code). The conversion audit was corrected to record that its first pass inherited the research document's blind spot — the method lesson is written into `113-CONVERSION-AUDIT.md`.
+
+**Verification.** Emulator 87 passing / 2 failing (both pre-existing stale assertions, unrelated — logged in `deferred-items.md`); +26 from baseline, zero tests deleted. Browser-verified against **dev** across all five roles — see `113-DEV-VERIFICATION.md`. Enforcement binds: unscoped `projects` list denied for every scoped role, D-15's `getDoc` closure proven both directions, Option B confirmed end-to-end (the session denied the old range scan allocated a CLMC code via the counter), and the `operations_admin` `services` exemption preserved for `procurement.js:8018` still resolves.
+
+**REMAINING — plan 113-11, production deploy.** Nothing of v4.1 is live. Ordering is load-bearing: (1) `firebase deploy --only firestore:indexes` — **4** personnel indexes, confirm readiness by RUNNING each paired shape, not via the console; (2) deploy `code_counters` rules + client bundle, NOT the tightened rules yet; (3) run `scripts/seed-code-counters.js` as Super Admin — dry run, review, apply; (4) only then deploy the tightened `firestore.rules`. Step 4 before step 3 makes the first service creation for an unseeded client/year throw. The operator **waived** the optional `scripts/audit-assignment-drift.js` pre-check; it stays available as post-deploy diagnosis. This deploy also carries the standing un-deployed rules debt from 87.4/99/100/101/102/103.1/104/105-01.
+
+---
 
 **✅ Phase 104 (Service Detail Parity — Lifecycle · Journal · DLP) COMPLETE 2026-06-13 — 5/5 plans + 12/12 browser UAT approved, inline sequential on v3.3 (gsd-sdk unavailable + 2 stale locked agent worktrees → inline per Phase 98–103.1 precedent). Commits: 104-01 `c5d2feb`(rules)+`0ed3d93`; 104-05 `47a5f4c`(procurement PO→service journal, join on `service_code`)+`cc52831`(services.js two-tier one-time On-going)+`d39d668`; 104-02 `2211fa0`+`56fd30d`+`974bb5f`(journal: primitives+ActivityFeed / Progress+Issues / D-12 cost-delta)+`dddea54`; 104-03 `cbd7ec0`(accordion shell + dropdown→read-only pill)+`7460614`(4 gates + attach + snapshot-suppress)+`28e02e4`; 104-04 `434a190`(DLP 4-state bar + inline tranche editor)+`04ac7ab`(Finance Record Release)+SUMMARY. All 3 JS files `node --check` PASS; firestore.rules braces 77/77; 33/33 Phase-104 window fns register↔teardown symmetric; no duplicate defs / no stray `currentProject`/`db,'projects'` refs (rename map clean). Inline code-review of the diff: no correctness issues. VERIFICATION `passed` (static gates + 12/12 browser UAT approved) → `104-VERIFICATION.md`. Rules unit test NOT runnable here (Firestore emulator needs Java, absent) — rules compile-checked at the DEV deploy gate. Lifecycle copy mirrored VERBATIM (descriptive text still says "Project"; services use the unified `project_status` field — reword to "Service" is a trivial follow-up). D-04 Completion gate is `services_admin`-only (UI-advisory; residual T-104-09 server-side enforcement deferred — role-only services rule). Plan-sanctioned beyond the project baseline: gates + issue resolve/reopen fire the D-14 fire-and-forget `last_activity_at` bump. **DEV rules deployed + 12/12 UAT approved → Phase 104 COMPLETE.** Carry: prod `firebase deploy --only firestore:rules` rides the standing v3.3 → main debt (87.4/99/100/101/102/103.1 + now 104).**
 

@@ -13,7 +13,8 @@
 - ✅ **v3.1 PR/TR Routing & Procurement Improvements** — Phases 57–62.2 (shipped 2026-03-10)
 - ✅ **v3.2 Supplier Search, Proof of Procurement & Payables** — Phases 63–82 (shipped 2026-04-28)
 - ✅ **v4.0 Procurement → Full Management Portal** — Phases 83–105 (shipped 2026-06-16)
-- 📋 **Next milestone** — not yet defined (run `/gsd-new-milestone`)
+- ◆ **v4.1 Assignment Source-of-Truth & Read Enforcement** — Phase 113 (active; 10/11 plans, production deploy outstanding)
+- 📋 **v4.2 Home Command Center & Mobile** — Phases 106–112, defined on branch `v4.2` (not merged to main)
 
 ## Phases
 
@@ -34,11 +35,41 @@
 
 Earlier milestones (v1.0–v3.2) are archived under `.planning/milestones/`.
 
+<details>
+<summary>◆ v4.1 Assignment Source-of-Truth & Read Enforcement (Phase 113) — ACTIVE</summary>
+
+1 phase, 11 plans / 7 waves. Makes `personnel_user_ids` the single authoritative record for
+cross-department assignment visibility, retires both fire-and-forget sync pipelines, and enforces
+`projects` read scoping server-side instead of as cosmetic client-side filtering.
+
+Triggered by a live production defect — the fourth recurrence of a bug class three earlier quick
+fixes had each patched at a different layer without auditing the write layer.
+
+- 16/17 decisions delivered (D-14 explicitly deferred to its own phase).
+- Emulator: 87 passing / 2 failing (both pre-existing, unrelated).
+- Browser-verified against **dev** across all five roles.
+- **Not shipped** — production deploy (113-11) outstanding; nothing is live yet.
+- Full detail: `milestones/v4.1-ROADMAP.md`
+- Requirements: `milestones/v4.1-REQUIREMENTS.md`
+
+Beyond the original scope: CLMC code generation moved from a cross-collection range scan to an
+atomic counter document, which is what allowed `services_admin` to be scoped server-side (D-16).
+
+</details>
+
 ## Next
 
-No active milestone. Run `/gsd-new-milestone` to define the next version (questioning → research → requirements → roadmap). Phase numbering continues from 106 (never reset).
+**Active milestone: v4.1.** One item remains — plan 113-11, the production deploy. Its ordering is
+load-bearing: indexes (4) → `code_counters` rules + client bundle → seed counters → tightened rules.
+Deploying the rules before seeding makes the first service creation for an unseeded client/year
+throw.
 
-### Phase 113: Assignment Source-of-Truth and Project Read Enforcement
+After v4.1 ships, `v4.2` (phases 106–112, Home command center / mobile / data-layer audit) is
+already defined on its own branch and awaits a merge from main.
+
+Phase numbering continues from 114 (never reset).
+
+### Phase 113: Assignment Source-of-Truth and Project Read Enforcement *(v4.1)*
 
 **Goal:** Make `personnel_user_ids` the single authoritative record for cross-department assignment visibility, retire the two fire-and-forget sync pipelines that maintain the derived `assigned_project_codes` / `assigned_service_codes` arrays, and enforce `projects` read scoping server-side instead of as cosmetic client-side filtering.
 
