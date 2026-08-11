@@ -32,7 +32,10 @@ import {
     count,
     average,
     arrayUnion,
-    arrayRemove
+    arrayRemove,
+    // Phase 113 D-16: CLMC code generation moved from a cross-collection range scan to an
+    // atomic counter document, so a scoped services_admin no longer needs to read `projects`.
+    runTransaction
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import {
     getAuth,
@@ -151,7 +154,8 @@ export {
     count,
     average,
     arrayUnion,
-    arrayRemove
+    arrayRemove,
+    runTransaction
 };
 
 // Export Auth methods

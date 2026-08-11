@@ -3,7 +3,10 @@
    Shared utility functions used across views
    ======================================== */
 
-import { db, collection, getDocs, query, where, orderBy, limit, onSnapshot } from './firebase.js';
+// Phase 113 D-16: doc/getDoc/runTransaction/serverTimestamp are re-added here (plan 113-09 had
+// pruned the first two as unused) for the code_counters transaction that replaced the CODE-01
+// cross-collection range scan. See _nextClmcCode() below.
+import { db, collection, getDocs, query, where, orderBy, limit, onSnapshot, doc, getDoc, runTransaction, serverTimestamp } from './firebase.js';
 
 /* ========================================
    SECURITY UTILITIES
@@ -255,55 +258,159 @@ export async function generateSequentialId(collectionName, prefix, year = null) 
 
 /**
  * Generate composite project code: CLMC-CLIENT-YYYY###
- * Shares sequence with Services collection to prevent collisions (CODE-01).
- * Queries BOTH projects and services for the max sequence number so that
- * projects and services never receive the same CLMC code for a given client/year.
+ * Shares one sequence per client/year with the Services collection so a project and a service
+ * can never receive the same code (CODE-01).
+ *
+ * Phase 113 D-16: this no longer range-scans `projects` and `services`. It atomically increments
+ * the `code_counters/{clientCode}_{year}` document — see `_nextClmcCode()` for the integrity
+ * contract, the bootstrap path, and why a missing counter throws rather than starting at 001.
+ * The simultaneous-create race the previous implementation documented and accepted is gone.
  *
  * @param {string} clientCode - Client code (e.g., "ACME")
  * @param {number|null} year - Year for the project code (defaults to current year)
  * @returns {Promise<string>} Generated project code (e.g., CLMC-ACME-2026001)
- *
- * Note: Race condition possible with simultaneous creates — acceptable at current scale.
- * IMPORTANT: Service documents MUST store a client_code field for this query to work.
  */
 export async function generateProjectCode(clientCode, year = null) {
+    return _nextClmcCode(clientCode, year, '[Projects]');
+}
+
+/**
+ * Phase 113 D-16 — the CODE-01 successor.
+ *
+ * Build the `code_counters` document ID for a client/year. Kept as one function so the
+ * seeding migration (`scripts/seed-code-counters.js`) and the generator can never disagree
+ * about the key — a mismatch there would silently create a second, empty counter and restart
+ * the sequence at 001, minting duplicate CLMC codes.
+ */
+export function clmcCounterId(clientCode, year) {
+    return `${clientCode}_${year}`;
+}
+
+/**
+ * LEGACY bootstrap path only. Range-scans BOTH collections for the highest sequence already
+ * issued for a client/year — the pre-Phase-113 CODE-01 algorithm, preserved verbatim.
+ *
+ * This is now reached ONLY when a counter document does not yet exist. It requires LIST access
+ * to both `projects` and `services`, which after Phase 113's D-16 tightening only the see-all
+ * roles hold — that is precisely why it cannot remain the primary path, and why the counter
+ * exists. A scoped caller hitting this path gets a permission error, which `_nextClmcCode`
+ * converts into an actionable message rather than a silent wrong answer.
+ *
+ * @returns {Promise<number>} highest sequence number in use, or 0 if none
+ */
+async function _scanMaxClmcSequence(clientCode, currentYear) {
+    const rangeMin = `CLMC-${clientCode}-${currentYear}000`;
+    const rangeMax = `CLMC-${clientCode}-${currentYear}999`;
+
+    const [projectsSnap, servicesSnap] = await Promise.all([
+        getDocs(query(
+            collection(db, 'projects'),
+            where('client_code', '==', clientCode),
+            where('project_code', '>=', rangeMin),
+            where('project_code', '<=', rangeMax)
+        )),
+        getDocs(query(
+            collection(db, 'services'),
+            where('client_code', '==', clientCode),
+            where('service_code', '>=', rangeMin),
+            where('service_code', '<=', rangeMax)
+        ))
+    ]);
+
+    const codeRegex = /^CLMC-.+-\d{4}(\d{3})$/;
+    let maxNum = 0;
+    projectsSnap.forEach(d => {
+        const match = d.data().project_code?.match(codeRegex);
+        if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
+    });
+    servicesSnap.forEach(d => {
+        const match = d.data().service_code?.match(codeRegex);
+        if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
+    });
+    return maxNum;
+}
+
+/**
+ * Issue the next CLMC-{client}-{year}### code, atomically.
+ *
+ * Projects and services SHARE one sequence per client/year (CODE-01), so that a project and a
+ * service can never be issued the same code. Before Phase 113 that was enforced by range-scanning
+ * both collections on every create — which made a cross-collection LIST read a prerequisite of
+ * creating anything, and is why `services_admin` could not be scoped on `projects` (D-16) and
+ * `operations_admin` could not be scoped on `services`. A single counter document removes that
+ * coupling: neither generator reads the other department's collection any more.
+ *
+ * It also fixes the race the old JSDoc acknowledged and accepted ("Race condition possible with
+ * simultaneous creates"). Two concurrent creates previously read the same max and produced the
+ * same code; the transaction now serialises them, and the rules require `last_seq` to move
+ * strictly forward so a rewind cannot re-issue a used code.
+ *
+ * INTEGRITY CONTRACT — read before changing this function:
+ * The counter is AUTHORITATIVE. If it is missing, this function does NOT start at 1; that would
+ * collide with every code already issued for that client/year. It instead derives a justified
+ * starting point from the legacy scan, and if it cannot (because the caller is scoped and the
+ * scan is denied) it THROWS with an actionable message. Failing loudly is deliberate: a duplicate
+ * CLMC code is unrecoverable once other documents reference it, while a blocked create is not.
+ *
+ * @param {string} clientCode
+ * @param {number|null} year - defaults to the current year
+ * @param {string} logPrefix - '[Projects]' or '[Services]', for console attribution
+ * @returns {Promise<string>} e.g. CLMC-ACME-2026001
+ */
+async function _nextClmcCode(clientCode, year, logPrefix) {
     try {
         const currentYear = year || new Date().getFullYear();
-        const rangeMin = `CLMC-${clientCode}-${currentYear}000`;
-        const rangeMax = `CLMC-${clientCode}-${currentYear}999`;
+        const counterId = clmcCounterId(clientCode, currentYear);
+        const counterRef = doc(db, 'code_counters', counterId);
 
-        // Query BOTH collections in parallel — shared sequence prevents collisions (CODE-01)
-        const [projectsSnap, servicesSnap] = await Promise.all([
-            getDocs(query(
-                collection(db, 'projects'),
-                where('client_code', '==', clientCode),
-                where('project_code', '>=', rangeMin),
-                where('project_code', '<=', rangeMax)
-            )),
-            getDocs(query(
-                collection(db, 'services'),
-                where('client_code', '==', clientCode),
-                where('service_code', '>=', rangeMin),
-                where('service_code', '<=', rangeMax)
-            ))
-        ]);
+        // Firestore transactions cannot run queries, so the bootstrap value (if one is needed)
+        // must be resolved BEFORE the transaction opens. Concurrency is still safe: the
+        // transaction re-reads the counter and only uses this value if the document is still
+        // absent at commit time. If a racing caller created it first, that branch is skipped.
+        let bootstrapSeq = null;
+        const preSnap = await getDoc(counterRef);
+        if (!preSnap.exists()) {
+            try {
+                bootstrapSeq = await _scanMaxClmcSequence(clientCode, currentYear);
+            } catch (scanError) {
+                throw new Error(
+                    `CLMC code counter "${counterId}" is not initialised, and this account is not ` +
+                    `permitted to derive a starting sequence (${scanError?.code || scanError?.message || scanError}). ` +
+                    `Run scripts/seed-code-counters.js as a Super Admin before creating this client's ` +
+                    `first engagement of ${currentYear}.`
+                );
+            }
+        }
 
-        const codeRegex = /^CLMC-.+-\d{4}(\d{3})$/;
-        let maxNum = 0;
-
-        projectsSnap.forEach(d => {
-            const match = d.data().project_code?.match(codeRegex);
-            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
+        const nextSeq = await runTransaction(db, async (tx) => {
+            const snap = await tx.get(counterRef);
+            if (snap.exists()) {
+                const last = Number(snap.data().last_seq);
+                if (!Number.isInteger(last) || last < 0) {
+                    throw new Error(`CLMC code counter "${counterId}" holds a malformed last_seq (${snap.data().last_seq}). Refusing to issue a code.`);
+                }
+                const n = last + 1;
+                tx.update(counterRef, { last_seq: n, updated_at: serverTimestamp() });
+                return n;
+            }
+            const n = (bootstrapSeq || 0) + 1;
+            tx.set(counterRef, {
+                last_seq: n,
+                client_code: clientCode,
+                year: currentYear,
+                created_at: serverTimestamp(),
+                updated_at: serverTimestamp()
+            });
+            return n;
         });
 
-        servicesSnap.forEach(d => {
-            const match = d.data().service_code?.match(codeRegex);
-            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
-        });
+        if (nextSeq > 999) {
+            throw new Error(`CLMC sequence for ${clientCode}/${currentYear} exhausted the 3-digit range (${nextSeq}). The code format needs widening before another engagement can be created.`);
+        }
 
-        return `CLMC-${clientCode}-${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
+        return `CLMC-${clientCode}-${currentYear}${String(nextSeq).padStart(3, '0')}`;
     } catch (error) {
-        console.error('[Projects] Error generating project code:', error);
+        console.error(`${logPrefix} Error generating CLMC code:`, error);
         throw error;
     }
 }
@@ -475,58 +582,22 @@ export function getAssignedProjectCodes() {
 
 /**
  * Generate composite service code: CLMC-CLIENT-YYYY###
- * Shares sequence with Projects collection to prevent collisions (SERV-02).
- * Queries BOTH projects and services for the max sequence number so that
- * services and projects never receive the same CLMC code for a given client/year.
+ * Shares one sequence per client/year with the Projects collection so a service and a project
+ * can never receive the same code (SERV-02 / CODE-01).
+ *
+ * Phase 113 D-16: this is the change that made scoping `services_admin` on `projects` possible.
+ * The previous implementation range-scanned BOTH collections, so creating any service required
+ * LIST access to `projects` — the highest-severity finding in 113-RESEARCH.md. It now atomically
+ * increments `code_counters/{clientCode}_{year}` and reads no project data at all. The
+ * "migrate to a counter document" note this JSDoc used to carry as future work is now done.
+ * See `_nextClmcCode()` for the integrity contract and the bootstrap path.
  *
  * @param {string} clientCode - Client code (e.g., "ACME")
  * @param {number|null} year - Year for the code (defaults to current year)
  * @returns {Promise<string>} Generated service code (e.g., CLMC-ACME-2026003)
- *
- * Note: Race condition possible with simultaneous creates — acceptable at current scale.
- * IMPORTANT: Service documents MUST store a client_code field for this query to work.
- * Future: if collision risk grows, migrate to a counter document with FieldValue.increment().
  */
 export async function generateServiceCode(clientCode, year = null) {
-    try {
-        const currentYear = year || new Date().getFullYear();
-        const rangeMin = `CLMC-${clientCode}-${currentYear}000`;
-        const rangeMax = `CLMC-${clientCode}-${currentYear}999`;
-
-        // Query BOTH collections in parallel (shared sequence, SERV-02)
-        const [projectsSnap, servicesSnap] = await Promise.all([
-            getDocs(query(
-                collection(db, 'projects'),
-                where('client_code', '==', clientCode),
-                where('project_code', '>=', rangeMin),
-                where('project_code', '<=', rangeMax)
-            )),
-            getDocs(query(
-                collection(db, 'services'),
-                where('client_code', '==', clientCode),
-                where('service_code', '>=', rangeMin),
-                where('service_code', '<=', rangeMax)
-            ))
-        ]);
-
-        const codeRegex = /^CLMC-.+-\d{4}(\d{3})$/;
-        let maxNum = 0;
-
-        projectsSnap.forEach(d => {
-            const match = d.data().project_code?.match(codeRegex);
-            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
-        });
-
-        servicesSnap.forEach(d => {
-            const match = d.data().service_code?.match(codeRegex);
-            if (match && parseInt(match[1]) > maxNum) maxNum = parseInt(match[1]);
-        });
-
-        return `CLMC-${clientCode}-${currentYear}${String(maxNum + 1).padStart(3, '0')}`;
-    } catch (error) {
-        console.error('[Services] Error generating service code:', error);
-        throw error;
-    }
+    return _nextClmcCode(clientCode, year, '[Services]');
 }
 
 /**

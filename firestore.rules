@@ -222,6 +222,52 @@ service cloud.firestore {
     }
 
     // =============================================
+    // code_counters collection (Phase 113 D-16 — CODE-01 successor)
+    // =============================================
+    // One document per {clientCode}_{year}, holding `last_seq` (number): the highest CLMC
+    // sequence number issued for that client/year across BOTH projects and services.
+    //
+    // Why this exists: generateProjectCode() / generateServiceCode() previously range-scanned
+    // BOTH the `projects` and `services` collections to find the max sequence and avoid issuing
+    // a project and a service the same CLMC-{client}-{year}### code (CODE-01). That made a
+    // cross-collection LIST read a hard prerequisite of creating anything — which is why
+    // services_admin had to stay exempt on `projects`, and operations_admin on `services`.
+    // Reading a single counter instead removes that coupling entirely, which is what allows
+    // Phase 113 D-16 to scope services_admin on `projects` without breaking service creation.
+    //
+    // Authorization: exactly the roles that can create a project or a service may increment.
+    // projects create = hasRole(['super_admin','operations_admin']); services create =
+    // hasRole(['super_admin','services_admin']). The union is the three roles below. A counter
+    // is not sensitive data — it leaks only "how many engagements exist for this client/year" —
+    // but write access must be no broader than creation authority, or a scoped user could
+    // advance the sequence and burn codes.
+    //
+    // Integrity note: this counter is AUTHORITATIVE. A missing or under-seeded document causes
+    // duplicate CLMC codes, which are unrecoverable once other documents reference them. The
+    // client generator therefore refuses to invent a starting value it cannot justify — see
+    // generateProjectCode() in app/utils.js. Seeding is done by scripts/seed-code-counters.js.
+    match /code_counters/{counterId} {
+      // Read: any active user. Harmless, and the transaction needs it before writing.
+      allow read: if isActiveUser();
+
+      // Create / update: only the roles that can create a project or a service, and only
+      // shapes that carry a numeric last_seq. Delete is never permitted from the client —
+      // deleting a counter would silently reset the sequence and mint duplicate codes.
+      allow create: if hasRole(['super_admin', 'operations_admin', 'services_admin']) &&
+                       request.resource.data.last_seq is int &&
+                       request.resource.data.last_seq >= 0;
+
+      allow update: if hasRole(['super_admin', 'operations_admin', 'services_admin']) &&
+                       request.resource.data.last_seq is int &&
+                       // Monotonic: a counter may only ever move forward. This is the structural
+                       // guard against a stale client, a replayed transaction, or a buggy future
+                       // caller rewinding the sequence and re-issuing an already-used code.
+                       request.resource.data.last_seq > resource.data.last_seq;
+
+      allow delete: if false;
+    }
+
+    // =============================================
     // projects collection
     // =============================================
     match /projects/{projectId} {
