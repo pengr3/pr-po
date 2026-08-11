@@ -12,29 +12,38 @@ Projects tab must work — it's the foundation where project name and code origi
 
 **Latest shipped:** v4.0 Procurement → Full Management Portal (2026-06-16) — 53 phases, ~189 plans (phases 83–105), 51/51 active requirements delivered. Transformed CLMC from a procurement tool into a full management portal across five capability areas: native Gantt-based **Project Management** (`project_tasks`/`service_tasks`, dependencies, milestones, duration-weighted progress, baselines, iterations, PDF export, service parity), in-app **Notifications** (bell/dropdown/history + event triggers), manual **Collectibles Tracking** (auto-derived status, billing requests), end-to-end **Proposal Lifecycle** (internal approval, audit trail, client log, project/service status integration), and a Super-Admin **Management hub** (approval queue + create-engagement). Plus portfolio redesign, DLP/retention, project journal, and full project↔service parity. Audit verdict `tech_debt` (no code blockers; 86/87 verification gap + B3 formally accepted). Shipped via PR #75 (v3.3 → main, merge `34f65e36`); prod `firestore.rules` deployed + live.
 
-**Active milestone:** none — v4.0 shipped. Run `/gsd-new-milestone` to define the next version (phase numbering continues from 106).
+**Active milestone:** v4.1 Assignment Source-of-Truth & Read Enforcement (Phase 113) — 10/11 plans complete; plan 113-11 (production deploy of tightened `firestore.rules` + 11-step browser UAT) is outstanding. Nothing from Phase 113 is live yet.
+
+**Defined but not active:** v4.2 Home Command Center & Mobile (phases 106–112) lives on branch `v4.2`, to be **rebased** onto `main` after v4.1 ships. v4.3 Observability & Error Handling (phases 114+) is defined below; it becomes the active milestone once 113-11 deploys.
+
+**Phase numbering:** continues from 114 (never reset). 106–112 are consumed by branch `v4.2`; 113 by v4.1.
 
 **Carry-overs to v4.1+:** Phase 105.1 (service baseline + plan iterations); v3.2 deferreds Phase 68.1 (subcon scorecard) + Phase 70 rework (cancel-PR approval flow).
 
 See `.planning/MILESTONES.md` for full milestone history and `.planning/milestones/v4.0-MILESTONE-AUDIT.md` for the v4.0 audit + acceptances.
 
-## Current Milestone: v4.0 Procurement → Full Management Portal
+## Current Milestone: v4.3 Observability & Error Handling
 
-**Goal:** Transform CLMC from a procurement-focused system into a full management portal — adding native project management, in-app notifications, manual collectibles tracking, end-to-end proposal lifecycle, and a Super Admin management hub for approval queues and engagement creation.
+**Goal:** Make production failures visible, attributable, and diagnosable — a broken workflow should surface on a dashboard with the user, role, and stack trace attached, instead of dying silently in a browser console nobody reads.
 
 **Target features:**
-- **Project Management (native Gantt/task tracker)** — task hierarchy, dependencies, % progress per task, milestone dates, anchored to existing project records
-- **Notification System (in-app)** — Firestore-backed notifications with bell/dropdown UI, triggered by approval events (proposal submitted, MRF approved, RFP filed, project status changes, user-registration approvals, etc.)
-- **Collectibles Tracking (manual entry)** — Operations Admin / Finance manually create collectibles against a project; PM acts as filter/context (auto-trigger from PM progress deferred)
-- **Proposal Tracking (full lifecycle)** — multi-step internal approval workflow with audit trail, document upload + versioning, proposal-specific dashboard/queue (lives inside Mgmt Tab), client communication log
-- **Management Tab (Super Admin only)** — centralized decision-making hub: proposal approval queue + project/service creation hub with auto-routing (one-time vs recurring)
+- **Error dashboard (Sentry)** — browser SDK loaded via CDN (no build step), capturing stack traces, breadcrumbs, release tags, and routing alerts. Netlify provides no client-side error tracking: it is static-only with zero functions, and its Analytics product reports server-side pageviews, not browser exceptions.
+- **Identity attribution** — logged-in CLMC user (uid, email, role, department) attached to every event, so every report answers "whose error is this and what were they doing"
+- **Global error capture** — `window.onerror` + `unhandledrejection` handlers; the app currently has neither, so any failure outside a `catch` is lost entirely
+- **A single `reportError()` contract** — one wrapper every failure path routes through, replacing 422 ad-hoc `console.error` calls with tiered severity (report / breadcrumb / console-only)
+- **Silent-swallow elimination** — audit the 57 fire-and-forget `.catch()` tails and the `catch` blocks whose only body is a `console.error`; a swallowed `.catch()` was Phase 113's root cause
+- **User-facing error UX** — replace 19 bare `alert()` calls with `showToast()` carrying a correlation ID the user can read back to support, tying a user report to a dashboard event
+- **CSP widening** — `script-src` + `connect-src` updated in **both** `netlify.toml` and `_headers`; miss either and every error report is silently blocked by the browser
+- **Convention guardrail** — a documented repo convention (plus CLAUDE.md entry) so new code cannot reintroduce silent swallows
 
 **Key context:**
-- Major version bump (procurement → management portal identity shift)
-- Phase numbering continues from 83 (no reset)
-- Notification email/push, ProjectLibre file import, per-task billing, collectibles auto-trigger from PM progress, and role-configurable Mgmt Tab access all explicitly deferred
-- v3.2 deferred items (Phase 68.1 subcon scorecard fix, Phase 70 cancel-PR rework) deferred to v4.1+ — kept v4.0 focused on the 5 portal-transformation features
-- Phase order to be determined by roadmapper based on dependency analysis
+- **Motivating incident:** Phase 113's root cause was a fire-and-forget `.catch()` swallowing a `PERMISSION_DENIED` from a cross-department `updateDoc`. It produced four recurrences of the same bug class; three prior quick fixes each patched a different read/UI layer without ever seeing the write-layer failure. This milestone is the systemic fix for that class of invisibility.
+- **Verified baseline (2026-08-11):** 41 JS files, 55,189 LOC, 504 `catch` blocks, 422 `console.error`, 57 `.catch()` tails, 19 `alert()`, 35 `confirm()`, 27 `console.warn`, **0** global handlers, **0** error sink.
+- **Quota risk:** naively piping 422 error sites into Sentry would exhaust a free-tier quota. Severity tiering and sampling are requirements, not polish.
+- No build system and no bundler — Sentry must work as a CDN script alongside native ES modules. No staging environment; Firebase is production-only.
+- Phase numbering continues from **114** (106–112 belong to branch `v4.2`, 113 to v4.1).
+- Sequencing: v4.1's plan 113-11 deploys first; STATE.md deliberately remains on v4.1 until it does. Branch `v4.2` is untouched and still awaits its rebase.
+- Chosen over a self-hosted Firestore `error_logs` collection: no stack-trace grouping, no symbolication, a dashboard we'd have to build and maintain, and — decisively — it cannot report the failure mode where Firestore itself is what broke.
 
 ## Requirements
 
@@ -603,4 +612,6 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-16 — v4.0 Procurement → Full Management Portal SHIPPED (phases 83–105, 51/51 requirements). Merged v3.3 → main (PR #75, `34f65e36`); prod firestore.rules deployed + confirmed live. Audit `tech_debt`: B1/B2/C1 integration blockers fixed + UAT-passed; 86/87 verification gap + B3 (Management-as-Home-sub-tabs) formally accepted (audit §7). Milestone archived to .planning/milestones/v4.0-*. Next: /gsd-new-milestone (phase numbering continues from 106).*
+*Last updated: 2026-08-11 — v4.3 Observability & Error Handling defined (phases 114+). Goal: make production failures visible, attributable, and diagnosable via Sentry plus an app-wide error-handling contract; motivated by Phase 113's swallowed `.catch()` root cause. STATE.md deliberately held at v4.1 until plan 113-11 (production deploy) ships — v4.3 is defined, not yet active. Branch `v4.2` (phases 106–112) untouched, still awaiting rebase onto main.*
+
+*Previously: 2026-06-16 — v4.0 Procurement → Full Management Portal SHIPPED (phases 83–105, 51/51 requirements). Merged v3.3 → main (PR #75, `34f65e36`); prod firestore.rules deployed + confirmed live. Audit `tech_debt`: B1/B2/C1 integration blockers fixed + UAT-passed; 86/87 verification gap + B3 (Management-as-Home-sub-tabs) formally accepted (audit §7). Milestone archived to .planning/milestones/v4.0-*.*
