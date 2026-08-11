@@ -69,7 +69,7 @@ The SDK install (OBS) is cheap and mechanical. The value is concentrated in the 
 - [ ] **GUARD-01**: At least one Sentry alert rule notifies on a new production issue — without it, severity tiering is cosmetic, because an event nobody is notified about is not "seen"
 - [ ] **GUARD-02**: CLAUDE.md documents the `reportError()` convention and the `window.onerror =` clobbering anti-pattern, written from converted examples that actually shipped
 - [ ] **GUARD-03**: Supplementary global listeners use `addEventListener('error'/'unhandledrejection', ...)` and never assign `window.onerror`/`window.onunhandledrejection` (single-value IDL properties — direct assignment silently replaces Sentry's own handler with no error to flag the regression), and never call `captureException` themselves
-- [ ] **GUARD-04**: **Milestone acceptance test.** A deliberate cross-department write rejection, run in production, produces exactly one error-tier Sentry event — tagged with role, collection, and operation — sufficient to diagnose without reproducing. This is the Phase 113 bug class, and it either surfaces or the milestone did not achieve its goal
+- [ ] **GUARD-04**: **Milestone acceptance test.** A deliberate cross-department write rejection, run in production, produces exactly one error-tier Sentry event — tagged with role/collection/operation — sufficient to diagnose without reproducing. This is the Phase 113 bug class, and it either surfaces or the milestone did not achieve its goal
 
 ---
 
@@ -128,22 +128,51 @@ Not requirements, but binding on how phases are sequenced:
 
 ## Traceability
 
-Which phases cover which requirements. Populated during roadmap creation.
+Which phases cover which requirements.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OBS-01 … OBS-08 | TBD | Pending |
-| ATTR-01 … ATTR-04 | TBD | Pending |
-| ERRC-01 … ERRC-09 | TBD | Pending |
-| UX-01 … UX-04 | TBD | Pending |
-| RETRO-01 … RETRO-05 | TBD | Pending |
-| GUARD-01 … GUARD-04 | TBD | Pending |
+| OBS-01 | Phase 114 | Pending |
+| OBS-02 | Phase 114 | Pending |
+| OBS-03 | Phase 114 | Pending |
+| OBS-04 | Phase 114 | Pending |
+| OBS-05 | Phase 114 | Pending |
+| OBS-06 | Phase 114 | Pending |
+| OBS-07 | Phase 114 | Pending |
+| OBS-08 | Phase 117 | Pending |
+| ATTR-01 | Phase 115 | Pending |
+| ATTR-02 | Phase 115 | Pending |
+| ATTR-03 | Phase 115 | Pending |
+| ATTR-04 | Phase 115 | Pending |
+| ERRC-01 | Phase 116 | Pending |
+| ERRC-02 | Phase 116 | Pending |
+| ERRC-03 | Phase 116 | Pending |
+| ERRC-04 | Phase 116 | Pending |
+| ERRC-05 | Phase 116 | Pending |
+| ERRC-06 | Phase 116 | Pending |
+| ERRC-07 | Phase 116 | Pending |
+| ERRC-08 | Phase 116 | Pending |
+| ERRC-09 | Phase 116 | Pending |
+| UX-01 | Phase 117 | Pending |
+| UX-02 | Phase 116 | Pending |
+| UX-03 | Phase 116 | Pending |
+| UX-04 | Phase 116 | Pending |
+| RETRO-01 | Phase 118 | Pending |
+| RETRO-02 | Phase 119 | Pending |
+| RETRO-03 | Phase 119 | Pending |
+| RETRO-04 | Phase 119 | Pending |
+| RETRO-05 | Phase 117 | Pending |
+| GUARD-01 | Phase 120 | Pending |
+| GUARD-02 | Phase 120 | Pending |
+| GUARD-03 | Phase 117 | Pending |
+| GUARD-04 | Phase 120 | Pending |
 
 **Coverage:**
 - v4.3 requirements: 34 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 34 ⚠️
+- Mapped to phases: 34 (100%)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-08-11*
+*Roadmap created: 2026-08-11 — 7 phases (114–120), 100% coverage*
 *Research basis: `.planning/research/SUMMARY.md` (STACK, FEATURES, ARCHITECTURE, PITFALLS)*
