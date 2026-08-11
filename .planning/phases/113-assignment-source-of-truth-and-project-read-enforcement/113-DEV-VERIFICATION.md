@@ -4,8 +4,8 @@ Browser verification against `clmc-procurement-dev` with the tightened rules dep
 through the in-app browser at `http://localhost:8001` (no-cache dev server). This is the substance
 of plan 113-11's UAT, executed against dev rather than production.
 
-**Roles exercised:** `super_admin`, `services_admin`, `operations_user`. NOT exercised:
-`services_user`, `operations_admin` — each needs its own login.
+**Roles exercised:** `super_admin`, `services_admin`, `operations_user`, `operations_admin`.
+NOT exercised: `services_user`.
 
 ---
 
@@ -184,6 +184,55 @@ be a one-line improvement. Deliberately not changed here — outside this sessio
 
 ---
 
+## 8. `operations_admin` — the preserved `services` exemption
+
+Account `test@gmail.com`, `all_projects: true`, `all_services: false`.
+
+```
+getAssignedProjectCodes() -> null   (projects = operations home department, see-all)
+getAssignedServiceCodes() -> []     (client-scoped; no service personnel assignments)
+```
+
+### 8a. The constraint pinned in 113-09 holds
+
+| Query | Result |
+|---|---|
+| `projects` unscoped list | ALLOWED, 11 — home department |
+| `services` unscoped list | ALLOWED, 12 — **rules-exempt**, despite client scoping |
+| **`procurement.js:8018` shape: bare `where('service_code','==',X)`** | **ALLOWED, 1** |
+| `services` scoped `array-contains` | ALLOWED, 0 |
+
+The third row is the one that mattered. During 113-09's audit this call site was flagged as safe
+only while `operations_admin` remains in the `services` allow-list exempt set, with the warning that
+if plan 113-10's D-01/D-16 decision removed it, the PO-Delivered service-journal entry would fail
+**silently** inside a best-effort `try/catch`. Plan 113-10 deliberately kept the exemption; this
+confirms the bare query still resolves.
+
+### 8b. The client/rules split, demonstrated
+
+- `#/projects` → **Total 11** (see-all, home department)
+- `#/services` → **Total 0** (client-scoped to `[]`)
+- `#/procurement/records` → loads clean
+
+`operations_admin` can read every service at the RULES layer — which `procurement.js:8018` and
+`generateProjectCode()`'s cross-collection collision check both require — while the UI correctly
+shows zero services, because assignment, not department role, drives what a user sees. The two
+layers are intentionally not identical, and both behave as designed. Zero console errors across all
+three routes.
+
+### 8c. What could NOT be exercised
+
+The end-to-end PO-Delivered flow has no data to run against: dev contains 3 POs and **zero service
+MRFs** (`serviceMrfCount: 0`), so no PO traces to a service. Fabricating a service MRF + PO chain
+purely to trigger it was judged not worth the synthetic data.
+
+Residual risk is low rather than zero: the rules-layer permission was the part this phase could have
+broken, and it is verified directly in 8a. `procurement.js:8018`'s client code was untouched by
+Phase 113 apart from an added comment (confirmed by `git diff` during plan 113-06). What remains
+unobserved is only the client wiring around it, which this phase did not modify.
+
+---
+
 ## Still unverified in a browser
 
 Requires logins not exercised in this session:
@@ -196,8 +245,9 @@ Requires logins not exercised in this session:
    without a re-save. It passed under the permissive rules before tightening. Section 7a is strong
    indirect evidence (a user whose legacy arrays are empty resolves assignments correctly from live
    personnel membership), but the assign-then-observe round trip itself was not re-run.
-3. `operations_admin` marking a PO Delivered on a service MRF — exercises the `services` exempt-set
-   membership deliberately preserved for `procurement.js:8018`.
+3. The end-to-end PO-Delivered → service-journal flow — blocked by dev having zero service MRFs.
+   The rules-layer permission it depends on IS verified (section 8a); only the surrounding client
+   wiring, which this phase did not modify, is unobserved.
 4. The MRF form / Create-MRF picker offering exactly the assigned projects and services.
 5. Everything above against PRODUCTION, which currently has no part of Phase 113 deployed.
 
