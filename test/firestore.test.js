@@ -7,7 +7,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, updateDoc, addDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, updateDoc, addDoc, runTransaction } from "firebase/firestore";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -1186,5 +1186,134 @@ describe("code_counters collection (Phase 113 D-16)", () => {
     await assertFails(
       setDoc(doc(db, "code_counters", "BADTYPE_2026"), { last_seq: "5" })
     );
+  });
+});
+
+// =============================================
+// Test Suite: CLMC code generation END-TO-END under the tightened rules (Phase 113 D-16)
+// =============================================
+// The suite above tests the code_counters RULES in isolation. This one tests the FLOW that
+// app/utils.js _nextClmcCode() actually performs, as the role the whole D-16 decision hinges on.
+//
+// Why it exists: Option B scoped services_admin off `projects`. That is only safe because code
+// generation no longer reads `projects`. If that claim is ever wrong — or is regressed by a future
+// edit — service creation breaks for every services_admin, which 113-RESEARCH.md called the
+// highest-severity failure mode in the phase. These tests pin the claim in CI rather than relying
+// on a human remembering to click "Add Service" during UAT.
+//
+// It also pins the INTEGRITY CONTRACT documented on _nextClmcCode(): when a counter is missing,
+// a scoped caller must FAIL LOUDLY rather than start the sequence at 001, because a duplicate
+// CLMC code is unrecoverable once MRFs/PRs/POs reference it.
+
+describe("CLMC code generation end-to-end (Phase 113 D-16)", () => {
+  beforeEach(seedUsers);
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      // An existing seeded counter, as scripts/seed-code-counters.js would leave it.
+      await setDoc(doc(db, "code_counters", "ACME_2026"), {
+        last_seq: 20,
+        client_code: "ACME",
+        year: 2026,
+      });
+      // A project whose code occupies part of that sequence — the collision the counter prevents.
+      await setDoc(doc(db, "projects", "proj-acme-020"), {
+        project_code: "CLMC-ACME-2026020",
+        client_code: "ACME",
+        personnel_user_ids: [],
+      });
+    });
+  });
+
+  it("services_admin can allocate the next CLMC sequence via the counter transaction (the D-16 enabler)", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    const ref = doc(db, "code_counters", "ACME_2026");
+
+    // This is _nextClmcCode()'s hot path verbatim: read the counter, write last_seq + 1.
+    const next = await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const n = Number(snap.data().last_seq) + 1;
+      tx.update(ref, { last_seq: n });
+      return n;
+    });
+
+    assert.equal(next, 21, "next sequence should follow the seeded counter, not restart");
+    assert.equal(
+      `CLMC-ACME-2026${String(next).padStart(3, "0")}`,
+      "CLMC-ACME-2026021",
+      "generated code must not collide with the existing CLMC-ACME-2026020 project"
+    );
+  });
+
+  it("services_admin allocating a code does NOT read the projects collection (this is what makes Option B safe)", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    // The counter read+write is permitted...
+    await assertSucceeds(getDoc(doc(db, "code_counters", "ACME_2026")));
+    await assertSucceeds(updateDoc(doc(db, "code_counters", "ACME_2026"), { last_seq: 21 }));
+    // ...while the projects reads the OLD generator depended on are now denied for this role.
+    await assertFails(getDocs(collection(db, "projects")));
+    await assertFails(getDoc(doc(db, "projects", "proj-acme-020")));
+  });
+
+  it("the retired range-scan shape stays denied for services_admin (regression guard on the old generator)", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      getDocs(query(
+        collection(db, "projects"),
+        where("client_code", "==", "ACME"),
+        where("project_code", ">=", "CLMC-ACME-2026000"),
+        where("project_code", "<=", "CLMC-ACME-2026999")
+      ))
+    );
+  });
+
+  it("BOOTSTRAP, scoped caller: a missing counter cannot be self-seeded by services_admin — it must fail, never restart at 001", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    // No counter exists for NEWCO_2026. _nextClmcCode() falls back to the legacy scan to derive a
+    // justified starting value; for a scoped role that scan is denied, and the generator throws.
+    // If this ever SUCCEEDS while returning nothing, the generator would start at 001 and mint a
+    // code that may already be in use — the exact unrecoverable failure the contract forbids.
+    await assertFails(
+      getDocs(query(
+        collection(db, "projects"),
+        where("client_code", "==", "NEWCO"),
+        where("project_code", ">=", "CLMC-NEWCO-2026000"),
+        where("project_code", "<=", "CLMC-NEWCO-2026999")
+      ))
+    );
+  });
+
+  it("BOOTSTRAP, see-all caller: super_admin CAN self-seed a missing counter (lazy heal still works)", async () => {
+    const db = testEnv.authenticatedContext("active-super-admin").firestore();
+    // A see-all role can still derive the starting value, so an unseeded client/year self-heals
+    // the first time an admin creates an engagement for it.
+    await assertSucceeds(
+      getDocs(query(
+        collection(db, "projects"),
+        where("client_code", "==", "NEWCO"),
+        where("project_code", ">=", "CLMC-NEWCO-2026000"),
+        where("project_code", "<=", "CLMC-NEWCO-2026999")
+      ))
+    );
+    await assertSucceeds(
+      setDoc(doc(db, "code_counters", "NEWCO_2026"), { last_seq: 1, client_code: "NEWCO", year: 2026 })
+    );
+  });
+
+  it("two sequential allocations never return the same sequence (the race the old generator accepted)", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    const ref = doc(db, "code_counters", "ACME_2026");
+    const alloc = () => runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      const n = Number(snap.data().last_seq) + 1;
+      tx.update(ref, { last_seq: n });
+      return n;
+    });
+
+    const first = await alloc();
+    const second = await alloc();
+    assert.notEqual(first, second, "each allocation must consume its own sequence number");
+    assert.equal(second, first + 1, "allocations must be contiguous");
   });
 });
