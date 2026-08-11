@@ -4,8 +4,8 @@ Browser verification against `clmc-procurement-dev` with the tightened rules dep
 through the in-app browser at `http://localhost:8001` (no-cache dev server). This is the substance
 of plan 113-11's UAT, executed against dev rather than production.
 
-**Roles exercised:** `super_admin`, `services_admin`, `operations_user`, `operations_admin`.
-NOT exercised: `services_user`.
+**Roles exercised:** all five — `super_admin`, `services_admin`, `operations_user`,
+`operations_admin`, `services_user`.
 
 ---
 
@@ -233,14 +233,70 @@ unobserved is only the client wiring around it, which this phase did not modify.
 
 ---
 
+## 9. `services_user` — and the one real risk this whole session surfaced
+
+Account `test@gmail.com`, `all_projects: false`, `all_services: false` — scoped on both dimensions.
+
+### 9a. Enforcement
+
+| Query | Result |
+|---|---|
+| `projects` unscoped list | **DENIED** |
+| `projects` scoped `array-contains` | ALLOWED, 0 |
+| `services` unscoped list | **DENIED** — `services_user` is correctly NOT in the services exempt set |
+| `services` scoped `array-contains` | ALLOWED, 0 |
+| `getDoc` on an unassigned project | **DENIED** |
+
+`#/projects` → Total 0, `#/services` → Total 0, zero console errors. Consistent with both getters
+returning `[]`.
+
+### 9b. A legacy/live mismatch that turned out to be a false alarm
+
+```
+getAssignedProjectCodes()          -> []
+getAssignedServiceCodes()          -> []
+user doc .assigned_project_codes   -> ["CLMC-DEV-002","CLMC-DEV-001","CLMC-DEV-004","CLMC-DEV-007"]
+user doc .assigned_service_codes   -> ["CLMC-SVC-002","SPI-SVC-001"]
+```
+
+The legacy arrays name 4 projects and 2 services; the live cache resolves to nothing. Taken at face
+value this looks like the phase silently stripping a user's access.
+
+**It is not.** `CLMC-DEV-001`..`008` come from `scripts/seed-dev-projects.js`, a superseded dev seed
+round. Independent confirmation: those codes do not match `^CLMC-(.+)-(\d{4})(\d{3})$`, so
+`seed-code-counters.js` would have flagged them as malformed — and its dry run reported **zero**
+malformed codes across all 11 projects and 12 services. No `CLMC-DEV-*` document exists. The legacy
+array points at containers that are gone, so `[]` is correct.
+
+### 9c. The generalisable risk, and what to do about it
+
+The false alarm above demonstrates a real failure shape. CONTEXT.md justifies shipping with NO
+migration on one assumption:
+
+> "project and service documents were always written correctly under the old model, so repointing
+> reads self-heals historical assignments"
+
+If that is wrong for even one user — their legacy array names a container that **still exists** but
+does not list them in `personnel_user_ids` — then this phase silently removes their access to it.
+No error, no toast; the item just stops appearing. That is the same silent-failure class the phase
+was created to eliminate, arriving from the opposite direction.
+
+Dev data cannot answer this for production. `scripts/audit-assignment-drift.js` was written during
+this session to answer it directly: read-only, Super Admin, classifies every active user's legacy
+entries as **DRIFT** (container exists, user absent from personnel → loses access), **STALE**
+(container gone → harmless), **OK** (backed by real membership), or **BONUS** (personnel membership
+the legacy array was hiding → the defect this phase fixes).
+
+**Run it against production and resolve every DRIFT finding BEFORE deploying the tightened rules.**
+Added to the production sequence in `deferred-items.md`.
+
+---
+
 ## Still unverified in a browser
 
-Requires logins not exercised in this session:
+All five roles were exercised. What remains is behavioural, not role coverage:
 
-1. `services_user` — the mirror of section 7, from the services department. Lower risk now that
-   `operations_user` passes, since both take the identical code path through the same getters, but
-   not observed.
-2. The canonical acceptance narrative (113-09 step 1) re-run under the TIGHTENED rules — an
+1. The canonical acceptance narrative (113-09 step 1) re-run under the TIGHTENED rules — an
    `operations_admin` assigning a `services_user` via the Personnel panel, who then sees the project
    without a re-save. It passed under the permissive rules before tightening. Section 7a is strong
    indirect evidence (a user whose legacy arrays are empty resolves assignments correctly from live

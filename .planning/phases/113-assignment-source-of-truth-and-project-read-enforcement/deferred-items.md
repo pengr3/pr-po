@@ -144,3 +144,40 @@ vector), but worth knowing before someone reports it as a bug.
 **Also on dev:** `DMC_2026` advanced 22 -> 24 during the same verification. Two sequence numbers
 were consumed without a corresponding document; the next DMC engagement will be `...025`. Gaps in
 the sequence are expected and harmless — the counter guarantees uniqueness, not contiguity.
+
+## 6. BLOCKING before the production rules deploy: run the assignment-drift audit
+
+**Discovered during:** live dev verification as `services_user`, 2026-08-11.
+
+CONTEXT.md ships this phase with NO migration on one assumption: "project and service documents
+were always written correctly under the old model, so repointing reads self-heals historical
+assignments."
+
+If that is wrong for any user — their legacy `assigned_*_codes` array names a container that STILL
+EXISTS but does not list them in `personnel_user_ids` — the tightened rules silently remove their
+access to it. No error, no toast; the item stops appearing. That is the same silent-failure class
+this phase exists to eliminate, arriving from the opposite direction.
+
+A dev `services_user` presented exactly this shape (4 legacy project codes, live cache empty). It
+was a FALSE alarm — the codes were `CLMC-DEV-00x` from a superseded seed and no such documents
+remain — but dev data says nothing about production.
+
+**`scripts/audit-assignment-drift.js`** (read-only, Super Admin) answers it definitively,
+classifying every active user's legacy entries as DRIFT / STALE / OK / BONUS.
+
+**Resolve every DRIFT finding before deploying the tightened rules**, by adding the affected user as
+Personnel on the named container — which is the correct record under the new model.
+
+## 7. Revised PRODUCTION deploy sequence (supersedes item 2's command list)
+
+Order is load-bearing. Each step depends on the one before it.
+
+1. `firebase deploy --only firestore:indexes` — **4** personnel indexes — and confirm readiness by
+   RUNNING each paired shape (see item 4), not by eyeballing the console
+2. Deploy the `code_counters` rules + the client bundle — but NOT the tightened `projects` rules yet
+3. Run `scripts/seed-code-counters.js` as Super Admin — dry run, review, apply
+4. Run `scripts/audit-assignment-drift.js` as Super Admin — resolve every DRIFT finding
+5. **Only then** deploy the tightened `firestore.rules`
+
+Doing 5 before 3 makes the first service creation for an unseeded client/year throw.
+Doing 5 before 4 silently strips access from any user with drifted assignments.
