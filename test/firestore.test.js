@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import assert from "node:assert/strict";
 import {
   assertFails,
   assertSucceeds,
@@ -690,18 +691,28 @@ describe("services_admin user document access", () => {
 });
 
 // =============================================
-// Test Suite: Cross-Department Personnel Assignment Sync
+// Test Suite: Cross-Department Personnel Assignment Sync (D-17 — carve-out REMOVED)
 // (services-user-project-hidden fix, 2026-08-10 — before this fix, syncPersonnelToAssignments /
 // syncServicePersonnelToAssignments silently failed here with PERMISSION_DENIED, leaving the
 // target user's assignment array unpopulated and the project/service invisible to them)
+//
+// Phase 113 D-17 (2026-08-11): the users.update carve-out these tests exercised was REMOVED.
+// syncPersonnelToAssignments / syncServicePersonnelToAssignments no longer exist (plan 113-09)
+// and the Assignments tab now writes personnel membership onto the CONTAINER document instead
+// of the user document (plan 113-08) — no client path constructs a cross-department
+// users.update write any more, so the carve-out grant became unreachable. These 3 suites (9
+// tests total) are RETAINED with the 4 previously-`assertSucceeds` tests INVERTED to
+// `assertFails`, using the same fixtures and payloads, so a future re-introduction of the
+// carve-out fails this suite immediately. The other 5 tests already asserted denial and are
+// unchanged.
 // =============================================
 
 describe("operations_admin cross-dept assignment sync", () => {
   beforeEach(seedUsers);
 
-  it("operations_admin can update assigned_project_codes on a services_user document", async () => {
+  it("operations_admin CANNOT update assigned_project_codes on a services_user document (D-17 carve-out removed)", async () => {
     const db = testEnv.authenticatedContext("active-ops-admin").firestore();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(db, "users", "active-services-user"), {
         assigned_project_codes: ["CLMC_TEST_2026001"]
       })
@@ -740,9 +751,9 @@ describe("operations_admin cross-dept assignment sync", () => {
 describe("services_admin cross-dept assignment sync", () => {
   beforeEach(seedUsers);
 
-  it("services_admin can update assigned_service_codes on an operations_user document", async () => {
+  it("services_admin CANNOT update assigned_service_codes on an operations_user document (D-17 carve-out removed)", async () => {
     const db = testEnv.authenticatedContext("active-services-admin").firestore();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(db, "users", "active-ops-user"), {
         assigned_service_codes: ["SVC-001"]
       })
@@ -766,9 +777,9 @@ describe("services_admin cross-dept assignment sync", () => {
 describe("cross-dept Assignments-tab modal save (2-field write)", () => {
   beforeEach(seedUsers);
 
-  it("operations_admin can update assigned_project_codes + all_projects together on a services_user document", async () => {
+  it("operations_admin CANNOT update assigned_project_codes + all_projects together on a services_user document (D-17 carve-out removed)", async () => {
     const db = testEnv.authenticatedContext("active-ops-admin").firestore();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(db, "users", "active-services-user"), {
         assigned_project_codes: ["CLMC_TEST_2026001"],
         all_projects: false
@@ -776,9 +787,9 @@ describe("cross-dept Assignments-tab modal save (2-field write)", () => {
     );
   });
 
-  it("services_admin can update assigned_service_codes + all_services together on an operations_user document", async () => {
+  it("services_admin CANNOT update assigned_service_codes + all_services together on an operations_user document (D-17 carve-out removed)", async () => {
     const db = testEnv.authenticatedContext("active-services-admin").firestore();
-    await assertSucceeds(
+    await assertFails(
       updateDoc(doc(db, "users", "active-ops-user"), {
         assigned_service_codes: ["SVC-001"],
         all_services: false
@@ -800,10 +811,16 @@ describe("cross-dept Assignments-tab modal save (2-field write)", () => {
 
 // =============================================
 // Test Suite: Phase 113 — additive personnel predicate (transitional)
-// (assignment-source-of-truth-and-project-read-enforcement, Plan 01) — proves the
-// widened services/project_tasks/service_tasks branches accept the NEW
-// personnel_user_ids predicate, still accept the LEGACY assigned_*_codes predicate,
-// still honour the all_services escape hatch, and grant nothing to a non-member role.
+// (assignment-source-of-truth-and-project-read-enforcement, Plan 01) — originally proved the
+// widened services/project_tasks/service_tasks branches accept the NEW personnel_user_ids
+// predicate, still accept the LEGACY assigned_*_codes predicate, still honour the all_services
+// escape hatch, and grant nothing to a non-member role.
+//
+// Phase 113 D-02/D-08 (plan 113-10): the LEGACY assigned_*_codes / isAssignedToService(...)
+// alternative was retired from every branch this suite exercises. The one test below that
+// asserted the legacy `service_code in` query SUCCEEDS is CONVERTED (not deleted) to assert it
+// now FAILS — personnel_user_ids is the sole predicate from here on. Every other test in this
+// suite already exercises the personnel_user_ids path and needs no change.
 // =============================================
 
 describe("Phase 113 — additive personnel predicate (transitional)", () => {
@@ -856,9 +873,9 @@ describe("Phase 113 — additive personnel predicate (transitional)", () => {
     );
   });
 
-  it("active-services-user still succeeds on the LEGACY service_code 'in' list query (additivity)", async () => {
+  it("active-services-user now FAILS on the LEGACY service_code 'in' list query (D-08 — legacy predicate retired in plan 113-10)", async () => {
     const db = testEnv.authenticatedContext("active-services-user").firestore();
-    await assertSucceeds(
+    await assertFails(
       getDocs(query(collection(db, "services"), where("service_code", "in", ["SVC-001"])))
     );
   });
@@ -904,6 +921,270 @@ describe("Phase 113 — additive personnel predicate (transitional)", () => {
       updateDoc(doc(db, "project_tasks", "TASK-P1"), {
         name: "x"
       })
+    );
+  });
+});
+
+// =============================================
+// Test Suite: projects collection - read rule (D-15 get/list split, Option B)
+// =============================================
+// Net-new — no test in this file previously asserted `allow get` / `allow list` behaviour on
+// `projects`. Option B (operator decision, 2026-08-11): the exempt role list is
+// super_admin/finance/procurement/operations_admin ONLY — services_admin is SCOPED here (see
+// firestore.rules:280-296), matching D-16 and the client-layer PROJECT_SEE_ALL_ROLES posture.
+// Covers the exempt unscoped path (case 1), the denied unscoped path for a scoped role (case 2),
+// the admitted scoped paths with a result-content assertion (cases 3-5), both direct-doc-ID
+// outcomes (cases 6-7), the all_projects escape hatch (case 8), the retired code-generation
+// range-scan shape (case 9), and the T-113-55 status-gate on the escape hatch (case 10).
+
+describe("projects collection - read rule (D-15)", () => {
+  beforeEach(seedUsers);
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+
+      await setDoc(doc(db, "projects", "proj-assigned"), {
+        project_code: "CLMC_TEST_2026001",
+        client_code: "TEST",
+        personnel_user_ids: ["active-ops-user"],
+      });
+
+      await setDoc(doc(db, "projects", "proj-unassigned"), {
+        project_code: "CLMC_TEST_2026002",
+        client_code: "TEST",
+        personnel_user_ids: [],
+      });
+
+      // Case 8 fixture: a SCOPED role (operations_user, not in the exempt hasRole([...]) list)
+      // carrying the all_projects escape hatch. Distinct from active-ops-user so this test can't
+      // be confused with the exempt-role path in case 1 — it isolates the hoisted all_projects
+      // OR term specifically.
+      await setDoc(doc(db, "users", "all-projects-ops-user"), {
+        email: "allprojects@clmc.com",
+        status: "active",
+        role: "operations_user",
+        display_name: "All-Projects Ops User",
+        all_projects: true,
+        assigned_project_codes: [],
+      });
+
+      // Case 10 fixture — T-113-55 status-gate guard. status: pending + role: null makes both
+      // the hasRole([...]) exempt term AND the isRole(...)-gated personnel term unsatisfiable,
+      // isolating the hoisted all_projects term. The stock pending-user fixture (seedUsers)
+      // carries no all_projects field, so it cannot exercise this path — a dedicated fixture is
+      // required.
+      await setDoc(doc(db, "users", "pending-user-all-projects"), {
+        email: "pendingall@clmc.com",
+        status: "pending",
+        role: null,
+        all_projects: true,
+        assigned_project_codes: [],
+      });
+    });
+  });
+
+  // Case 1
+  it("exempt roles (super_admin/finance/procurement/operations_admin) succeed on an unscoped projects list", async () => {
+    for (const uid of ["active-super-admin", "active-finance", "active-procurement", "active-ops-admin"]) {
+      const db = testEnv.authenticatedContext(uid).firestore();
+      await assertSucceeds(getDocs(collection(db, "projects")));
+    }
+  });
+
+  // Case 2
+  it("active-ops-user FAILS on the unscoped projects list (the query shape this phase eliminates)", async () => {
+    const db = testEnv.authenticatedContext("active-ops-user").firestore();
+    await assertFails(getDocs(collection(db, "projects")));
+  });
+
+  // Case 3 — asserts on returned document IDs, not just promise resolution
+  it("active-ops-user SUCCEEDS on the bare personnel_user_ids array-contains query, scoped to exactly their assignment", async () => {
+    const db = testEnv.authenticatedContext("active-ops-user").firestore();
+    const snap = await assertSucceeds(
+      getDocs(query(collection(db, "projects"), where("personnel_user_ids", "array-contains", "active-ops-user")))
+    );
+    assert.deepStrictEqual(snap.docs.map(d => d.id), ["proj-assigned"]);
+  });
+
+  // Case 4
+  it("active-ops-user SUCCEEDS on the paired project_code + array-contains query (project-detail.js / project-plan.js shape)", async () => {
+    const db = testEnv.authenticatedContext("active-ops-user").firestore();
+    await assertSucceeds(
+      getDocs(query(
+        collection(db, "projects"),
+        where("project_code", "==", "CLMC_TEST_2026001"),
+        where("personnel_user_ids", "array-contains", "active-ops-user")
+      ))
+    );
+  });
+
+  // Case 5
+  it("active-ops-user SUCCEEDS on the paired client_code + array-contains query (clients.js shape)", async () => {
+    const db = testEnv.authenticatedContext("active-ops-user").firestore();
+    await assertSucceeds(
+      getDocs(query(
+        collection(db, "projects"),
+        where("client_code", "==", "TEST"),
+        where("personnel_user_ids", "array-contains", "active-ops-user")
+      ))
+    );
+  });
+
+  // Case 6
+  it("active-ops-user SUCCEEDS on getDoc for an assigned project (D-15 scoped get)", async () => {
+    const db = testEnv.authenticatedContext("active-ops-user").firestore();
+    await assertSucceeds(getDoc(doc(db, "projects", "proj-assigned")));
+  });
+
+  // Case 7 — the direct-doc-ID link closure D-15 asks for
+  it("active-ops-user FAILS on getDoc for an unassigned project (direct doc-ID link closure)", async () => {
+    const db = testEnv.authenticatedContext("active-ops-user").firestore();
+    await assertFails(getDoc(doc(db, "projects", "proj-unassigned")));
+  });
+
+  // Case 8
+  it("a fixture carrying all_projects: true SUCCEEDS on the unscoped list (D-09 escape hatch)", async () => {
+    const db = testEnv.authenticatedContext("all-projects-ops-user").firestore();
+    await assertSucceeds(getDocs(collection(db, "projects")));
+  });
+
+  // Case 9 — Option B: services_admin is SCOPED, not exempt. Code generation no longer issues
+  // this query at all: commit cf0fa92 replaced the projects/services range scan with an atomic
+  // code_counters/{clientCode}_{year} document (_nextClmcCode() in app/utils.js). This test pins
+  // that the OLD range-scan shape stays denied for services_admin so a future edit cannot
+  // silently re-introduce a dependency on it.
+  it("services_admin FAILS on generateServiceCode's old range-scan shape against projects (Option B scopes services_admin; code generation no longer issues this query — commit cf0fa92)", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    const rangeMin = "CLMC-TEST-2026000";
+    const rangeMax = "CLMC-TEST-2026999";
+    await assertFails(
+      getDocs(query(
+        collection(db, "projects"),
+        where("client_code", "==", "TEST"),
+        where("project_code", ">=", rangeMin),
+        where("project_code", "<=", rangeMax)
+      ))
+    );
+  });
+
+  // Case 10 — T-113-55 falsification-checked guard. See 113-10-SUMMARY.md for the observed
+  // before/after of temporarily removing the isActiveUser() gate from `allow get`.
+  it("a pending account with a stale all_projects: true flag is DENIED on both getDoc and the unscoped list (T-113-55 status-gate)", async () => {
+    const db = testEnv.authenticatedContext("pending-user-all-projects").firestore();
+    await assertFails(getDoc(doc(db, "projects", "proj-assigned")));
+    await assertFails(getDocs(collection(db, "projects")));
+  });
+});
+
+// =============================================
+// Test Suite: services collection - tightening regression (D-08)
+// =============================================
+// Confirms the plan-113-10 removal of the legacy isAssignedToService(...) alternative from
+// `services` allow list: the OLD service_code-based query is now denied; the personnel_user_ids
+// array-contains query (the sole surviving predicate) still succeeds and returns exactly the
+// assigned document.
+
+describe("services collection - tightening regression (D-08)", () => {
+  beforeEach(seedUsers);
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "services", "SVC-TIGHTEN"), {
+        service_code: "SVC-TIGHTEN",
+        service_name: "Tightening Regression Fixture",
+        personnel_user_ids: ["active-services-user"],
+      });
+    });
+  });
+
+  it("active-services-user FAILS on the legacy service_code 'in' list query (isAssignedToService retired)", async () => {
+    const db = testEnv.authenticatedContext("active-services-user").firestore();
+    await assertFails(
+      getDocs(query(collection(db, "services"), where("service_code", "in", ["SVC-001"])))
+    );
+  });
+
+  it("active-services-user SUCCEEDS on the personnel_user_ids array-contains list query", async () => {
+    const db = testEnv.authenticatedContext("active-services-user").firestore();
+    const snap = await assertSucceeds(
+      getDocs(query(collection(db, "services"), where("personnel_user_ids", "array-contains", "active-services-user")))
+    );
+    assert.deepStrictEqual(snap.docs.map(d => d.id), ["SVC-TIGHTEN"]);
+  });
+});
+
+// =============================================
+// Test Suite: code_counters collection (Phase 113 D-16 — CODE-01 successor)
+// =============================================
+// Not in the original plan text — the collection did not exist when 113-10-PLAN.md was written.
+// Added per the 113-10 Task-3 deviation. Authorization mirrors project/service create authority
+// (super_admin, operations_admin, services_admin); writes must carry an integer last_seq, and
+// the update path is monotonic-only (last_seq may only increase) — the structural guard against
+// a stale client or a replayed transaction re-issuing an already-used CLMC code.
+
+describe("code_counters collection (Phase 113 D-16)", () => {
+  beforeEach(seedUsers);
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), "code_counters", "TEST_2026"), {
+        last_seq: 5,
+      });
+    });
+  });
+
+  it("active-services-admin can create a counter with an integer last_seq >= 0", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(
+      setDoc(doc(db, "code_counters", "NEWCLIENT_2026"), { last_seq: 0 })
+    );
+  });
+
+  it("active-services-admin can update a counter to a HIGHER last_seq", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, "code_counters", "TEST_2026"), { last_seq: 6 })
+    );
+  });
+
+  it("active-services-admin CANNOT update a counter to a LOWER last_seq (monotonic guard)", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "code_counters", "TEST_2026"), { last_seq: 4 })
+    );
+  });
+
+  it("active-services-admin CANNOT update a counter to an EQUAL last_seq (monotonic guard)", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      updateDoc(doc(db, "code_counters", "TEST_2026"), { last_seq: 5 })
+    );
+  });
+
+  it("active-ops-user CANNOT create a counter (not a project/service creator)", async () => {
+    const db = testEnv.authenticatedContext("active-ops-user").firestore();
+    await assertFails(
+      setDoc(doc(db, "code_counters", "OPSUSER_2026"), { last_seq: 0 })
+    );
+  });
+
+  it("active-ops-user CANNOT update a counter (not a project/service creator)", async () => {
+    const db = testEnv.authenticatedContext("active-ops-user").firestore();
+    await assertFails(
+      updateDoc(doc(db, "code_counters", "TEST_2026"), { last_seq: 6 })
+    );
+  });
+
+  it("nobody can DELETE a counter, including super_admin", async () => {
+    const db = testEnv.authenticatedContext("active-super-admin").firestore();
+    await assertFails(deleteDoc(doc(db, "code_counters", "TEST_2026")));
+  });
+
+  it("a create with a non-integer last_seq (string) is rejected", async () => {
+    const db = testEnv.authenticatedContext("active-services-admin").firestore();
+    await assertFails(
+      setDoc(doc(db, "code_counters", "BADTYPE_2026"), { last_seq: "5" })
     );
   });
 });
