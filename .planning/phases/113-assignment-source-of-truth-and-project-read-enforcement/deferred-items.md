@@ -145,7 +145,13 @@ vector), but worth knowing before someone reports it as a bug.
 were consumed without a corresponding document; the next DMC engagement will be `...025`. Gaps in
 the sequence are expected and harmless — the counter guarantees uniqueness, not contiguity.
 
-## 6. BLOCKING before the production rules deploy: run the assignment-drift audit
+## 6. Assignment-drift audit — OPTIONAL (operator waived it, 2026-08-11)
+
+> **DECISION: not required before the production deploy.** The operator judged the drift check
+> unnecessary for this dataset and elected to proceed without it. `scripts/audit-assignment-drift.js`
+> remains available and is read-only, so it can be run at any time — before or after the deploy —
+> if an access complaint surfaces. The analysis below is retained as the rationale for why the
+> script exists and what it would detect, not as an outstanding blocker.
 
 **Discovered during:** live dev verification as `services_user`, 2026-08-11.
 
@@ -165,8 +171,12 @@ remain — but dev data says nothing about production.
 **`scripts/audit-assignment-drift.js`** (read-only, Super Admin) answers it definitively,
 classifying every active user's legacy entries as DRIFT / STALE / OK / BONUS.
 
-**Resolve every DRIFT finding before deploying the tightened rules**, by adding the affected user as
-Personnel on the named container — which is the correct record under the new model.
+If ever run, a DRIFT finding is resolved by adding the affected user as Personnel on the named
+container — which is the correct record under the new model.
+
+**If an access complaint does surface after the deploy** ("I can't see project X any more"), this
+script is the fastest diagnosis: it will classify that exact user/container pair as DRIFT, STALE or
+OK in one pass, rather than requiring the pair to be traced by hand.
 
 ## 7. Revised PRODUCTION deploy sequence (supersedes item 2's command list)
 
@@ -176,8 +186,9 @@ Order is load-bearing. Each step depends on the one before it.
    RUNNING each paired shape (see item 4), not by eyeballing the console
 2. Deploy the `code_counters` rules + the client bundle — but NOT the tightened `projects` rules yet
 3. Run `scripts/seed-code-counters.js` as Super Admin — dry run, review, apply
-4. Run `scripts/audit-assignment-drift.js` as Super Admin — resolve every DRIFT finding
-5. **Only then** deploy the tightened `firestore.rules`
+4. **Only then** deploy the tightened `firestore.rules`
 
-Doing 5 before 3 makes the first service creation for an unseeded client/year throw.
-Doing 5 before 4 silently strips access from any user with drifted assignments.
+Doing 4 before 3 makes the first service creation for an unseeded client/year throw.
+
+The drift audit (item 6) was waived by the operator and is NOT part of this sequence. Keep it in
+mind only as post-deploy diagnosis if someone reports losing access to a project or service.

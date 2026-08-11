@@ -287,8 +287,10 @@ entries as **DRIFT** (container exists, user absent from personnel → loses acc
 (container gone → harmless), **OK** (backed by real membership), or **BONUS** (personnel membership
 the legacy array was hiding → the defect this phase fixes).
 
-**Run it against production and resolve every DRIFT finding BEFORE deploying the tightened rules.**
-Added to the production sequence in `deferred-items.md`.
+**Operator decision (2026-08-11): the drift audit was waived** — judged unnecessary for this
+dataset, and it is NOT part of the production deploy sequence. The script is read-only and remains
+available; its most likely use is now post-deploy diagnosis, since it resolves an "I lost access to
+project X" report in one pass instead of a manual trace. See `deferred-items.md` items 6 and 7.
 
 ---
 
