@@ -237,23 +237,33 @@ const PERSONNEL_CACHE_BY_ROLE = {
 };
 
 // department-keyed MRF fixtures; LEGACY has NO `department` field (legacy doc)
+//
+// `codeless` and `codeless_svc` are the two halves of the quick 260615-nlj NO-LEAK invariant
+// (Phase 113 D-04). Each is an item that is BOTH unassigned AND codeless, so it matches neither
+// branch of isMrfInAssignedScope's union. Each must stay hidden from the admin whose CROSS
+// department it belongs to, while remaining visible to the admin whose HOME department it is:
+//   codeless     = a projects-side codeless item -> hidden from services_admin, visible to operations_admin
+//   codeless_svc = a services-side codeless item -> hidden from operations_admin, visible to services_admin
+// The projects-side half predates Phase 113; the services-side mirror was added during Phase 113
+// UAT (2026-08-11) so the invariant is pinned symmetrically rather than on one department only.
 const MRF_SAMPLES = {
     P1: { department: 'projects', project_code: 'P1' },
     P9: { department: 'projects', project_code: 'P9' },
     codeless: { department: 'projects', project_code: '' },
     LEGACY: { project_code: 'PX' },
     S1: { department: 'services', service_code: 'S1' },
-    S9: { department: 'services', service_code: 'S9' }
+    S9: { department: 'services', service_code: 'S9' },
+    codeless_svc: { department: 'services', service_code: '' }
 };
 
 const MRF_KEYS = Object.keys(MRF_SAMPLES);
 
 const EXPECTED_VISIBILITY = {
-    operations_admin: { P1: true, P9: true, codeless: true, LEGACY: true, S1: true, S9: false },
-    services_admin: { P1: true, P9: false, codeless: false, LEGACY: false, S1: true, S9: true },
-    operations_user: { P1: true, P9: false, codeless: false, LEGACY: false, S1: true, S9: false },
-    services_user: { P1: true, P9: false, codeless: false, LEGACY: false, S1: true, S9: false },
-    super_admin: { P1: true, P9: true, codeless: true, LEGACY: true, S1: true, S9: true }
+    operations_admin: { P1: true, P9: true, codeless: true, LEGACY: true, S1: true, S9: false, codeless_svc: false },
+    services_admin: { P1: true, P9: false, codeless: false, LEGACY: false, S1: true, S9: true, codeless_svc: true },
+    operations_user: { P1: true, P9: false, codeless: false, LEGACY: false, S1: true, S9: false, codeless_svc: false },
+    services_user: { P1: true, P9: false, codeless: false, LEGACY: false, S1: true, S9: false, codeless_svc: false },
+    super_admin: { P1: true, P9: true, codeless: true, LEGACY: true, S1: true, S9: true, codeless_svc: true }
 };
 
 // ---------------------------------------------------------------------------
