@@ -106,3 +106,41 @@ runtime behavior.
 **Recommendation:** a future `/gsd:quick` pass should delete or update
 `scripts/verify-phase-88.sh`'s stale `syncServicePersonnelToAssignments` assertions (Phase 88 has
 long since shipped and this script has no CI trigger — it's a manual-run relic).
+
+## 4. RESOLVED on dev: composite index build state verified empirically
+
+**Item 3 above is closed for dev.** Console access was never needed. An unbuilt composite index
+returns `FAILED_PRECONDITION: The query requires an index`, so simply *running* each paired shape
+is a definitive readiness check. All four executed successfully against `clmc-procurement-dev`
+from the live app on 2026-08-11:
+
+| Shape | Result |
+|---|---|
+| `projects` `project_code` + `personnel_user_ids` array-contains | OK, 1 doc |
+| `projects` `client_code` + array-contains | OK, 2 docs |
+| `services` `client_code` + array-contains | OK, 3 docs |
+| `services` `service_code` + array-contains (4th index, added during UAT) | OK, 1 doc |
+
+Use the same technique on production after deploying rather than eyeballing the console.
+Still OPEN for production — nothing in Phase 113 is deployed there yet (item 2).
+
+## 5. Junk counter `code_counters/ZZZNEW_2026` on dev — needs manual removal
+
+**Created during:** live verification of the counter-document generator, 2026-08-11.
+
+Calling `generateServiceCode('ZZZNEW')` for a deliberately nonexistent client proved the bootstrap
+path self-seeds for a see-all role. It also left behind `code_counters/ZZZNEW_2026` with
+`last_seq: 1`.
+
+**It cannot be deleted through the app, by design.** `firestore.rules` sets
+`allow delete: if false` on `code_counters`, because deleting a counter would silently reset the
+sequence and mint duplicate CLMC codes. Removal requires the Firebase console or the Admin SDK.
+
+Harmless — it is a counter for a client code no document uses — but it is litter. Note the general
+consequence of the design: counters are effectively append-only, so a typo'd client code creates a
+permanent counter document. That is the correct trade (a deletable counter is a duplicate-code
+vector), but worth knowing before someone reports it as a bug.
+
+**Also on dev:** `DMC_2026` advanced 22 -> 24 during the same verification. Two sequence numbers
+were consumed without a corresponding document; the next DMC engagement will be `...025`. Gaps in
+the sequence are expected and harmless — the counter guarantees uniqueness, not contiguity.
