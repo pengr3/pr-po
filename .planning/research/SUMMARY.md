@@ -1,178 +1,208 @@
 # Project Research Summary
 
-**Project:** CLMC Procurement System v3.2 — Supplier Search, Proof of Procurement & Payables Tracking
-**Domain:** Zero-build static SPA — vanilla JS + Firebase Firestore, internal procurement management
-**Researched:** 2026-03-13
+**Project:** CLMC Procurement System — v4.3 Observability & Error Handling
+**Domain:** Retrofitting production error tracking (Sentry) + an app-wide error-handling contract into an existing zero-build, native-ESM, CDN-only static SPA with no staging environment
+**Researched:** 2026-08-11
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This milestone adds three distinct capabilities to an existing zero-build SPA: a supplier search bar, a proof-of-procurement document link on POs, and a new Request for Payment (RFP) / payables tracking system bridging procurement delivery to Finance payment. All three features extend an established codebase and follow patterns already in use — no new framework, no new build tooling, and no Firebase products beyond Firestore are required. The supplier search and proof link features are small field-level additions; the RFP/payables system is a new subsystem that warrants its own Firestore collection, Security Rules block, and Finance tab.
+This milestone adds Sentry (vendor already locked by PROJECT.md) to a 41-file, 55,189-LOC zero-build SPA that today has 504 `catch` blocks, 422 `console.error` calls, 57 fire-and-forget `.catch()` tails, 19 bare `alert()` calls, and **zero** global error handlers or error sink. All four researchers converge on the same organizing insight, and it should drive every downstream decision: **installing the Sentry SDK is cheap, low-risk, and does not fix the bug that motivated this milestone.** Sentry's `globalHandlersIntegration` is on by default and gives free `window.onerror`/`unhandledrejection` capture the instant `Sentry.init()` runs — no custom global handlers need to be written for genuinely uncaught errors. But Phase 113's root cause was a fire-and-forget `.catch()` whose body only called `console.error()`. From the JS engine's perspective, that promise **was handled** — a rejection handler was attached, however useless — so it structurally never reaches `unhandledrejection`, no matter how well global capture is wired. Global handlers give zero coverage for this exact bug class. The real engineering effort, and the real value of this milestone, is entirely in the second half: the `reportError()` contract, severity tiering, and the targeted retrofit of the 57 `.catch()` tails (write-path first) and the catch blocks whose only statement is a bare `console.error`.
 
-The recommended approach is to ship in dependency order: supplier search first (pure client-side display logic, zero Firestore changes), proof-of-procurement link second (optional string field on `pos` documents, no new collection), and RFP + payables last (new `rfps` collection, Security Rules, Finance tab). The single most important architectural decision is already resolved by research: do not embed RFP/payment data on PO documents. A dedicated `rfps` collection is mandatory for partial payment tracking, Finance filtering, and audit trail. The proof link uses paste-a-URL rather than Google Drive Picker API — a decision that eliminates OAuth complexity, CSP changes, and Google Cloud Console setup for a feature whose functional value is identical either way.
+The recommended approach is a version-pinned CDN bundle (`https://browser.sentry-cdn.com/<pinned-version>/bundle.min.js`, error-only variant, no Tracing/Replay/Feedback), loaded as a classic blocking `<head>` script — never via ESM import or Sentry's auto-updating Loader Script — matching this repo's existing convention of pinning every CDN dependency exactly (Firebase v10.7.1, Chart.js v4.4.7, Frappe Gantt v1.2.2) specifically because there is no staging environment to catch a surprise upstream break. `Sentry.init()` must run before the app's own module bootstrap so it can see cold-start failures (bad deploy, blocked Firebase CDN, the stale-ES-module class CLAUDE.md documents by name) — an ESM import-order trick is not a substitute for a classic head script, because module evaluation is dependency-graph-driven and strictly later than parse-time head-script execution.
 
-The primary risk across all three features is the well-documented Firestore Security Rules deployment order: the `rfps` collection rules must be deployed before any UI code reads or writes the collection, or Finance and Procurement roles will receive silent permission denials. A secondary risk is the supplier search pagination interaction — filtering must operate on the full in-memory array, not the already-paginated page slice. Both risks have clear, low-cost mitigations documented in the research.
+The two highest-severity risks are not "will Sentry work" but "will it fail silently." First: CSP. The Sentry ingest domain isn't in `script-src`/`connect-src` today, and a blocked ingest request throws no catchable JavaScript error — the app behaves perfectly, nothing appears in the console, and the Sentry dashboard shows zero events, which looks identical to "no errors occurred." This makes an explicit, production-verified test event (not just "no console error") a mandatory gate before any other work in this milestone is considered started. Second: PII. Sentry's console-breadcrumb integration is on by default and will echo this app's 422 existing `[Router]`/`[Procurement]`-prefixed `console.error` calls — which plausibly include full supplier, PO, and bank-transfer objects — into a third-party dashboard the instant `Sentry.init()` runs, with zero new code required. `beforeSend`/`beforeBreadcrumb` scrubbing must ship in the same commit as `Sentry.init()`, not as a follow-up hardening pass, because events sent before the scrub hook exists are unrecoverable. A third, load-bearing but unresolved item: Sentry's free tier is capped at **one seat**, and this is a 7-role, 2-department team — the requirements author must make an explicit choice here (share one login, pay for the Team plan, or accept the researched workaround of mirroring fatal-tier events into the app's existing `notifications` collection) rather than let it default silently.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The core stack is entirely unchanged: vanilla JavaScript ES6 modules, Firebase Firestore v10.7.1 (CDN), no build step. Two of three features require zero stack additions. Only if a future decision reverses the paste-a-link approach for proof documents would any new library (Google API Client + GIS) be needed — and that is explicitly deferred to v4.0+ pending user feedback on the simpler approach.
+**Sentry Browser SDK, version-pinned CDN bundle, error-only variant.** Two independent researchers verified the current stable release on the same day (2026-08-11) and landed on adjacent patch numbers: STACK.md confirmed **`10.70.0`** (released 2026-08-10, one day before research, via `github.com/getsentry/sentry-javascript/releases` and a live SRI-hash computation against the CDN file); PITFALLS.md's npm-registry check surfaced `10.69.0`. **Recommended pin for implementation: `10.70.0`** (the more recent, release-notes-verified source) — but because the two researchers' live checks already disagree by one patch within the same 24-hour window, treat the exact number as provisional and **re-run the version/SRI-hash check against the live CDN at the start of Phase 114**, not before. Do not trust either number as final without that re-check.
 
-**Core technologies:**
-- Vanilla JavaScript ES6 Modules: SPA logic, view lifecycle — no framework overhead, matches existing codebase
-- Firebase Firestore v10.7.1 (CDN): `rfps` new collection + `proof_url` field on `pos` — zero schema migration, schemaless
-- `Date.setUTCDate()` for payment due date arithmetic — 4 lines, no date library required
-- `Array.prototype.filter()` + `String.prototype.includes()` for supplier search — 3 lines, no library
+```html
+<script
+  src="https://browser.sentry-cdn.com/<PINNED_VERSION>/bundle.min.js"
+  integrity="sha384-<recompute-at-implementation-time>"
+  crossorigin="anonymous"
+></script>
+```
 
-**Not added (confirmed decisions):**
-- Firebase Storage: user explicitly rejected; Google Drive share links cover the use case at zero cost
-- `date-fns` / `dayjs`: payment term arithmetic is not complex enough to justify a dependency
-- Google Drive Picker API / OAuth: over-engineered for paste-a-link workflow; deferred to v4.0+
-- Netlify Functions / backend: not required; no server-side processing needed
-
-See `.planning/research/STACK.md` for full rationale and alternatives considered.
+- **Bundle choice:** `bundle.min.js` (error-only, ~35 KB gzip), never `bundle.tracing.*`/`bundle.*.replay.*`/`bundle.*.feedback.*` — those variants physically ship Tracing/Replay/Feedback code even if never invoked, since there's no bundler here to tree-shake it away.
+- **Delivery mechanism:** classic (non-module) `<script>` in `<head>`, before the app's `<script type="module">` bootstrap block — not an ESM `import` (loses the timing race to `firebase.js`'s top-level `initializeApp()`) and not Sentry's Loader Script (auto-updates outside the repo with no corresponding git commit — breaks this project's pin-everything convention and is an uncontrolled change to a live, no-CI, no-staging app).
+- **Self-hosting consideration:** this repo already self-hosts `lib/signature_pad.umd.min.js` specifically to dodge ad-blocker/tracking-prevention flags. `*.sentry-cdn.com`/`*.ingest.sentry.io` are common ad-blocker targets — self-hosting the bundle file (same treatment) is worth strong consideration; the ingest endpoint itself cannot be self-hosted, so `connect-src` widening is unavoidable either way.
+- **Source maps: not needed.** This app ships unbundled, unminified, untranspiled ES modules — the code running in the browser is line-for-line the code in the repo. Do not add `sentry-cli` or any build-plugin source-map tooling; there is no build step for it to hook into.
+- **Release/environment tagging without a build step:** a manually-bumped `release` string constant in `app/errors.js`/`app/sentry.js` (no CI to auto-inject a git SHA); `environment` derived at runtime via the exact `isLocal` pattern already used in `app/firebase.js` (`localhost`/`127.0.0.1` → `development`, else `production`).
 
 ### Expected Features
 
-**Must have (table stakes — launch with v3.2):**
-- Supplier search by name and contact person — any list with 15+ entries requires a search box; filter operates on the already-loaded `suppliersData[]` array in memory
-- Proof-of-procurement link on PO — auditors and Finance need a reference document; `proof_url` string field on `pos` document, paste-a-link UX
-- RFP creation (Procurement) — formal request to Finance to process payment after PO delivery; linked to `po_id` in new `rfps` collection
-- Finance payables list — open RFPs with balance, due date, and status badge; default filter excludes fully paid
-- Record payment / partial tracking — Finance enters amount, date, method, reference; system derives `payment_status` automatically from running total vs. amount requested
-- Payment due date display — client-side `Date` arithmetic from invoice date + payment terms, no Firestore query
+**Must have (table stakes) — the "cheap and mechanical" half:**
+- Sentry SDK loaded, `Sentry.init()` guarded (`if (window.Sentry) {...}`) so a blocked CDN never throws
+- Identity attribution: `Sentry.setUser({id, email})` + `setTags({role, department})`, wired into the existing `onAuthStateChanged`/`onSnapshot` lifecycle in `app/auth.js` (first-snapshot bootstrap, role-change diff, logout branch)
+- CSP widened for the Sentry `script-src` host (or none, if serving from the already-allow-listed `cdn.jsdelivr.net`) and `connect-src` ingest host, in **all four** CSP string occurrences (see Architecture Approach below)
+- `beforeSend`/`beforeBreadcrumb` PII-scrubbing hooks, shipped in the same commit as `Sentry.init()`
 
-**Should have (add once v3.2 core is stable):**
-- Overdue badge — color-coded indicator when `due_date < today` and not fully paid; pure client-side date comparison
-- RFP event on procurement timeline — extend existing `showTimeline()` modal
-- CSV export of payables — use existing `downloadCSV()` utility
+**Must have — the "real work" half:**
+- A single `reportError(err, {severity, context, ...})` contract in new file `app/errors.js`, with a `SEVERITY` enum (`ERROR`/`WARNING`/`BREADCRUMB`/`SILENT`) and `mapFirestoreError()` for Firestore/Auth `.code`-based normalization (never `.message` — unstable across SDK versions)
+- Correlation ID generation (5–8 char, uppercase, ambiguity-reduced alphabet, via the existing `cryptoRandomUuid()` primitive) — **always generated first, before any Sentry availability check**, so it works identically whether or not the SDK loaded
+- Elimination of the 57 fire-and-forget `.catch()` tails, write-path (`updateDoc`/`setDoc`/`addDoc`/`deleteDoc`/`writeBatch`/`runTransaction`) prioritized first — this is the direct fix for Phase 113 and should not wait for a full 504-block sweep
+- Replacement of the 19 bare `alert()` calls with `showToast()` + correlation ID, threaded through the catch-block conversion work rather than scheduled as an independent sweep
+- A documented convention guardrail (CLAUDE.md entry): never assign `window.onerror`/`window.onunhandledrejection` (single-value IDL properties — silently clobbers Sentry's own handler); always `addEventListener('error'/'unhandledrejection', ...)`; never call `Sentry.captureException()` a second time for an error the SDK's default integration already captured
 
-**Defer (v4.0+):**
-- Google Drive Picker API — only if paste-a-link proves too friction-heavy in practice
-- Payables dashboard scoreboard — total outstanding across all open RFPs
-- Per-supplier payables aggregation
-- RFP approval workflow with second sign-off
+**Should have (fast-follow within the milestone):**
+- Sweep of the remaining ~450 non-write-path catch blocks, batched per file, risk-ascending (financial write paths last)
+- Mirror fatal-tier errors into the existing `notifications` collection (bell/dropdown UI already exists, v4.0) — the researched workaround for the 1-seat limit, giving non-Sentry-seat admins near-real-time visibility
+- At least one Sentry Alert Rule ("new issue", `environment:production`) — free even on the Developer tier, and without it severity tiering is cosmetic (an event nobody is notified about isn't "seen")
 
-**Anti-features (researched and rejected):**
-- Firebase Storage for proof documents — explicitly rejected by user due to storage cost concern
-- Automated payment reminders / email notifications — out of scope per PROJECT.md
-- Full AP automation / invoice auto-match — over-engineering for current scale and team
-
-See `.planning/research/FEATURES.md` for prioritization matrix and detailed behaviour analysis.
+**Defer (v2+/explicitly out of scope):**
+- Session Replay (masking is opt-out per field, high risk over a financial UI, separate quota)
+- Performance/APM tracing (`tracesSampleRate`) — different problem, different quota
+- Custom Sentry fingerprint rules — revisit only once real production volume shows default grouping is too coarse/fine
+- Slack/PagerDuty routing, issue-ownership rules — irrelevant at team size 1 responder; requires the paid Team plan anyway
+- A git-hook pattern scanner enforcing the convention guardrail — valuable, not blocking (this repo has no linter/build step to hang one off of)
 
 ### Architecture Approach
 
-All three features integrate into existing view files following established patterns. Supplier search adds a module-level filter variable and modifies `renderSuppliersTable()` in `procurement.js`. Proof link adds optional fields to `pos` documents and two window functions in `procurement.js`. The RFP system introduces a new `rfps` Firestore collection, a Security Rules block in `firestore.rules`, RFP submission logic in `procurement.js`, and a new "Payables" fourth tab in `finance.js`. The RFP system must not be placed as a standalone view with its own route — Finance and Procurement already have the right permission context and listener lifecycle.
+`Sentry.init()` must live in a classic, blocking `<script>` in `index.html`'s `<head>`, strictly before the app's `<script type="module">` bootstrap block — this is the only mechanism guaranteed to run before `app/firebase.js`'s top-level `initializeApp()`/`initializeFirestore()` calls and before the entire `auth.js`/`router.js` module graph resolves, which matters because a cold-start failure (bad deploy, blocked Firebase CDN, a stale/mismatched ES module — CLAUDE.md's own named failure mode) is only visible to Sentry if its global listener is already attached when the browser reports it, and this app has no staging environment to catch that class of failure before it hits every user.
+
+**New file: `app/errors.js`.** Not `app/utils.js` (would pollute the lowest-level shared module with Sentry-specific concerns and make its 970 lines harder to reason about) and not inline per-call-site (loses the shared severity/correlation-ID contract). `errors.js` sits at the same graph depth as `app/permissions.js`/`app/notifications.js`: it statically imports `utils.js` (for `showToast`, `cryptoRandomUuid`) and nothing else, reads identity via `window.getCurrentUser?.()` rather than statically importing `auth.js` (mirroring the existing `app/diagnostics.js` pattern), and exposes itself as `window.reportError` for the handful of modules below it in the graph (`utils.js`, `firebase.js`, `permissions.js`) that would otherwise create an import cycle. Resulting one-directional chain: `errors.js → utils.js → firebase.js`, with `auth.js`, `router.js`, and view modules importing `errors.js` from above.
 
 **Major components:**
-1. `procurement.js` Supplier tab — add `supplierSearchTerm` state, `filterSuppliers()` window fn, filter before pagination slice in `renderSuppliersTable()`
-2. `procurement.js` PO Tracking section — add `proof_url` column/button on PO rows; "Submit RFP" button on Delivered POs with no existing RFP
-3. `finance.js` Payables tab (new fourth tab) — `onSnapshot` on `rfps`, render table, `approveRFP()` / `markRFPPaid()` / `rejectRFP()` window functions
-4. `rfps` Firestore collection — new, auto-created on first `addDoc`; FK to `pos` by `po_id`; denormalized `supplier_name`, `pr_id`, `mrf_id` for display without joins
-5. `firestore.rules` `rfps` block — must deploy before any UI code touches the collection
+1. **`app/errors.js` — `reportError()` + `mapFirestoreError()`** — the severity-tiering brain; correlation ID generation; console fallback that always fires regardless of Sentry availability (graceful-degradation contract: Sentry down means console + toast still work, only dashboard visibility is lost)
+2. **`app/auth.js` identity binding** — `Sentry.setUser()`/`setTags()` hooked into the existing first-snapshot/role-change/logout branches of the single `onSnapshot(users/{uid})` listener — no new subscription needed
+3. **`app/router.js` single choke-point conversion** — the one existing `navigate()` catch block already catches every lazy-view-load failure app-wide (including the stale-module class); converting just this one site gives coverage disproportionate to its size, before the wider 41-file sweep begins
+4. **`netlify.toml` + `_headers` CSP** — **four total CSP string occurrences**, not two: each file independently duplicates its CSP string across a `/*` block and a `/*.html` block. All four must be updated atomically in one commit, and Netlify's own documentation does not define precedence between `netlify.toml` and `_headers` when both define headers for the same path — treat "both files always byte-identical" as an enforced invariant, and after every CSP-touching deploy, verify empirically which one Netlify actually served (`curl -I` or DevTools → Response Headers → `Content-Security-Policy`) rather than trusting the committed diff. The lowest-risk path: if the Sentry bundle is served from `cdn.jsdelivr.net` (already allow-listed in `script-src` for Firebase/Chart.js), no `script-src` change is needed at all — only `connect-src` needs the new ingest host.
 
-See `.planning/research/ARCHITECTURE.md` for data flow diagrams, exact line numbers, and anti-patterns to avoid.
+### Global Handlers — What's Free vs. What Still Needs Building
+
+Sentry's `globalHandlersIntegration` is **on by default** and installs its own `window.onerror` + `unhandledrejection` capture the moment `Sentry.init()` runs — this satisfies the milestone's "global error capture" line item for anything the SDK sees, with zero custom handler code required. What the milestone's original goal statement framed as work ("the app currently has neither, so any failure outside a `catch` is lost entirely") is therefore already solved by installing the SDK, not a separate deliverable.
+
+What genuinely still needs building on top of that free coverage:
+- **UX-only supplementary listeners**, registered via `addEventListener('error'/'unhandledrejection', ...)` — never by assigning `window.onerror`/`window.onunhandledrejection` directly (both are single-value IDL properties; a direct assignment silently replaces Sentry's own installed handler, with no error to flag the regression). These supplementary listeners feed the existing `app/diagnostics.js` ring buffer and show a generic "Something went wrong" toast — they must never call `Sentry.captureException()` themselves, since the SDK's default integration already reported that same error once (double-reporting is a documented, cross-framework Sentry pitfall).
+- **The `reportError()` contract itself** — for errors caught in an app-level `catch` block or `.catch()` tail, which by definition never reach `window.onerror`/`unhandledrejection` at all (see next section).
+
+### The Organizing Insight: Global Capture Doesn't Fix the Motivating Bug
+
+Phase 113's root cause was a cross-department `updateDoc()` whose `.catch()` body only called `console.error(...)`. A promise with any `.catch()` attached — however useless its body — is **handled** from the JavaScript engine's perspective; it structurally never fires `unhandledrejection`, no matter how correctly global handlers are wired. This means Sentry's free, zero-code global capture gives complete coverage for genuine unknown-unknowns (bugs nobody anticipated) and zero coverage for the exact bug class this milestone exists to catch. The only fix is per-site conversion: routing the 57 fire-and-forget `.catch()` tails and the catch blocks whose only statement is `console.error` through `reportError()`, write-path first. This is why the milestone's value is concentrated almost entirely in the `reportError()`/retrofit half, not the SDK-install half — and why the final acceptance test for the whole milestone should be a deliberate, production-run reproduction of the Phase 113 bug class (a rejected cross-department write), confirming it now produces exactly one Sentry event, at report-tier, tagged with enough context to diagnose without reproducing.
+
+### `permission-denied` Tiering — One Rule
+
+Phase 113's `firestore.rules` tightening (plan 113-11, deploying immediately ahead of this milestone) means `permission-denied` will now fire more often, and correctly, as by-design access-control behavior. The reflexive fix — blanket-ignoring `permission-denied` via `ignoreErrors` — is exactly wrong: it would recreate the same invisibility this milestone was funded to eliminate, one layer up the stack. The single discriminating rule an implementer can apply mechanically:
+
+> **Read-path `permission-denied` → `WARNING`/breadcrumb tier** (a scoped listener or query rejected by design — expected under normal, correctly-scoped operation; still worth a low-cost breadcrumb in case scoping itself is buggy, but not worth a full event).
+> **Write-path `permission-denied` → always `ERROR`/report tier** — a correctly gated UI should never let a user attempt a write their role doesn't permit, so a write-permission-denied reaching Firestore at all is, by definition, evidence of a client-side authorization bug (missing UI guard, stale permission cache, a cross-department write path nobody scoped — Phase 113's exact shape). This is never "expected," regardless of volume.
+
+Tag every Firestore error at the `reportError()` call site with structured context (`operation: 'read'|'write'`, `collection`, acting `role`) rather than filtering by error string — this turns `permission-denied` from an undifferentiated noise category into a filterable, queryable dimension in Sentry, and is cheap since the wrapper already has identity/role in scope.
 
 ### Critical Pitfalls
 
-1. **Search filters paginated page slice, not full array** — maintain `suppliersData` (raw) and `filteredSuppliersData` (post-filter) as separate arrays; pagination must operate on the filtered array, not the source. Phase 1 design-time risk.
-
-2. **Page number not reset on search term change** — any function modifying the filtered dataset must set `suppliersCurrentPage = 1` before calling `renderSuppliersTable()`, including typing, clearing, and adding/deleting a supplier while a filter is active. Phase 1 implementation risk.
-
-3. **RFP Security Rules missing at collection creation** — deploy `rfps` rules block in the same commit as the first `addDoc` to `rfps`; Firestore denies all access by default. This pitfall has caused production regressions in prior milestones. Phase 3 deployment risk.
-
-4. **RFP data embedded on PO document instead of separate collection** — storing payment fields on `pos` blocks partial payments, inflates PO listeners, and prevents Finance-independent filtering. The `rfps` collection is non-negotiable. Phase 3 design risk.
-
-5. **Overcomplicated RFP state machine** — start with exactly four states: `Pending | Approved | Rejected | Paid`. Do not model partial payment as a status; derive it from `total_paid` vs `amount_requested` arithmetic. Phase 3 scoping risk.
-
-6. **XSS via unsanitized proof URL in `href` attribute** — apply `escapeHTML()` from `utils.js` to `proof_url` before injecting into template literals; use `rel="noopener noreferrer"` on all `target="_blank"` proof links. Phase 2 security risk.
-
-See `.planning/research/PITFALLS.md` for the full 10-pitfall catalogue, integration gotchas, and "Looks Done But Isn't" checklist.
+1. **CSP silently blocks all Sentry ingest, and the failure looks identical to "no errors happened."** A blocked `connect-src` request throws no catchable JS error — the app functions perfectly, nothing appears in console, and zero events reach Sentry. **Avoid by:** treating a production-verified test event (not "no console error observed") as a hard release gate for the CSP-widening phase, every time it's touched — not just the first time.
+2. **Default console breadcrumbs leak PII with zero new code.** Sentry's console-breadcrumb integration is on by default and echoes this app's 422 `console.error` calls — plausibly including full supplier/PO/bank objects per the `[Router]`/`[Procurement]` debug-logging convention — into the dashboard the instant `Sentry.init()` runs. **Avoid by:** shipping `beforeSend`/`beforeBreadcrumb` scrubbing in the same commit as `Sentry.init()`; events sent before the scrub hook exists are unrecoverable.
+3. **Naive quota exhaustion from unfiltered rollout.** 5,000 events/month, and this app's `onSnapshot`-heavy architecture means a single bad rules deploy can fire the same error from every open tab simultaneously — a multiplicative, not linear, spike. Sentry's grouping into "issues" does not reduce quota consumption; every event still counts. **Avoid by:** triaging representative samples into report/breadcrumb/console-only before any mechanical conversion, not "convert everything then tune."
+4. **Double-reporting from custom global handlers layered on Sentry's own defaults, or from report-then-rethrow patterns.** **Avoid by:** one written rule — Sentry's default `globalHandlersIntegration` is the sole source of truth for uncaught errors; custom `addEventListener` handlers are UX-only and never call `captureException`; a `catch` site either fully reports-and-terminates or lets the error propagate to be caught once — never both.
+5. **Mechanically converting 500+ catch blocks in one pass, with no automated test suite to catch behavior regressions.** This app's only automated tests are Firestore security-rules tests — they don't touch view-layer catch blocks at all, and there is no staging environment to catch a regression before it hits every user. **Avoid by:** splitting into an audit phase (classification artifact, reviewed) and a conversion phase (batched per file, risk-ascending — financial write paths last), never a single mega-PR.
 
 ## Implications for Roadmap
 
-Based on combined research, three phases in dependency order:
+Based on combined research, suggested phase structure (continuing from Phase 114 per PROJECT.md's phase numbering):
 
-### Phase 1: Supplier Search Bar
-**Rationale:** Zero Firestore changes, zero new collections, zero Security Rules impact. Entirely within `procurement.js`. Lowest risk in the milestone. Ships a visible UX improvement that validates the filter pattern before it is referenced by Phase 3 (RFP filter in the Finance payables tab follows the same approach).
-**Delivers:** Search input above suppliers table; filters `suppliersData[]` by `supplier_name` and `contact_person` with case-insensitive substring matching; pagination operates on filtered subset; page resets to 1 on each search keystroke (debounced 200ms).
-**Addresses:** Table stakes supplier search (FEATURES.md P1); style parity with existing client/projects search bars.
-**Avoids:** Pitfall 1 (two-array split design), Pitfall 2 (debounce), Pitfall 3 (page reset).
-**Research flag:** None needed — standard client-side filter pattern, identical to `filterPRPORecords()` already in `procurement.js`.
+### Phase 114: Sentry Foundation — SDK, CSP, PII Scrubbing
+**Rationale:** Everything else in this milestone needs `window.Sentry` to exist, and this is the phase where the two catastrophic-but-silent failure modes (CSP block, PII leak) must be closed before any real traffic — or even a test event — flows through.
+**Delivers:** Pinned CDN bundle in `index.html` `<head>` (guarded `if (window.Sentry)` init), all four CSP string occurrences updated in `netlify.toml`/`_headers`, `beforeSend`/`beforeBreadcrumb` scrubbing hooks configured in the same commit as `Sentry.init()`, `release`/`environment` tagging.
+**Addresses:** Error dashboard, CSP widening (FEATURES.md/PROJECT.md)
+**Avoids:** Pitfalls 2 (PII leak) and 3 (CSP silent block)
+**Hard gate before proceeding:** a manually-triggered test error verified reaching the live Sentry dashboard in production, plus a verified CDN-blocked degradation path (app must work identically, minus dashboard visibility, if the Sentry script fails to load).
 
-### Phase 2: Proof of Procurement Link
-**Rationale:** Adds one optional string field to `pos` documents — backward compatible, no new collection, no Security Rules change. Should ship before Phase 3 because both features modify the same PO Tracking table rows in `procurement.js`. Having the proof_url column stable before adding the RFP submission button to those same rows avoids merge complexity and keeps each phase reviewable in isolation.
-**Delivers:** "Add Proof" / "View Proof" on PO rows in Procurement PO Tracking; `proof_url`, `proof_uploaded_at`, `proof_uploaded_by` stored on `pos` doc; "View Document" link surfaced in Finance PO tab and Timeline modal; accepts any valid `https://` URL (Google Drive, OneDrive, SharePoint, Dropbox).
-**Addresses:** Table stakes proof-of-procurement attachment (FEATURES.md P1).
-**Avoids:** Pitfall 4 (no URL normalization or fetch-validation — store as entered), Pitfall 6 (XSS — `escapeHTML()` on all href injections).
-**Research flag:** Requires one product decision before coding begins: can the proof URL be updated after a PO reaches `Delivered` status? Research recommends yes (Procurement role only at any status). Decision must be reflected in both the UI conditional and the `firestore.rules` `pos` update permission.
+### Phase 115: Identity Attribution
+**Rationale:** Small, isolated, high-value — hooks into the existing single `onSnapshot(users/{uid})` listener lifecycle in `app/auth.js`, no new subscription.
+**Delivers:** `Sentry.setUser({id, email})` + `setTags({role, department})` in the first-snapshot and role-change branches; `Sentry.setUser(null)` in the logout branch.
+**Uses:** Existing `currentUser`/`previousRole !== userData.role` diff already computed in `app/auth.js`.
+**Depends on:** Phase 114 (`window.Sentry` must exist).
 
-### Phase 3: RFP + Payables Tracking
-**Rationale:** Depends on stable PO Tracking UI from Phase 2 (both touch PO rows). Introduces the only new Firestore collection and the only new Finance tab in this milestone. Must be built in sub-steps to manage risk: Security Rules first, then RFP submission UI in `procurement.js`, then Finance Payables tab.
-**Delivers:** `rfps` Firestore collection with `RFP-YYYY-###` sequential IDs; RFP creation modal on Delivered POs with no existing RFP; Finance Payables tab (fourth tab) with real-time `onSnapshot` listener; approve/reject/mark-paid actions for Finance; partial payment via `payment_records` array with `total_paid` running sum; auto-derived `payment_status` (`Pending` / `Partially Paid` / `Fully Paid`) — Finance never manually sets status; default payables view excludes fully paid RFPs.
-**Addresses:** RFP creation (P1), Finance payables list (P1), record payment (P1), due date display (P1).
-**Uses:** `generateSequentialId()` from `utils.js` (or inline equivalent) for `RFP-YYYY-###`; `onSnapshot` + TTL cache guard pattern from existing `finance.js` tabs; `addDoc` / `updateDoc` Firestore write pattern.
-**Avoids:** Pitfall 7 (Security Rules in same commit as first collection write), Pitfall 8 (4-state model — no "Partially Paid" status field, only derived display), Pitfall 9 (Payables as Finance sub-tab, not standalone route), Pitfall 10 (`procurement.js` stays under 7,000 lines — RFP list/approval logic lives in `finance.js`, not `procurement.js`).
-**Research flag:** Moderate complexity warrants deeper phase research before implementation. Specific items to resolve: (a) confirm `generateSequentialId()` in `utils.js` accepts a custom prefix for `RFP-` IDs or document the inline alternative; (b) lock in the `payment_records` array vs. subcollection decision — research currently splits on this (STACK.md recommends subcollection for lifecycle independence; FEATURES.md recommends array for simplicity at 1–5 records per RFP); (c) confirm Finance `destroy()` correctly cleans up the fourth tab's `onSnapshot` listener without breaking the existing three tabs.
+### Phase 116: `reportError()` Contract, Severity Tiering, Correlation IDs
+**Rationale:** This is the load-bearing design phase — the wrapper, the tiering rule, and the permission-denied read/write discriminator must all be settled and reviewed before any mechanical catch-block conversion begins, or the retrofit risks reproducing either the quota-exhaustion or the invisibility failure this milestone exists to prevent.
+**Delivers:** New `app/errors.js` (`reportError()`, `mapFirestoreError()`, `SEVERITY` enum), correlation ID generation reusing `cryptoRandomUuid()`, a reviewed triage table classifying representative catch/`.catch()` samples by tier, the correlation-ID-to-Sentry-tag round-trip (`Sentry.setTag('correlation_id', id)`) shipped as **one deliverable** with the toast display — not sequenced separately.
+**Implements:** The read-vs-write `permission-denied` rule; the graceful-degradation contract (console fallback always fires regardless of Sentry availability).
+**Depends on:** Phase 114.
+
+### Phase 117: Global Handler Coexistence + Router Choke Point
+**Rationale:** Confirms Sentry's default global capture is active and un-clobbered, adds only UX-layer supplementary handling, then converts the single `router.js` `navigate()` catch — the highest-leverage individual conversion in the entire retrofit, since it already catches every lazy-view-load and stale-module failure app-wide.
+**Delivers:** `addEventListener('error'/'unhandledrejection', ...)` (never `window.onerror =`) feeding `app/diagnostics.js` + a generic fallback toast; `navigate()` catch converted to `reportError()` with the returned correlation ID surfaced in the fallback UI; a breadcrumb on successful navigation (this app uses `location.hash`, not `pushState`, so Sentry's default history-based breadcrumbs cannot be assumed to cover it).
+**Depends on:** Phase 116 (`reportError()` must exist).
+
+### Phase 118: Correlation ID UX — `alert()` Replacement
+**Rationale:** Threads through wherever `reportError()`'s toast surfacing naturally replaces an `alert()`, rather than as an independent sweep across the 6 files that contain the 19 bare `alert()` calls.
+**Delivers:** All 19 `alert()` calls replaced with `showToast()` + persistent (not auto-dismissing) correlation ID.
+**Depends on:** Phase 116.
+
+### Phase 119+: Prioritized Retrofit Passes (audit sub-phase, then conversion sub-phase — do not collapse)
+**Rationale:** 504 catch blocks + 57 `.catch()` tails across 41 files with no automated regression coverage and no staging environment means a blanket conversion is both an unreviewable-diff risk and mostly wasted effort (most existing catches already show a reasonable message — they're not silent).
+**Delivers, in order:**
+- Pass A — the 57 fire-and-forget `.catch()` tails, write-path (`updateDoc`/`setDoc`/`addDoc`/`deleteDoc`/`writeBatch`/`runTransaction`) filtered first — the direct Phase 113 fix
+- Pass B — catch blocks whose entire body is a bare `console.error`, same write-path-first filter
+- Pass C — `project-plan.js`/`service-plan.js` paired conversion (structurally near-identical files, ~28 inline `permission-denied` ternaries between them — convert as one reviewed diff, not two)
+- Pass D — opportunistic, boy-scout-rule conversion of the remaining ~450 catches as those files are touched for unrelated work — explicitly not a dedicated phase
+**Avoids:** Pitfall 5/6 (mechanical mega-PR risk)
+
+### Final Phase: Convention Guardrail + Phase-113-Class Regression Verification
+**Rationale:** Written after real converted examples exist (per this repo's stated practice of documenting from what was built, not aspirationally), and closes the loop with the milestone's actual acceptance test.
+**Delivers:** CLAUDE.md entry documenting `reportError()` usage and the `window.onerror`-clobbering anti-pattern; a deliberate, production-run reproduction of a cross-department write rejection, confirmed to produce exactly one Sentry event at report-tier with role/collection/operation tags; at least one Sentry Alert Rule configured (free even on the Developer tier — without it, tiering is cosmetic).
 
 ### Phase Ordering Rationale
 
-- Phase 1 has no shared code surface with Phases 2 or 3. It can be shipped and deployed independently with no integration risk.
-- Phase 2 must precede Phase 3 because both modify PO Tracking table rows in `procurement.js`. Completing Phase 2 first ensures each phase diff is reviewable in isolation and reduces the chance of conflicting edits in the same function.
-- Phase 3 must come last because it depends on PO documents existing with stable `proof_url` handling (Phase 2), introduces the only new Firestore collection in this milestone, and represents the largest scope change.
-- All three phases avoid Google Drive API / OAuth integration. Research confirmed the paste-a-link approach delivers identical functional value with zero infrastructure overhead, and the API path is explicitly deferred pending user feedback.
+- Foundation (114) must be fully verified — not just deployed — before anything depends on `window.Sentry` existing, because both of its failure modes (CSP block, PII leak) are silent.
+- Identity (115) and the contract (116) are independent of each other but both gate everything downstream; 116 is sequenced after 115 only because it's the larger design surface and benefits from identity tags already being available to reference in its tiering examples.
+- The router choke point (117) ships before the wide retrofit (119+) specifically because it's disproportionately high-leverage (covers all ~30 lazy-loaded views in one change) and should start producing real production signal before the slower, file-by-file sweep begins.
+- The retrofit (119+) is explicitly two sub-phases (audit artifact, then mechanical conversion guided by it) per Pitfall 6 — collapsing them reproduces the exact "judgment calls get skipped under reviewer fatigue" risk research flagged.
+- Financial write-path files (`finance.js`, `procurement.js`, `mrf-form.js`) should be sequenced last within the retrofit passes, once the `reportError()` pattern has survived contact with lower-risk views first.
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 3:** Three unresolved decisions require confirmation before implementation begins: `generateSequentialId` prefix support, `payment_records` array vs. subcollection, and Finance `destroy()` listener cleanup for the fourth tab. These are low-risk gaps but must be resolved in the phase spec, not during coding.
+Needs deeper scoping/design attention during planning (not necessarily external research, but real design decisions with consequences):
+- **Phase 114** — the CSP two-file/four-occurrence ambiguity and Netlify's undocumented `netlify.toml` vs. `_headers` precedence must be resolved empirically (live header inspection) at plan time, not assumed from the diff.
+- **Phase 116** — severity tiering is the single highest-consequence design decision in the milestone (gates both quota safety and Phase-113-class visibility); the triage table should be a reviewed artifact, not implicit in the code.
+- **Phase 119+** — must be planned as an explicit audit-then-convert split with per-batch manual smoke-test checklists, given the total absence of automated coverage for this layer.
 
-Phases with standard patterns (skip research-phase):
-- **Phase 1:** Client-side filter pattern is identical to existing `filterPRPORecords()` in `procurement.js` and the projects/clients search bars. No research needed.
-- **Phase 2:** Optional string field on an existing document. `updateDoc` pattern is in heavy use throughout `procurement.js`. No research needed.
+Standard, well-documented patterns (skip deep research-phase):
+- **Phase 115** — identity binding has a direct precedent already in this codebase (`app/diagnostics.js`'s `window.getCurrentUser?.()` pattern, the existing `onSnapshot` lifecycle).
+- **Phase 117** — the "never assign `window.onerror`, always `addEventListener`" rule and the double-reporting trap are both well-documented, cross-framework Sentry patterns with clear verification steps.
+- **Phase 118** — reuses the existing, unmodified `showToast()` primitive; no new UI component needed.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Core stack unchanged; zero new libraries; Google Drive API deferred with explicit rationale. Official Firestore and vanilla JS patterns confirmed in multiple official sources. |
-| Features | HIGH | MVP scope is well-defined with clear P1/P2/P3 prioritization. Deferral decisions are explicit and rationale-backed. AP domain research from NetSuite, Medius, and Pipefy validates RFP field requirements. |
-| Architecture | HIGH | Based on direct codebase inspection with specific file line numbers. Integration points identified at `renderSuppliersTable()` (line 2537), `attachWindowFunctions()` (line 96), `finance.js` tab structure. Anti-patterns documented with concrete reasoning. |
-| Pitfalls | HIGH | Majority sourced from direct inspection of existing code patterns. Firestore Security Rules pitfall has a documented prior incident in this codebase. All 10 pitfalls have prevention steps and recovery strategies. |
+| Stack | HIGH | Versions/CDN behavior verified via live requests to Sentry's/jsDelivr's CDN, GitHub Releases, and `sentry.io/pricing` (independent fetches). One residual gap: two researchers' live version checks disagree by one patch (10.70.0 vs. 10.69.0) within the same day — re-verify at implementation time. |
+| Features | HIGH / MEDIUM | Sentry platform mechanics and Firestore error taxonomy HIGH (official docs, gRPC status code list); small-team sizing/process recommendations MEDIUM (judgment-based, though grounded in verified pricing). |
+| Architecture | HIGH | Every integration point (file paths, line numbers, import graph) verified by directly reading the actual repository files, not inferred from the milestone brief. Sentry SDK internal handler-chaining mechanism flagged MEDIUM — verify against the exact pinned version's source at implementation time. |
+| Pitfalls | HIGH / MEDIUM | Sentry SDK mechanics HIGH (official docs, cross-framework GitHub/forum issue corroboration). Netlify header-precedence claims MEDIUM — Netlify's own documentation does not define precedence between `netlify.toml` and `_headers`; this ambiguity is itself the finding, not a resolved fact. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Proof link editability post-Delivered (Phase 2 blocker):** Research recommends allowing Procurement to update `proof_url` at any PO status. This is a product decision. Must be confirmed before Phase 2 implementation begins. The Security Rules `pos` update permission must reflect whatever is decided.
-
-- **`generateSequentialId` prefix support (Phase 3 kickoff):** Confirm whether the existing `utils.js` utility accepts `RFP` as a custom prefix, or whether a small inline generator for `RFP-YYYY-###` is needed alongside the existing PR/PO generators. Low-risk but should be verified before writing any Phase 3 code that depends on it.
-
-- **`payment_records` array vs. subcollection (Phase 3 design):** STACK.md recommends a subcollection with independent lifecycle per installment; FEATURES.md recommends a `payment_records` array for simplicity given 1–5 records per RFP. Both are technically valid. The array approach is simpler and consistent with `items_json` patterns; the subcollection is more correct if Finance needs per-installment status updates. Decision must be locked in the Phase 3 spec — migrating between these structures after documents exist is costly.
+- **Sentry SDK version pin (10.70.0 vs. 10.69.0):** two independent same-day live checks disagree by one patch. Re-verify the exact current stable version and recompute its SRI hash at the start of Phase 114 — do not carry either number forward as final.
+- **Netlify `netlify.toml` vs. `_headers` precedence:** undocumented by Netlify itself. Resolve empirically per deploy (live `curl -I`/DevTools header inspection) rather than assuming the committed file is the one served. Consider consolidating to a single authoritative file as a follow-up hardening item beyond this milestone's scope.
+- **Sentry's 1-seat free-tier limit vs. a 7-role, 2-department team:** genuinely unresolved — flagged, not silently decided, by all four researchers. Options on the table: (a) share a single Sentry login across triagers (a real RBAC compromise for a financial system), (b) budget for the Team plan (~$26/mo, more seats + 50,000 events/month), (c) mirror fatal-tier events into the existing `notifications` collection as a partial workaround (gives non-seat-holders visibility, doesn't give them the Sentry dashboard itself). The requirements author should make this decision explicit rather than let it default.
+- **Netlify Deploy Preview availability:** not confirmed during research (would be the closest thing to a staging environment this stack offers, running against the same production Firebase — still not a full staging tier, but the cheapest risk reduction available for a no-staging stack). Check at milestone kickoff.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Direct code inspection: `app/views/procurement.js` — `loadSuppliers()` line 2509, `renderSuppliersTable()` line 2537, `attachWindowFunctions()` line 96, `filterPRPORecords()` pattern
-- Direct code inspection: `app/views/finance.js` — tab structure, `onSnapshot` listener pattern, TTL cache guard pattern
-- Direct code inspection: `firestore.rules` — role structure, new-collection template block, `isActiveUser()` and `hasRole()` helpers
-- [Google Drive API v3 — Manage Uploads](https://developers.google.com/workspace/drive/api/guides/manage-uploads) — multipart upload spec, 5 MB limit, fetch-compatible
-- [Google Drive API Scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth) — `drive.file` is non-sensitive, no verification required
-- [Google Drive Picker API Overview](https://developers.google.com/workspace/drive/picker/guides/overview) — Picker is file-selector only, not uploader; confirmed why Picker does not simplify the upload workflow
-- [Firestore Data Modeling — Subcollections](https://firebase.google.com/docs/firestore/manage-data/structure-data) — subcollection vs. array trade-off for independent lifecycle documents
-- [Firestore Security Rules — Get Started](https://firebase.google.com/docs/firestore/security/get-started) — default-deny model, confirmed Security Rules deployment requirement
+- `/getsentry/sentry-docs`, `/getsentry/sentry-javascript` (Context7) — CDN/loader install, default integrations (`globalHandlersIntegration`, breadcrumb integrations), core capture API, CSP/DSN/region format, bundle-size ceilings
+- https://sentry.io/pricing/ , https://docs.sentry.io/pricing/quotas/ — free-tier limits (5,000 errors/month, 30-day retention, 1 seat), quota-exhaustion and Spike Protection behavior (independent verification passes)
+- https://github.com/getsentry/sentry-javascript/releases — current stable version confirmation
+- https://docs.sentry.io/platforms/javascript/configuration/options/ , .../data-management/sensitive-data/ , .../configuration/integrations/breadcrumbs/ , .../configuration/integrations/globalhandlers/ — scrubbing hooks, default-on breadcrumb categories, default global capture
+- https://docs.netlify.com/manage/routing/headers/ — confirms no documented precedence between `netlify.toml` `[[headers]]` and `_headers`
+- Direct reads of this repository: `index.html`, `app/router.js`, `app/auth.js`, `app/utils.js`, `app/firebase.js`, `app/permissions.js`, `app/diagnostics.js`, `netlify.toml`, `_headers`, `firestore.rules`, `.planning/PROJECT.md`, `CLAUDE.md`
 
 ### Secondary (MEDIUM confidence)
-- [Google Identity Services — Migration Guide](https://developers.google.com/identity/oauth2/web/guides/migration-to-gis) — token model remains valid for browser-only SPAs; auth-code flow preferred for backend apps
-- [Unverified Apps — Google Cloud](https://support.google.com/cloud/answer/7454865) — internal tools with fewer than 100 users do not require OAuth consent screen verification
-- [Accounts Payable Full Cycle Process (Medius)](https://www.medius.com/blog/full-process-accounts-payable-cycle/) — RFP field requirements and payment tracking conventions
-- [AP Terms and Payment Tracking (NetSuite)](https://www.netsuite.com/portal/resource/articles/accounting/accounts-payable-terms.shtml) — payment terms vocabulary (Net 30, Net 60, etc.)
-- [Procure-to-Pay Process (Pipefy)](https://www.pipefy.com/blog/procure-to-pay/) — MRF → PR → PO → RFP chain validation
+- Live CDN/npm verification via curl (2026-08-11) — `browser.sentry-cdn.com` bundle size/hash, jsDelivr `+esm` transitive-import behavior
+- GitHub/forum threads on Sentry duplicate-capture patterns (`getsentry/sentry-javascript` issues, community forum) — cross-framework double-reporting pattern corroboration
+- Sentry Forum — Required Content Security Policy — community-sourced CSP guidance corroborating official docs
 
 ### Tertiary (LOW confidence)
-- Google Drive sharing URL instability — known operational issue in document management systems; no single canonical source, consistent with documented Drive API permission revocation behavior and community operational experience
+- None flagged as load-bearing; all judgment-based recommendations (small-team alert sizing, correlation ID format conventions) were cross-checked against verified pricing/official docs before being carried into this summary.
 
 ---
-*Research completed: 2026-03-13*
+*Research completed: 2026-08-11*
 *Ready for roadmap: yes*
