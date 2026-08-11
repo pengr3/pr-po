@@ -14,9 +14,24 @@ CLMC Engineering procurement management system - static SPA for managing MRFs, P
 
 ## Development
 ```bash
-python -m http.server 8000  # OR npx http-server
+npx http-server -p 8000 -c-1
 ```
+**Use `-c-1` (disable caching).** `python -m http.server` sends no `Cache-Control` header at
+all — only `Last-Modified` — so browsers apply heuristic freshness and serve **stale ES modules**.
+Because this is a native-ESM app, a stale module does not degrade gracefully: if a module's export
+list changed, every importer fails to link and the app hangs at "Loading application..." with an
+**empty console** and no obvious error. Symptoms seen: `X is not a function` for a newly-added
+export, and `does not provide an export named 'Y'`. A normal reload often does not clear it.
+If you must use `python -m http.server`, hard-refresh (Ctrl+Shift+R) after every edit that adds or
+removes an export. Production is unaffected — `_headers` sets `/*` to
+`public, max-age=0, must-revalidate`, so Netlify revalidates every file.
+
 **No build, test, or lint commands** - zero-build static website.
+
+**Firestore rules tests** (the only automated suite; needs Java for the emulator):
+```bash
+firebase emulators:exec --only firestore --project clmc-procurement "npx mocha test/firestore.test.js --exit --timeout 30000"
+```
 
 ## Application Structure
 
