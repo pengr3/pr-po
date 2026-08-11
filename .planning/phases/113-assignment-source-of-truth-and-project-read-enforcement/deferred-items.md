@@ -48,7 +48,7 @@ for the full pre/post counts.
 **Discovered during:** Plan 02 (Wave-2 deploy gate).
 
 Plan 113-02 as written deploys to production `clmc-procurement`. The operator redirected it to
-dev-first, so `clmc-procurement-dev` now serves the 3 `personnel_user_ids` composite indexes and the
+dev-first, so `clmc-procurement-dev` now serves the 4 `personnel_user_ids` composite indexes (a 4th, services x service_code, was added during 113-09 UAT gap closure) and the
 additively-widened `firestore.rules`, while **production still serves the pre-Phase-113 rules and 18
 indexes**.
 
@@ -76,7 +76,7 @@ Firestore Admin API's `state` field; `gcloud` is not installed and there is no l
 key. Index build state can only be read from the Firebase console.
 
 **Action:** before plan 113-04's UAT exercises the paired queries, eyeball
-Firebase console → Firestore → Indexes on dev (and later prod) and confirm all 3
+Firebase console → Firestore → Indexes on dev (and later prod) and confirm all 4
 `personnel_user_ids` indexes read `Enabled`, not `Building`.
 
 ## 4. Stale `scripts/verify-phase-88.sh` reference to a removed symbol (pre-existing, unrelated to Phase 113)

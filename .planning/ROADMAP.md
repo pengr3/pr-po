@@ -46,7 +46,7 @@ No active milestone. Run `/gsd-new-milestone` to define the next version (questi
 
 **Requirements**: D-01 … D-17 (no formal REQ-IDs exist for this phase — the requirement set IS the `113-CONTEXT.md` locked decision set)
 **Depends on:** None — independent of v4.2 phases 106–112
-**Plans:** 8/11 plans executed
+**Plans:** 9/11 plans executed
 
 **Numbering note:** numbered 113 (not 106) deliberately. Main's ROADMAP is stale and says numbering continues from 106, but branch `v4.2` has already used 106–112. 113 avoids a collision when main merges into v4.2.
 
@@ -73,7 +73,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 113-09-PLAN.md — W5: delete both sync helpers, D-03 completeness audit + D-12 sweep, production verification BEFORE tightening — blocking human gate
+- [x] 113-09-PLAN.md — W5: delete both sync helpers, D-03 completeness audit + D-12 sweep, production verification BEFORE tightening — blocking human gate
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
