@@ -167,7 +167,28 @@ export async function init(activeTab = null, param = null) {
     showLoading(true);
     try {
         // 1. Load the service doc by service_code
-        const projSnap = await getDocs(query(collection(db, 'services'), where('service_code', '==', serviceCode)));
+        // Phase 113 gap closure (2026-08-11): structural twin of service-detail.js's service_code
+        // lookup and the services-side mirror of project-plan.js's — all three must stay in lockstep.
+        // A bare equality clause is a LIST query, unsatisfiable against the `services` allow-list
+        // rule's per-document personnel_user_ids predicates, so every scoped role was denied outright.
+        // Found by enumerating read surfaces from the code rather than from 113-RESEARCH.md's
+        // MUST CONVERT table, which omitted both services-side detail lookups.
+        // getAssignedServiceCodes() delegates the see-all/scoped decision (no role literal hard-coded);
+        // scoped roles pair the equality clause with personnel_user_ids array-contains on the SAME
+        // query, served by the services x service_code x personnel_user_ids composite index. A scoped
+        // actor with no resolvable uid falls through to the projSnap.empty path below (fail-closed,
+        // same "Service not found" empty state — no query is even issued).
+        const assignedServiceCodes = window.getAssignedServiceCodes?.();
+        let servicesQuery = query(collection(db, 'services'), where('service_code', '==', serviceCode));
+        if (assignedServiceCodes !== null) {
+            const uid = window.getCurrentUser?.()?.uid;
+            if (uid) {
+                servicesQuery = query(collection(db, 'services'), where('service_code', '==', serviceCode), where('personnel_user_ids', 'array-contains', uid));
+            } else {
+                servicesQuery = null;
+            }
+        }
+        const projSnap = servicesQuery ? await getDocs(servicesQuery) : { empty: true, docs: [] };
         if (projSnap.empty) {
             const surface = document.getElementById('planViewSurface');
             if (surface) {
