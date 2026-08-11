@@ -4,7 +4,7 @@ Browser verification against `clmc-procurement-dev` with the tightened rules dep
 through the in-app browser at `http://localhost:8001` (no-cache dev server). This is the substance
 of plan 113-11's UAT, executed against dev rather than production.
 
-**Roles exercised:** `super_admin`, `services_admin`. NOT exercised: `operations_user`,
+**Roles exercised:** `super_admin`, `services_admin`, `operations_user`. NOT exercised:
 `services_user`, `operations_admin` — each needs its own login.
 
 ---
@@ -108,17 +108,98 @@ container, not the links.
 
 ---
 
+## 7. `operations_user` — the role the phase is named for
+
+Account `juan.dc@gmail.com`, `all_projects: false`, `all_services: false`, in NEITHER see-all list,
+so scoped on both dimensions.
+
+### 7a. The phase's thesis, demonstrated in one reading
+
+```
+getAssignedProjectCodes()          -> ["CLMC-ALV-2026008"]
+getAssignedServiceCodes()          -> ["CLMC-AYA-2026017", "CLMC-MEG-2026015"]
+window._personnelAssignedCodes     -> matches both, exactly
+user doc .assigned_project_codes   -> []           <-- the frozen legacy array
+user doc .assigned_service_codes   -> (field absent)
+```
+
+The legacy arrays say this user is assigned to **nothing**. The live personnel-derived cache
+correctly resolves 1 project and 2 services — the services being CROSS-DEPARTMENT assignments for
+an operations-department user. Under the pre-phase model, which read those arrays, this user would
+have seen an empty application. This is the `services-user-project-hidden` defect class, and D-08's
+repoint eliminates it at the source with no migration: the container documents were always correct,
+so repointing the read self-heals.
+
+### 7b. Rule enforcement — D-15 proven in BOTH directions
+
+`getDoc` had never been testable in its positive case before this session, because no earlier role
+was both scoped and actually assigned.
+
+| Query | Result |
+|---|---|
+| `projects` unscoped list | **DENIED** |
+| `projects` scoped `array-contains` | ALLOWED, 1 doc (matches the getter) |
+| `getDoc` on an **ASSIGNED** project | **ALLOWED** — D-15 positive case |
+| `getDoc` on an **UNASSIGNED** project | **DENIED** — D-15 doc-ID closure |
+| `projects` paired `project_code` + array-contains | ALLOWED, 1 |
+| `services` unscoped list | **DENIED** |
+| `services` scoped `array-contains` | ALLOWED, 2 (matches the getter) |
+| `services` paired `service_code` + array-contains | ALLOWED, 1 |
+
+The getters, the rules and the indexes all agree — the same numbers appear in all three layers.
+
+### 7c. The original bug, fixed for the role that reported it
+
+- `#/services/detail/CLMC-AYA-2026017` — **loads**, full lifecycle, zero permission errors. This is
+  the precise scenario that produced `[ServiceDetail] Services listener error: Missing or
+  insufficient permissions` during 113-09's UAT. Fixed by `e859d55`.
+- `#/services/CLMC-AYA-2026017/plan` — **loads** ("Plan — Monthly Pest control"). Fixed by
+  `9f527da`, found only by the code-derived surface enumeration.
+
+### 7d. Portfolio scoping is exact
+
+- `#/projects` → **Total 1** — matches `getAssignedProjectCodes()`
+- `#/services` → **Total 2** — matches `getAssignedServiceCodes()`
+
+Both render cleanly with zero console errors.
+
+### 7e. Graceful degradation on an unassigned project
+
+`#/projects/detail/CLMC-AYA-2026004` (a project this user is not personnel on) renders
+**"Project not found. Back to Projects"**. The project's name is NOT disclosed — existence is not
+leaked, only reachability is denied.
+
+One handled console error accompanies it:
+
+```
+[ProjectDetail] Doc-ID fallback lookup failed: Missing or insufficient permissions.
+```
+
+That is the Phase 78 D-06 clientless-project doc-ID fallback meeting the tightened `allow get`. It
+is caught and degrades to the correct UI. **Minor polish opportunity, not a defect:** after Phase
+113 this is an EXPECTED authorization outcome for any scoped user following a stale link or
+bookmark, so `console.error` overstates it and adds recurring noise that could mask real failures.
+Downgrading it to `console.debug` (or logging only when `error.code !== 'permission-denied'`) would
+be a one-line improvement. Deliberately not changed here — outside this session's scope.
+
+---
+
 ## Still unverified in a browser
 
 Requires logins not exercised in this session:
 
-1. `operations_user` / `services_user` — portfolio scoped to assigned projects only, and the MRF
-   picker offering exactly those
-2. The canonical acceptance narrative (113-09 step 1) re-run under the TIGHTENED rules — it passed
-   under the permissive rules before tightening
+1. `services_user` — the mirror of section 7, from the services department. Lower risk now that
+   `operations_user` passes, since both take the identical code path through the same getters, but
+   not observed.
+2. The canonical acceptance narrative (113-09 step 1) re-run under the TIGHTENED rules — an
+   `operations_admin` assigning a `services_user` via the Personnel panel, who then sees the project
+   without a re-save. It passed under the permissive rules before tightening. Section 7a is strong
+   indirect evidence (a user whose legacy arrays are empty resolves assignments correctly from live
+   personnel membership), but the assign-then-observe round trip itself was not re-run.
 3. `operations_admin` marking a PO Delivered on a service MRF — exercises the `services` exempt-set
-   membership deliberately preserved for `procurement.js:8018`
-4. Everything above against PRODUCTION, which currently has no part of Phase 113 deployed
+   membership deliberately preserved for `procurement.js:8018`.
+4. The MRF form / Create-MRF picker offering exactly the assigned projects and services.
+5. Everything above against PRODUCTION, which currently has no part of Phase 113 deployed.
 
 ---
 *Verified against `clmc-procurement-dev` on 2026-08-11.*
