@@ -46,7 +46,7 @@ No active milestone. Run `/gsd-new-milestone` to define the next version (questi
 
 **Requirements**: D-01 … D-17 (no formal REQ-IDs exist for this phase — the requirement set IS the `113-CONTEXT.md` locked decision set)
 **Depends on:** None — independent of v4.2 phases 106–112
-**Plans:** 9/11 plans executed
+**Plans:** 10/11 plans executed
 
 **Numbering note:** numbered 113 (not 106) deliberately. Main's ROADMAP is stale and says numbering continues from 106, but branch `v4.2` has already used 106–112. 113 avoids a collision when main merges into v4.2.
 
@@ -77,7 +77,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 113-10-PLAN.md — W6: services_admin rules-posture decision (D-01 vs D-16), projects get/list split scoped on personnel, users.update carve-out dropped (D-17), D-14 residual documented, emulator coverage
+- [x] 113-10-PLAN.md — W6: services_admin rules-posture decision (D-01 vs D-16), projects get/list split scoped on personnel, users.update carve-out dropped (D-17), D-14 residual documented, emulator coverage
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
