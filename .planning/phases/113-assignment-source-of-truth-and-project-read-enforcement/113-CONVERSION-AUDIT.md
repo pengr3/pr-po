@@ -33,10 +33,74 @@ did not enumerate (rows 14–18).
 | 17 | `app/views/clients.js:243` (`showClientDetail`, services dimension) — not separately numbered in RESEARCH.md (its table treats `clients.js:243` as a single row, but the function issues two independent queries) | `where('client_code','==', client.client_code)` against `services` | C-variant | **CONVERTED.** Same function as row 10, independently decided by `getAssignedServiceCodes()`: scoped role pairs `where('client_code','==',client.client_code)` with `where('personnel_user_ids','array-contains',uid)` (lines 278-282), served by the `services`×`client_code`×`personnel_user_ids` composite index (113-01/113-02). Verified by direct `Read`. | 113-07 |
 | 18 | `app/utils.js` — `getAssignedProjectCodes()`/`getAssignedServiceCodes()` helper repoint itself | Read `user.assigned_project_codes`/`user.assigned_service_codes` off the actor's own cached user object (frozen-array-authoritative) | n/a (foundational, not a per-site conversion) | **CONVERTED.** Both helpers (`app/utils.js:464`, `app/utils.js:548`) now return `window._personnelAssignedCodes.projects`/`.services` — a live, listener-backed cache populated by `initAssignedCodesListeners()` via `where('personnel_user_ids','array-contains',uid)` listeners on `projects`/`services`, bootstrapped in `app/auth.js` before first route render. This is the foundational repoint every other row in this table depends on: rows 1-11 and 14-17 all call `getAssignedProjectCodes()`/`getAssignedServiceCodes()` rather than reading the legacy arrays directly. Verified by direct `Read`. | 113-03 |
 
+| 19 | `app/views/service-detail.js:191` (the view's own service lookup) — **NOT in RESEARCH.md's MUST-CONVERT table and missed by this audit's first pass; found by browser UAT, not by static analysis** | `query(collection(db,'services'), where('service_code','==',serviceParam))` — a bare equality LIST query | C-variant (direct analog of row 3, `project-detail.js`) | **CONVERTED (Phase 113 UAT gap closure, 2026-08-11, commit `e859d55`).** Branches on `getAssignedServiceCodes()`: `null` → unchanged bare equality query; scoped role → the same equality clause paired with `where('personnel_user_ids','array-contains',uid)`, plus a fail-closed uid guard that renders "Service not found" without attaching a listener. Required a **4th composite index**, `services`×`service_code`×`personnel_user_ids`, which plan 113-01's set of three did not cover; added in the same commit and deployed to dev. | UAT gap closure (post-113-09) |
+
+| 20 | `app/views/service-plan.js:170` (the view's own service lookup) — **also absent from RESEARCH.md's table; found by the code-derived enumeration described below, not by UAT** | `getDocs(query(collection(db,'services'), where('service_code','==',serviceCode)))` — a bare equality LIST query | C-variant (services-side twin of `project-plan.js`, row 4) | **CONVERTED (Phase 113 UAT gap closure, 2026-08-11, commit `9f527da`).** Same paired shape as row 19, gated on `getAssignedServiceCodes()`; a scoped actor with no resolvable uid issues no query at all and falls through to the existing "Service not found" empty state. Reuses the `services`×`service_code`×`personnel_user_ids` index added for row 19 — no additional index required. | UAT gap closure (post-113-09) |
+
 **Every MUST-CONVERT row (1-11, 14-17) is CONVERTED. Rows 12 and 13 are NO CHANGE REQUIRED with a
-stated reason, exactly as this plan's Task 2 instructs. Row 18 (the foundational helper repoint)
-is CONVERTED. Every row above carries an explicit, evidenced verdict — none is left blank or
-unresolved.**
+stated reason, exactly as this plan's Task 2 instructs. Rows 18, 19 and 20 are CONVERTED. Every row
+above carries an explicit, evidenced verdict — none is left blank or unresolved.**
+
+> **Correction, 2026-08-11 — this audit's first pass was NOT complete, and the gap was real.**
+> Rows 1-18 were written and verified against source before any browser testing. Row 19 was then
+> found by plan 113-09 Task 3's browser UAT (step 8): an `operations_user` opening any service
+> detail page hit `Missing or insufficient permissions`.
+>
+> The miss was inherited, not introduced. `113-RESEARCH.md`'s MUST-CONVERT table enumerated the
+> projects-side read surfaces and the services-side WRITE paths, but never the services-side
+> DETAIL lookup — so no plan in waves 3-5 was pointed at it, and an audit built by walking
+> RESEARCH.md's table row-by-row could not surface what that table omitted. The defect itself
+> predates Phase 113 entirely: the `operations_user` branch of the `services` allow-list rule
+> landed in `494c526`, and `service-detail.js:191` was byte-identical at the pre-phase baseline
+> `8591740`. An `operations_user` had therefore never been able to open a service detail page.
+>
+> **Method lesson for future phases:** a completeness audit that derives its row set from an
+> upstream research document inherits that document's blind spots. The independent check is to
+> enumerate read surfaces from the CODE — every `query(collection(db,'projects'|'services'), …)`
+> call site — and reconcile that list against the research table, rather than trusting the table
+> to be exhaustive. Had that been done here, row 19 would have been caught statically instead of
+> by a human clicking through the app one plan before the irreversible tightening.
+>
+> **That enumeration was then actually run, and it found a second miss (row 20).** The command was:
+>
+> ```
+> grep -rn "collection(db, *'projects')\|collection(db, *'services')" app/ --include=*.js
+> ```
+>
+> 41 call sites. Reconciling each against its role reachability produced exactly one further
+> unconverted surface — `service-plan.js:170`, the services-side twin of `project-plan.js` — which
+> UAT had not reached because the tester never opened a service Plan page. Every other bare
+> equality query in the list was confirmed to sit on a see-all branch with its scoped variant
+> alongside it, or to be reachable only by roles in the rule's exempt set:
+>
+> | Site | Why it is safe unconverted |
+> |------|----------------------------|
+> | `expense-modal.js:71` | Fallback retained only for `finance.js`'s caller, reachable by `finance`/`super_admin` — both see-all. `project-detail.js` passes `projectCode` and skips it entirely (plan 113-05). |
+> | `clients.js:258,275` | See-all branches; lines 262/279 are the scoped variants. |
+> | `finance.js:2006,2025,4473,4723,4794` | `finance` is see-all for both collections and exempt in the rules. |
+> | `assignments.js:192,201` · `user-management.js:276` | Both live under `#/admin`, gated `role_config`, which `seed-roles.js` grants to `super_admin` only. |
+> | `procurement.js:2913` | See-all branch; line 2910 is the scoped variant. |
+> | `project-detail.js:231` · `project-plan.js:267` · `service-detail.js:209` · `service-plan.js:182` | See-all branches; each has its paired scoped variant immediately below. |
+> | `proposal-modal.js:243` | See-all branch; line 247 is the scoped variant. |
+> | `utils.js:567` (`getActiveProjects`) | Dead code, zero call sites — see Section 3. |
+>
+> **One forward-looking constraint this enumeration surfaced for plan 113-10.**
+> `procurement.js:8018` (the Phase 104 D-12 PO-Delivered service-journal traversal) issues a bare
+> `where('service_code','==',…)` LIST query and was deliberately left unconverted, on the stated
+> grounds that it is "reachable only by roles with `procurement_records` edit rights, all of which
+> are in the services list rule's exempt set both before and after this phase's scoping tightening."
+>
+> The first half of that claim is verified: `seed-roles.js` grants `procurement_records.edit: true`
+> to exactly `super_admin`, `operations_admin`, `services_admin` and `procurement`, and all four are
+> in the rule's `hasRole(['super_admin','operations_admin','services_admin','finance','procurement'])`
+> exempt set. `operations_user` and `services_user` have `edit: false` and never reach the handler.
+>
+> The second half is a claim about a plan that has not run yet. **If 113-10's services rules-posture
+> decision (D-01 vs D-16) removes `operations_admin` from the `services` allow-list exempt set, this
+> query breaks** — an `operations_admin` marking a PO Delivered would lose the service journal entry,
+> silently, inside a best-effort `try/catch`. 113-10 must either keep `operations_admin` exempt on
+> `services` list, or convert this call site (it has no denormalized `service_id` to key a `getDoc`
+> on, so conversion means adding one, not just changing the query).
 
 ---
 
