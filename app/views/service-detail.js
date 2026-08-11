@@ -190,7 +190,41 @@ export async function init(activeTab = null, param = null) {
     }
 
     // Find service by service_code field
-    const q = query(collection(db, 'services'), where('service_code', '==', serviceParam));
+    // Phase 113 gap closure (UAT step 8, 2026-08-11): a bare service_code equality clause is a LIST
+    // query, and every scoped branch of the `services` allow-list rule is a per-document predicate on
+    // personnel_user_ids that such a query cannot satisfy — so Firestore denied the whole listener with
+    // "Missing or insufficient permissions" for any scoped role (observed as operations_user).
+    // This PREDATES Phase 113: the operations_user rule branch landed in 494c526 and this query was
+    // byte-identical at the pre-phase baseline 8591740. 113-RESEARCH.md's MUST CONVERT table enumerated
+    // the projects-side read surfaces and the services-side WRITE paths, but never this services-side
+    // detail lookup, so no plan in waves 3-5 converted it.
+    // Mirrors project-detail.js's paired-query conversion (plan 113-05): getAssignedServiceCodes()
+    // delegates the see-all/scoped decision so no role literal is hard-coded here, and the scoped shape
+    // is served by the services x service_code x personnel_user_ids composite index.
+    // Note operations_admin is deliberately NOT in SERVICE_SEE_ALL_ROLES, so it takes the scoped path —
+    // consistent with loadServices() in services.js, which plan 113-04 scoped the same way.
+    const assignedServiceCodes = getAssignedServiceCodes();
+    let q;
+    if (assignedServiceCodes === null) {
+        q = query(collection(db, 'services'), where('service_code', '==', serviceParam));
+    } else {
+        // Fail-closed on a missing uid — never fall through to the unscoped query shape.
+        const uid = window.getCurrentUser?.()?.uid;
+        if (!uid) {
+            document.getElementById('serviceDetailContainer').innerHTML = `
+                <div class="container" style="margin-top: 2rem;">
+                    <div class="card">
+                        <div class="card-body">
+                            <p>Service not found.</p>
+                            <a href="#/services" class="btn btn-primary">Back to Services</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        q = query(collection(db, 'services'), where('service_code', '==', serviceParam), where('personnel_user_ids', 'array-contains', uid));
+    }
     listener = onSnapshot(q,
         async (snapshot) => {
             if (snapshot.empty) {
