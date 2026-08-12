@@ -191,7 +191,15 @@ real value is concentrated in the error contract (Phase 116) and the targeted re
   3. CSP permits the Sentry ingest host in all four occurrences (`netlify.toml` + `_headers`, each duplicated across a `/*` block and a `/*.html` block), verified against live production response headers, and the two files remain byte-identical
   4. No supplier name, client name, PO/PR/RFP contents, line-item amounts, or bank/payment details appear in any captured Sentry event or breadcrumb — `sendDefaultPii` disabled and scrubbing shipped in the same commit as `Sentry.init()`
   5. Every event carries a `release` string and an `environment` tag, with localhost traffic tagged `development`
-**Plans**: TBD
+**Plans**: 6 plans in 5 waves
+
+Plans:
+- [ ] 114-01-PLAN.md — W1: Sentry org + DSN human gate, SDK version resolved empirically, `lib/obs.min.js` pinned *(blocking human gate)*
+- [ ] 114-02-PLAN.md — W2: `app/sentry-init.js` — init + beforeSend/beforeBreadcrumb scrubbing (one commit), env/release tagging, `window.__sentryTest()`
+- [ ] 114-03-PLAN.md — W2: CSP ingest host in all four occurrences (one atomic commit) + recurring gates written into `HEADERS-README.md`
+- [ ] 114-04-PLAN.md — W3: two classic `<script>` tags in `index.html` head above the ESM bootstrap + `CLAUDE.md` notes
+- [ ] 114-05-PLAN.md — W4: localhost pipeline verification against dev Firebase, then deploy + live CSP read-back *(blocking human gate)*
+- [ ] 114-06-PLAN.md — W5: production test event + blocked-bundle degradation *(blocking human gates)*
 
 ### Phase 115: Identity Attribution *(v4.3)*
 
