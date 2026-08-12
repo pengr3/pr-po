@@ -57,21 +57,28 @@ Rationale for each exclusion is stated. Nothing is silently dropped.
 
 *Why prod:* `113-DEV-VERIFICATION.md` "Still unverified" item 1 — this round trip has **never** been re-run under the tightened rules, on any environment. §7a is strong indirect evidence only.
 
-As `operations_admin`, assign a `services_user` to a project via the project-detail Personnel panel. Logged in separately as that `services_user`, with **no** re-save, removal or re-add, the dedicated **MRF form's project picker offers that project**.
+As `operations_admin`, assign a `services_user` to a project via the project-detail Personnel panel. Logged in separately as that `services_user`, with **no** re-save, removal or re-add: `#/projects` lists the project, **and** the dedicated MRF form's picker offers it.
 
-### Scope correction — the `#/projects` clause is not observable for this role
+### Note on role permissions — `services_user` DOES have Projects access
 
-Plan 113-11 also asks for `#/projects` to list the project. A `services_user` cannot reach that route at all, by design and independently of Phase 113:
+An earlier draft of this document claimed a `services_user` cannot reach `#/projects` and narrowed A1 to the MRF picker. **That was wrong** and is corrected here.
 
-- Permissions resolve **only** from `role_templates/{role}` — `app/permissions.js:90`, no per-user overrides
-- Production `role_templates/services_user` carries `tabs.projects.access: false` (document `updateTime` `2026-07-06T06:25:54Z`, i.e. quick 260706-mco — predates this phase)
-- `app/router.js:288` blocks on `hasTabAccess() === false` with an Access Denied page, so this is route-level, not merely a hidden nav link
+`app/permissions.js:97` sets `currentPermissions = roleData.permissions`, so the operative map is **`permissions.tabs.*`**. Verified against live production:
 
-**The MRF picker is not a weaker substitute — it is the same code path.** `.planning/debug/services-user-project-hidden.md` establishes that `#/projects` and the MRF picker's `rebuildPSOptions()` both consume the identical `getAssignedProjectCodes()` helper, and that the defect was *"a single upstream data gap, not N independently-broken surfaces."* Exercising the picker exercises the same helper, the same personnel-derived cache, and the same tightened `projects` rules — and it is the surface the original report actually cared about ("nor file MRFs against it").
+| Role | `permissions.tabs.projects.access` | `permissions.tabs.services.access` |
+|---|---|---|
+| `services_user` | **true** | true |
+| `services_admin` | **true** | true |
+| `operations_user` | true | **false** |
 
-Verified separately: `mrf-form.js:406`'s `showProjects` role list includes `services_user`, so the picker is reachable for this role.
+Both A1 clauses are therefore observable for a `services_user`. Run both.
 
-**Result:**
+**Data-quality finding (not a Phase 113 issue):** these documents also carry a **stray top-level `tabs` map** that nothing reads — `role_templates/services_user` has `tabs.projects.access: false` there, contradicting the operative `permissions.tabs.projects.access: true`. Root cause: `scripts/seed-services-role-permissions.js` writes dotted paths like `'tabs.services.access'` instead of `'permissions.tabs.services.access'`, so **every write that script makes is inert**. Logged to `BACKLOG.md`.
+
+Also verified: `mrf-form.js:406`'s `showProjects` role list includes `services_user`, so the picker clause is reachable too.
+
+**Result — `#/projects` lists it:**
+**Result — MRF picker offers it:**
 **Notes:**
 
 ---

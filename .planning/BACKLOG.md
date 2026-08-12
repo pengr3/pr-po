@@ -4,33 +4,67 @@ Items not yet scheduled into a roadmap phase. Add to a future milestone when pri
 
 ---
 
-## Cross-Department Services Access for Assigned `operations_user`
+## Cross-Department Access Gaps + Inert Role-Template Seeding
 
 **Added:** 2026-08-12
-**Found during:** Phase 113 plan 113-11 production UAT — an `operations_user` assigned to a service could not reach it.
+**Found during:** Phase 113 plan 113-11 production UAT.
+**Not a Phase 113 regression** — every item below is verified pre-existing. See "Evidence" per item.
 
-**Context:** Cross-department assigned access is half-built. The Firestore rules were extended for it (quick 260627-kg0 gave an assigned `operations_user` "exactly the native `services_user` authority"), but the client permission layer was never extended to match.
+Two related problems, both in the **client permission layer**, not the rules. The Firestore rules were extended for assignment-driven cross-department access (quick 260627-kg0 gave an assigned `operations_user` "exactly the native `services_user` authority"); the permission layer was never brought into line.
 
-Current state for an `operations_user` who **is** in a service's `personnel_user_ids`:
+---
+
+### Problem 1 — `operations_user` cannot reach an assigned service
+
+State for an `operations_user` who **is** in a service's `personnel_user_ids`:
 
 | Layer | State | Source |
 |---|---|---|
 | `services` `allow list` | ✅ permitted | `firestore.rules` — `(isRole('operations_user') && request.auth.uid in resource.data.personnel_user_ids)` |
 | `services` `allow update` | ✅ permitted | quick 260627-kg0 |
 | `services` `allow get` | ❌ **denied** — role list omits `operations_user` | `firestore.rules` services `allow get` |
-| Services nav tab | ❌ hidden | `role_templates` → `tabs.services.access: false` (`scripts/seed-services-role-permissions.js:49`) |
+| Services tab / route | ❌ blocked | `permissions.tabs.services.access: false` → `app/router.js:288` Access Denied |
 
-**Not a Phase 113 regression.** Verified: `services` `allow get` is byte-identical at `a0c4689` (pre-tightening) and `f205889`. The nav gate is a role-template permission read at `app/auth.js:454`, untouched by the rules deploy. The tab has been deliberately hidden since v2.3 department isolation — `seed-services-role-permissions.js:106` names it as expected behaviour.
+**Evidence it predates Phase 113:** `services` `allow get` is byte-identical at `a0c4689` (pre-tightening) and `f205889`. The permission gate is read at `app/auth.js:454` / `app/router.js:288` from `role_templates`, untouched by the rules deploy.
 
-**Goal:** Let an `operations_user` assigned to a service actually reach that service, without weakening department isolation for unassigned ones.
-
-**Why both changes are required — do not ship the permission flip alone.** Flipping `tabs.services.access` on its own produces a *worse* experience than today: the scoped `array-contains` list query would return assigned services, and every attempt to open one would hit `permission-denied` from the unchanged `allow get`.
+**Why both changes are required — do not ship the permission flip alone.** Flipping access on its own produces a *worse* experience than today: the scoped `array-contains` list query would return assigned services, and every attempt to open one would hit `permission-denied` from the unchanged `allow get`.
 
 **Proposed change:**
 1. `firestore.rules` — extend `services` `allow get` with a personnel-scoped branch for `operations_user`, mirroring the shape already used by `allow list`
-2. `role_templates` — set `tabs.services.access: true` for `operations_user` (keep `tabs.services.edit: false`; writes stay governed by the rules)
-3. Confirm `services.js`'s scoped listener already handles this role — `113-CONTEXT.md` cites `app/views/services.js:876-903` as the reference implementation that "already ships the target `array-contains` pattern for `operations_user`"
+2. `role_templates/operations_user` — set `permissions.tabs.services.access: true` (leave `edit` alone; writes stay governed by the rules)
+3. Confirm `app/views/services.js:876-903` already handles this role — `113-CONTEXT.md` cites it as the reference implementation that "already ships the target `array-contains` pattern for `operations_user`"
 4. Consider the `operations_admin` ↔ `services` mirror (quick 260706-mco) for the same treatment
+
+**Note on direction symmetry:** the mirror case is *not* broken. `services_user` and `services_admin` both have `permissions.tabs.projects.access: true` in production, and the tightened `projects` `allow get`/`allow list` both carry a personnel-scoped branch for them. Only the `→ services` direction has the gap.
+
+---
+
+### Problem 2 — `seed-services-role-permissions.js` writes to a path nothing reads
+
+`app/permissions.js:97` sets `currentPermissions = roleData.permissions`, so the operative map is **`permissions.tabs.*`**.
+
+`scripts/seed-services-role-permissions.js` writes dotted paths of the form `'tabs.services.access'` — i.e. a **top-level `tabs` map**, not `permissions.tabs`. **Every write that script makes is therefore inert.** It has instead created a stray shadow structure on the role-template documents that no code path consults.
+
+Observed in production (`role_templates/services_user`):
+
+| Field | Value | Read by app? |
+|---|---|---|
+| `permissions.tabs.projects.access` | `true` | ✅ **yes** — this is what governs |
+| `tabs.projects.access` (stray) | `false` | ❌ no |
+
+The two directly contradict each other, which makes the documents actively misleading to anyone inspecting them — this cost real debugging time during the 113-11 UAT.
+
+**Why the intended behaviour still happens anyway:** `operations_user.permissions.tabs.services.access` *is* `false`, but it was set by some other path (likely the original `seed-roles.js` or a manual edit), not by this script. The script's apparent success is a coincidence.
+
+**Corroborating smell:** `operations_user.permissions.tabs.services` reads `{access: false, edit: true}` — an incoherent pair (no access, but editable) suggesting piecemeal manual edits.
+
+**Proposed change:**
+1. Fix the field paths in `scripts/seed-services-role-permissions.js` to `permissions.tabs.*`
+2. Delete the stray top-level `tabs` map from every affected `role_templates` document
+3. Audit all role templates for incoherent `{access: false, edit: true}` pairs and normalise
+4. Re-run the corrected script and diff the before/after to confirm intended state
+
+---
 
 **Acceptance criteria (future phase):**
 - An `operations_user` in a service's `personnel_user_ids` sees the Services tab, sees only assigned services on `#/services`, and can open their detail pages
@@ -38,6 +72,8 @@ Current state for an `operations_user` who **is** in a service's `personnel_user
 - An unassigned service remains unreachable by direct URL in both `service_code` and doc-ID forms
 - Department isolation for every other surface is unchanged
 - Emulator coverage for the new `allow get` branch, including the deny case
+- No `role_templates` document carries a stray top-level `tabs` map
+- `seed-services-role-permissions.js` is verified to actually change behaviour when run
 
 ---
 
