@@ -51,8 +51,10 @@ fixes had each patched at a different layer without auditing the write layer.
 - Browser-verified against **dev** across all five roles, then against **production** post-deploy.
 - **Shipped 2026-08-12** — 4 personnel indexes `READY`, `code_counters` seeded (49 pairs + `MALDOR_2026`),
   client bundle `f205889` live, tightened rules `c93d6dc` released. Rollback (`a0c4689`) never needed.
+
 - Production UAT: all exercisable items PASS, zero rollbacks. Detail: `phases/113-*/113-HUMAN-UAT.md`
   and `113-11-SUMMARY.md`.
+
 - Full detail: `milestones/v4.1-ROADMAP.md`
 - Requirements: `milestones/v4.1-REQUIREMENTS.md`
 
@@ -79,11 +81,14 @@ exact bug class. The milestone's value is concentrated in the contract and retro
 - **Hard dependency — MET 2026-08-12.** v4.1's plan 113-11 (production `firestore.rules` deploy)
   has shipped, so ERRC-03's read-vs-write `permission-denied` severity rule can now be calibrated
   against live post-113 rules behavior. Phase 114 is unblocked.
+
 - **Milestone acceptance test (GUARD-04, Phase 120):** a deliberate cross-department write rejection,
   run in production, must produce exactly one error-tier Sentry event tagged with role, collection,
   and operation.
+
 - Full phase detail: see `## Next` below — this milestone is defined directly in this file, not yet
   split to a separate `milestones/v4.3-*` snapshot (it hasn't shipped).
+
 - Requirements: `.planning/REQUIREMENTS.md`
 - Research: `.planning/research/SUMMARY.md`
 
@@ -170,6 +175,7 @@ real value is concentrated in the error contract (Phase 116) and the targeted re
 118–119).
 
 **v4.3 Phases:**
+
 - [ ] Phase 114: Observability Foundation
 - [ ] Phase 115: Identity Attribution
 - [ ] Phase 116: Error Contract & Correlation ID UX
@@ -186,19 +192,35 @@ real value is concentrated in the error contract (Phase 116) and the targeted re
 **Requirements**: OBS-01, OBS-02, OBS-03, OBS-04, OBS-05, OBS-06, OBS-07
 **Depends on:** v4.1 plan 113-11 (production `firestore.rules` deploy) — **met 2026-08-12**. No dependency on v4.2 (separate branch, separate rebase).
 **Success Criteria** (what must be TRUE):
+
   1. Sentry SDK loads from a self-hosted, version-pinned bundle and initializes before the app's ES-module bootstrap; a deliberately triggered error in production appears in the Sentry dashboard with a readable stack trace
   2. The app functions identically — every view loads, every write succeeds — when the Sentry bundle is blocked or fails to load; no feature checks or depends on `window.Sentry` existing
   3. CSP permits the Sentry ingest host in all four occurrences (`netlify.toml` + `_headers`, each duplicated across a `/*` block and a `/*.html` block), verified against live production response headers, and the two files remain byte-identical
   4. No supplier name, client name, PO/PR/RFP contents, line-item amounts, or bank/payment details appear in any captured Sentry event or breadcrumb — `sendDefaultPii` disabled and scrubbing shipped in the same commit as `Sentry.init()`
   5. Every event carries a `release` string and an `environment` tag, with localhost traffic tagged `development`
+
 **Plans**: 6 plans in 5 waves
 
 Plans:
+**Wave 1**
+
 - [ ] 114-01-PLAN.md — W1: Sentry org + DSN human gate, SDK version resolved empirically, `lib/obs.min.js` pinned *(blocking human gate)*
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 114-02-PLAN.md — W2: `app/sentry-init.js` — init + beforeSend/beforeBreadcrumb scrubbing (one commit), env/release tagging, `window.__sentryTest()`
 - [ ] 114-03-PLAN.md — W2: CSP ingest host in all four occurrences (one atomic commit) + recurring gates written into `HEADERS-README.md`
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 114-04-PLAN.md — W3: two classic `<script>` tags in `index.html` head above the ESM bootstrap + `CLAUDE.md` notes
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 114-05-PLAN.md — W4: localhost pipeline verification against dev Firebase, then deploy + live CSP read-back *(blocking human gate)*
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 114-06-PLAN.md — W5: production test event + blocked-bundle degradation *(blocking human gates)*
 
 ### Phase 115: Identity Attribution *(v4.3)*
@@ -207,10 +229,12 @@ Plans:
 **Requirements**: ATTR-01, ATTR-02, ATTR-03, ATTR-04
 **Depends on:** Phase 114
 **Success Criteria** (what must be TRUE):
+
   1. Every Sentry event includes the acting user's Firebase uid and email
   2. Every Sentry event carries the acting user's role and department as filterable tags
   3. When a user's role or permissions change mid-session, subsequent events reflect the new role — reusing the existing `onSnapshot(users/{uid})` role-diff branch already computed in `app/auth.js`, no new subscription
   4. After logout, no subsequent event is attributed to the previous session's user
+
 **Plans**: TBD
 
 ### Phase 116: Error Contract & Correlation ID UX *(v4.3)*
@@ -220,11 +244,13 @@ Plans:
 **Requirements**: ERRC-01, ERRC-02, ERRC-03, ERRC-04, ERRC-05, ERRC-06, ERRC-07, ERRC-08, ERRC-09, UX-02, UX-03, UX-04
 **Depends on:** Phase 115
 **Success Criteria** (what must be TRUE):
+
   1. `reportError()` in `app/errors.js` is the only path application code uses to report to Sentry; it classifies each error into report/breadcrumb/console-only tiers using the Firebase `.code` field, never `.message`
   2. A write-path `permission-denied` always reports at error tier; a read-path `permission-denied` reports at breadcrumb tier only
   3. Every reported error generates a correlation ID before any Sentry-availability check, shown in a non-auto-dismissing toast with no raw exception text or stack trace, and attached as a searchable tag on the same Sentry event
   4. `reportError()` always writes to console and always surfaces a toast to the user, with or without Sentry available; reported errors carry structured context (`operation: read|write`, collection, acting role)
   5. A reviewed triage table classifies representative catch sites by tier and read/write path before any conversion work begins; a correlation ID read back verbally by a user is enough for the developer to locate that exact event in Sentry
+
 **Plans**: TBD
 
 ### Phase 117: Global Handlers, Router Choke Point & Alert Retrofit *(v4.3)*
@@ -233,10 +259,12 @@ Plans:
 **Requirements**: GUARD-03, RETRO-05, OBS-08, UX-01
 **Depends on:** Phase 116
 **Success Criteria** (what must be TRUE):
+
   1. Supplementary global listeners are registered via `addEventListener('error'/'unhandledrejection', ...)`, never by assigning `window.onerror`/`window.onunhandledrejection`, and never call `captureException` themselves
   2. The `navigate()` catch in `app/router.js` routes through `reportError()`, covering every lazy-loaded view's load failure app-wide, including stale-module failures
   3. Every hash-based navigation appears as a breadcrumb on subsequent Sentry events
   4. All 19 bare `alert()` calls across the codebase are replaced with `showToast()` carrying a correlation ID
+
 **Plans**: TBD
 
 ### Phase 118: Retrofit Audit *(v4.3)*
@@ -246,9 +274,11 @@ Plans:
 **Requirements**: RETRO-01
 **Depends on:** Phase 116
 **Success Criteria** (what must be TRUE):
+
   1. An audit artifact lists all 57 fire-and-forget `.catch()` tails, each classified by severity tier and read/write path
   2. The same artifact lists every catch block whose entire body is a bare `console.error`, classified by severity tier and read/write path
   3. The artifact is reviewed and signed off before Phase 119 conversion work begins
+
 **Plans**: TBD
 
 ### Phase 119: Retrofit Conversion *(v4.3)*
@@ -257,9 +287,11 @@ Plans:
 **Requirements**: RETRO-02, RETRO-03, RETRO-04
 **Depends on:** Phase 118
 **Success Criteria** (what must be TRUE):
+
   1. Every write-path `.catch()` tail (`updateDoc`/`setDoc`/`addDoc`/`deleteDoc`/`writeBatch`/`runTransaction`) routes through `reportError()` *(Pass A)*
   2. Every write-path catch block whose only statement is `console.error` routes through `reportError()` *(Pass B)*
   3. `app/views/project-plan.js` and `app/views/service-plan.js` are converted together as a single reviewed diff, with their ~28 inline `permission-denied` ternaries routed through the contract *(Pass C)*
+
 **Plans**: TBD
 
 ### Phase 120: Guardrail, Alerting & Milestone Acceptance *(v4.3)*
@@ -268,7 +300,9 @@ Plans:
 **Requirements**: GUARD-01, GUARD-02, GUARD-04
 **Depends on:** Phase 119
 **Success Criteria** (what must be TRUE):
+
   1. At least one Sentry alert rule notifies on a new production issue
   2. CLAUDE.md documents the `reportError()` convention and the `window.onerror =` clobbering anti-pattern, written from converted examples that actually shipped in Phases 117 and 119
   3. A deliberate cross-department write rejection, run in production, produces exactly one error-tier Sentry event tagged with role, collection, and operation — sufficient to diagnose without reproducing
+
 **Plans**: TBD
