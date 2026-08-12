@@ -57,7 +57,19 @@ Rationale for each exclusion is stated. Nothing is silently dropped.
 
 *Why prod:* `113-DEV-VERIFICATION.md` "Still unverified" item 1 — this round trip has **never** been re-run under the tightened rules, on any environment. §7a is strong indirect evidence only.
 
-As `operations_admin`, assign a `services_user` to a project via the project-detail Personnel panel. Logged in separately as that `services_user`, with **no** re-save, removal or re-add: `#/projects` lists the project, and the dedicated MRF form's picker offers it.
+As `operations_admin`, assign a `services_user` to a project via the project-detail Personnel panel. Logged in separately as that `services_user`, with **no** re-save, removal or re-add, the dedicated **MRF form's project picker offers that project**.
+
+### Scope correction — the `#/projects` clause is not observable for this role
+
+Plan 113-11 also asks for `#/projects` to list the project. A `services_user` cannot reach that route at all, by design and independently of Phase 113:
+
+- Permissions resolve **only** from `role_templates/{role}` — `app/permissions.js:90`, no per-user overrides
+- Production `role_templates/services_user` carries `tabs.projects.access: false` (document `updateTime` `2026-07-06T06:25:54Z`, i.e. quick 260706-mco — predates this phase)
+- `app/router.js:288` blocks on `hasTabAccess() === false` with an Access Denied page, so this is route-level, not merely a hidden nav link
+
+**The MRF picker is not a weaker substitute — it is the same code path.** `.planning/debug/services-user-project-hidden.md` establishes that `#/projects` and the MRF picker's `rebuildPSOptions()` both consume the identical `getAssignedProjectCodes()` helper, and that the defect was *"a single upstream data gap, not N independently-broken surfaces."* Exercising the picker exercises the same helper, the same personnel-derived cache, and the same tightened `projects` rules — and it is the surface the original report actually cared about ("nor file MRFs against it").
+
+Verified separately: `mrf-form.js:406`'s `showProjects` role list includes `services_user`, so the picker is reachable for this role.
 
 **Result:**
 **Notes:**
