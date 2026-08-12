@@ -85,8 +85,28 @@ As `services_admin`, create a new service. It must **succeed** and receive a `CL
 - A *"counter is not initialised"* error means that client/year has no counter — **record the client code immediately**
 
 **Result:** ✅ **PASS** (2026-08-12)
-**Code issued:** yes — service created with a `CLMC-...` code
-**Notes:** Confirms the 49-counter production seeding works end to end: `services_admin` is scoped off `projects` (Option B / D-16) *and* service creation still succeeds, which is the exact trade the `code_counters` migration was built to make possible. No *"counter is not initialised"* throw, and no *"Failed to create service"* toast.
+**Code issued:** `CLMC-AFTMC-2026002`
+**Notes:** Confirms the trade the `code_counters` migration was built to make possible — `services_admin` is scoped off `projects` (Option B / D-16) *and* service creation still succeeds. No *"counter is not initialised"* throw, no *"Failed to create service"* toast.
+
+**Counter document verified directly against production** — `code_counters/AFTMC_2026`:
+
+```json
+{ "client_code": "AFTMC", "year": 2026, "last_seq": 2,
+  "created_at": "2026-08-11T18:54:13.275Z",
+  "updated_at": "2026-08-12T02:39:27.899Z" }
+```
+
+This closes the loop on every layer of the design at once:
+
+| Claim | Evidence |
+|---|---|
+| Seeding derived the right starting value | `last_seq` seeded to **1**, matching the pre-existing `CLMC-AFTMC-2026001`; `created_at` is the seed-apply timestamp |
+| The `runTransaction` increment path works in production | `updated_at` is ~7¾ h later, at the service creation — `tx.update(counterRef, {last_seq: n, updated_at: serverTimestamp()})` fired |
+| The issued code matches the counter exactly | `last_seq: 2` ↔ code `...2026002` |
+| No duplicate minted | `...002` does not collide with the existing `...001` — the precise failure the integrity contract exists to prevent |
+| The monotonic rule permitted a forward move | 1 → 2 satisfies `request.resource.data.last_seq > resource.data.last_seq` |
+
+Had the counter been missing or seeded too low, this create would have either thrown *"counter is not initialised"* or re-issued `...001`.
 
 ---
 
