@@ -1,5 +1,47 @@
 # Project Milestones: CLMC Procurement System
 
+## v4.1 Assignment Source-of-Truth & Read Enforcement (Shipped: 2026-08-12)
+
+**Delivered:** Made `personnel_user_ids` the single authoritative record for cross-department assignment visibility, retired both fire-and-forget sync pipelines, and moved `projects` read scoping from cosmetic client-side filtering to server-side enforcement.
+
+**Phases completed:** 113 (1 phase, 11 plans / 7 waves)
+
+**Key accomplishments:**
+
+- **Single source of truth** — `getAssignedProjectCodes()` / `getAssignedServiceCodes()` repointed onto a personnel-derived, listener-backed, fail-closed cache; both sync helpers (`syncPersonnelToAssignments`, `syncServicePersonnelToAssignments`) deleted along with all 9 call sites, and the derived `assigned_project_codes` / `assigned_service_codes` arrays retired as a read authority
+- **Server-side read enforcement (D-15)** — `projects` split into `allow get` / `allow list`, both scoped on `personnel_user_ids`, so a scoped role can no longer reach an unassigned project even by direct document-ID link
+- **`services_admin` scoped on `projects` (D-16, Option B)** — previously impossible, because service creation range-scanned both collections to avoid CLMC code collisions
+- **Atomic counter-document code generation** — the enabler for the above. `generateProjectCode()` / `generateServiceCode()` now increment `code_counters/{clientCode}_{year}` inside `runTransaction` and read no other collection. Also closes the simultaneous-create race the old JSDoc documented and accepted; rules forbid rewinding or deleting a counter
+- **Eleven converted read sites across nine view files**, audited against a code-derived 41-site enumeration rather than a research table
+- **Assignments tab repointed** to write `personnel_user_ids` directly onto the container (D-05/D-06/D-10), so it and the Personnel panel share one record instead of two views of a derived array
+- **`users.update` cross-department carve-out removed** (D-17) with its 8 tests preserved inverted, as permanent regression coverage against the rules-layer-drifts-from-the-assignment-model bug class
+
+**Stats:**
+
+- 1 phase, 11 plans, 7 waves, ~65 commits
+- 2 days from first commit to ship (2026-08-10 → 2026-08-12)
+- 16/17 decisions delivered (D-14 explicitly deferred to its own phase)
+- Emulator: 87 passing / 2 failing (both pre-existing and unrelated)
+- New collection: `code_counters` (49 client/year pairs + `MALDOR_2026` seeded in production)
+- 4 composite indexes added, all `READY` in production before the rules deploy
+- Production UAT: all exercisable items PASS, **zero rollbacks** — the rollback path (`a0c4689`) was recorded before deploying and never needed
+
+**Why this milestone existed:** a live production defect — a `services_user` assigned to a project via the Personnel panel could not see it or file MRFs against it. Root cause was a cross-department `updateDoc` denied by `firestore.rules` and swallowed by a fire-and-forget `.catch()`. The **fourth** recurrence of one bug class; three prior quick fixes (260627-kg0, 260706-mco, 260722-msg) had each patched a different read/UI layer without ever auditing the write layer.
+
+**Verified dead in production:** an `operations_admin`-performed assignment is now immediately visible to a `services_user` on both `#/projects` and the MRF picker, with no re-save and no `super_admin` workaround — and pre-existing, un-migrated assignments still resolve with no backfill.
+
+**Known carry-overs:**
+
+- **D-14** — journal subcollections (`activity_entries`, `progress_updates`, `issues`, `audit_log`, `baselines`, `edit_history`) still read by known document ID; knowingly accepted, booked as its own phase
+- **T-113-60** — Procurement Create-MRF picker remains unscoped
+- **Cross-department Services access gap** — an assigned `operations_user` cannot reach an assigned service (`allow get` omits the role, route permission-blocked). Pre-existing, → `BACKLOG.md`
+- **`seed-services-role-permissions.js` writes an inert field path** (`tabs.*` instead of `permissions.tabs.*`), creating a stray structure that contradicts the operative one → `BACKLOG.md`
+- v3.2 deferrals still open: Phase 68.1 (subcon scorecard), Phase 70 rework (cancel-PR approval flow); v4.0 deferral: Phase 105.1
+
+**What's next:** v4.3 Observability & Error Handling (phases 114–120), already defined. Branch `v4.2` (phases 106–112) is now unblocked for rebase onto `main`.
+
+---
+
 ## v4.0 Procurement → Full Management Portal (Shipped: 2026-06-16)
 
 **Delivered:** Transformed CLMC from a procurement tool into a full management portal across five capability areas — native Gantt-based project management, in-app notifications, manual collectibles tracking, end-to-end proposal lifecycle, and a Super-Admin management hub — plus a large UX/polish layer and full project↔service parity.

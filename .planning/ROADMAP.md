@@ -13,9 +13,9 @@
 - ✅ **v3.1 PR/TR Routing & Procurement Improvements** — Phases 57–62.2 (shipped 2026-03-10)
 - ✅ **v3.2 Supplier Search, Proof of Procurement & Payables** — Phases 63–82 (shipped 2026-04-28)
 - ✅ **v4.0 Procurement → Full Management Portal** — Phases 83–105 (shipped 2026-06-16)
-- ◆ **v4.1 Assignment Source-of-Truth & Read Enforcement** — Phase 113 (active; 10/11 plans, production deploy outstanding)
-- 📋 **v4.2 Home Command Center & Mobile** — Phases 106–112, defined on branch `v4.2` (to be rebased onto main after v4.1 ships)
-- 📋 **v4.3 Observability & Error Handling** — Phases 114–120, defined (activates once v4.1's plan 113-11 ships; STATE.md remains on v4.1 until then)
+- ✅ **v4.1 Assignment Source-of-Truth & Read Enforcement** — Phase 113 (shipped 2026-08-12)
+- 📋 **v4.2 Home Command Center & Mobile** — Phases 106–112, defined on branch `v4.2` (to be rebased onto main now that v4.1 has shipped)
+- ◆ **v4.3 Observability & Error Handling** — Phases 114–120 (active)
 
 ## Phases
 
@@ -37,7 +37,7 @@
 Earlier milestones (v1.0–v3.2) are archived under `.planning/milestones/`.
 
 <details>
-<summary>◆ v4.1 Assignment Source-of-Truth & Read Enforcement (Phase 113) — ACTIVE</summary>
+<summary>✅ v4.1 Assignment Source-of-Truth & Read Enforcement (Phase 113) — SHIPPED 2026-08-12</summary>
 
 1 phase, 11 plans / 7 waves. Makes `personnel_user_ids` the single authoritative record for
 cross-department assignment visibility, retires both fire-and-forget sync pipelines, and enforces
@@ -48,8 +48,11 @@ fixes had each patched at a different layer without auditing the write layer.
 
 - 16/17 decisions delivered (D-14 explicitly deferred to its own phase).
 - Emulator: 87 passing / 2 failing (both pre-existing, unrelated).
-- Browser-verified against **dev** across all five roles.
-- **Not shipped** — production deploy (113-11) outstanding; nothing is live yet.
+- Browser-verified against **dev** across all five roles, then against **production** post-deploy.
+- **Shipped 2026-08-12** — 4 personnel indexes `READY`, `code_counters` seeded (49 pairs + `MALDOR_2026`),
+  client bundle `f205889` live, tightened rules `c93d6dc` released. Rollback (`a0c4689`) never needed.
+- Production UAT: all exercisable items PASS, zero rollbacks. Detail: `phases/113-*/113-HUMAN-UAT.md`
+  and `113-11-SUMMARY.md`.
 - Full detail: `milestones/v4.1-ROADMAP.md`
 - Requirements: `milestones/v4.1-REQUIREMENTS.md`
 
@@ -59,7 +62,7 @@ atomic counter document, which is what allowed `services_admin` to be scoped ser
 </details>
 
 <details>
-<summary>📋 v4.3 Observability & Error Handling (Phases 114–120) — DEFINED, NOT ACTIVE</summary>
+<summary>◆ v4.3 Observability & Error Handling (Phases 114–120) — ACTIVE</summary>
 
 7 phases, 34 requirements (OBS×8, ATTR×4, ERRC×9, UX×4, RETRO×5, GUARD×4). Adds a self-hosted,
 version-pinned Sentry browser SDK plus an app-wide `reportError()` contract with severity tiering,
@@ -73,9 +76,9 @@ never fires `unhandledrejection` — meaning Sentry's free global capture gives 
 exact bug class. The milestone's value is concentrated in the contract and retrofit phases
 (116, 118, 119), not the SDK install (114).
 
-- **Hard dependency:** v4.1's plan 113-11 (production `firestore.rules` deploy) must ship before
-  Phase 114 begins — ERRC-03's read-vs-write `permission-denied` severity rule is calibrated against
-  post-113 rules behavior.
+- **Hard dependency — MET 2026-08-12.** v4.1's plan 113-11 (production `firestore.rules` deploy)
+  has shipped, so ERRC-03's read-vs-write `permission-denied` severity rule can now be calibrated
+  against live post-113 rules behavior. Phase 114 is unblocked.
 - **Milestone acceptance test (GUARD-04, Phase 120):** a deliberate cross-department write rejection,
   run in production, must produce exactly one error-tier Sentry event tagged with role, collection,
   and operation.
@@ -88,16 +91,19 @@ exact bug class. The milestone's value is concentrated in the contract and retro
 
 ## Next
 
-**Active milestone: v4.1.** One item remains — plan 113-11, the production deploy. Its ordering is
-load-bearing: indexes (4) → `code_counters` rules + client bundle → seed counters → tightened rules.
-Deploying the rules before seeding makes the first service creation for an unseeded client/year
-throw.
+**Active milestone: v4.3 Observability & Error Handling.** Start at **Phase 114** —
+`/gsd:discuss-phase 114`.
 
-`v4.2` (phases 106–112, Home command center / mobile / data-layer audit) is already defined on its
-own branch. Plan: **rebase `v4.2` onto `main` later**, once v4.1 has shipped — not merge main into
-it now. Phase 113 touched `firestore.rules`, `app/utils.js` and most view files, so expect conflicts
-there and resolve them in v4.1's favour (the tightened rules and the personnel-derived getters are
-the newer contract).
+**v4.1 shipped 2026-08-12.** The deploy ran in the load-bearing order recorded in
+`113-10-SUMMARY.md:125`: indexes (4) → `code_counters` rules + client bundle → seed counters →
+tightened rules. Plan 113-11 as written was stale on two of those four steps; the executed sequence
+and the reasons are in `113-11-SUMMARY.md`.
+
+`v4.2` (phases 106–112, Home command center / mobile / data-layer audit) is defined on its own
+branch and is now **unblocked for rebase onto `main`** — not a merge of main into it. Phase 113
+touched `firestore.rules`, `app/utils.js` and most view files, so expect conflicts there and resolve
+them in v4.1's favour (the tightened rules and the personnel-derived getters are the newer
+contract). Sequencing v4.2's rebase against v4.3's phases is an open call.
 
 Phase numbering continues from 114 (never reset).
 
@@ -109,7 +115,7 @@ Phase numbering continues from 114 (never reset).
 
 **Requirements**: D-01 … D-17 (no formal REQ-IDs exist for this phase — the requirement set IS the `113-CONTEXT.md` locked decision set)
 **Depends on:** None — independent of v4.2 phases 106–112
-**Plans:** 10/11 plans executed
+**Plans:** 11/11 plans executed — **COMPLETE**
 
 **Numbering note:** numbered 113 (not 106) deliberately. Main's ROADMAP is stale and says numbering continues from 106, but branch `v4.2` has already used 106–112. 113 avoids a collision when main merges into v4.2.
 
@@ -144,16 +150,15 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 113-11-PLAN.md — W7: deploy tightened rules + 11-step browser UAT — blocking human gates
+- [x] 113-11-PLAN.md — W7: deploy tightened rules + production UAT — blocking human gates *(shipped 2026-08-12; plan was stale, executed per `113-10-SUMMARY.md:125` — see `113-11-SUMMARY.md`)*
 
 ---
 
-**Defined ahead of activation: v4.3 Observability & Error Handling.** Phases 114–120, scoped from
-`.planning/REQUIREMENTS.md` (34 requirements) and `.planning/research/SUMMARY.md`. This is **not**
-the active milestone — STATE.md deliberately remains on v4.1 until plan 113-11 ships. Every phase
-below carries a hard prerequisite: v4.1's plan 113-11 (production deploy of tightened
-`firestore.rules`) must ship first. Phase 114 especially cannot begin until then, because ERRC-03's
-read-vs-write `permission-denied` severity rule is calibrated against post-113 rules behavior.
+**ACTIVE MILESTONE: v4.3 Observability & Error Handling.** Phases 114–120, scoped from
+`.planning/REQUIREMENTS.md` (34 requirements) and `.planning/research/SUMMARY.md`. The hard
+prerequisite — v4.1's plan 113-11, the production deploy of the tightened `firestore.rules` — was
+**met on 2026-08-12**, so Phase 114 is unblocked and ERRC-03's read-vs-write `permission-denied`
+severity rule can be calibrated against live post-113 behavior.
 
 **Goal:** Make production failures visible, attributable, and diagnosable — a broken workflow should
 surface on a dashboard with the user, role, and stack trace attached, instead of dying silently in a
@@ -179,7 +184,7 @@ real value is concentrated in the error contract (Phase 116) and the targeted re
 **Why:** Installing the SDK is cheap and mechanical, but its two failure modes here are silent — a CSP block throws no catchable error ("dashboard is quiet" looks identical to "no errors occurred"), and default console breadcrumbs would echo 422 existing `console.error` calls (plausibly containing supplier/PO/bank data) into Sentry the instant `init()` runs, with zero new code. Both must close in this phase, verified empirically in production, not assumed from the diff.
 **Note:** the SDK version pin (research found `10.70.0`, disputed by one patch against `10.69.0`) and its SRI hash must be re-verified against the live CDN at phase kickoff — do not carry forward either number as final.
 **Requirements**: OBS-01, OBS-02, OBS-03, OBS-04, OBS-05, OBS-06, OBS-07
-**Depends on:** v4.1 plan 113-11 (production `firestore.rules` deploy) — hard external prerequisite, not yet met. No dependency on v4.2 (separate branch, separate rebase).
+**Depends on:** v4.1 plan 113-11 (production `firestore.rules` deploy) — **met 2026-08-12**. No dependency on v4.2 (separate branch, separate rebase).
 **Success Criteria** (what must be TRUE):
   1. Sentry SDK loads from a self-hosted, version-pinned bundle and initializes before the app's ES-module bootstrap; a deliberately triggered error in production appears in the Sentry dashboard with a readable stack trace
   2. The app functions identically — every view loads, every write succeeds — when the Sentry bundle is blocked or fails to load; no feature checks or depends on `window.Sentry` existing

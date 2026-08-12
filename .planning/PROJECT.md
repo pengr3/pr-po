@@ -12,9 +12,11 @@ Projects tab must work — it's the foundation where project name and code origi
 
 **Latest shipped:** v4.0 Procurement → Full Management Portal (2026-06-16) — 53 phases, ~189 plans (phases 83–105), 51/51 active requirements delivered. Transformed CLMC from a procurement tool into a full management portal across five capability areas: native Gantt-based **Project Management** (`project_tasks`/`service_tasks`, dependencies, milestones, duration-weighted progress, baselines, iterations, PDF export, service parity), in-app **Notifications** (bell/dropdown/history + event triggers), manual **Collectibles Tracking** (auto-derived status, billing requests), end-to-end **Proposal Lifecycle** (internal approval, audit trail, client log, project/service status integration), and a Super-Admin **Management hub** (approval queue + create-engagement). Plus portfolio redesign, DLP/retention, project journal, and full project↔service parity. Audit verdict `tech_debt` (no code blockers; 86/87 verification gap + B3 formally accepted). Shipped via PR #75 (v3.3 → main, merge `34f65e36`); prod `firestore.rules` deployed + live.
 
-**Active milestone:** v4.1 Assignment Source-of-Truth & Read Enforcement (Phase 113) — 10/11 plans complete; plan 113-11 (production deploy of tightened `firestore.rules` + 11-step browser UAT) is outstanding. Nothing from Phase 113 is live yet.
+**Also shipped:** v4.1 Assignment Source-of-Truth & Read Enforcement (2026-08-12) — Phase 113, 11 plans. `personnel_user_ids` is now the single authoritative record for cross-department assignment visibility; both fire-and-forget sync pipelines are deleted; `projects` read scoping is enforced server-side rather than as cosmetic client-side filtering. Enabled by replacing CLMC code generation's cross-collection range scan with an atomic `code_counters` document, which is what allowed `services_admin` to be scoped server-side (D-16). Production UAT passed with zero rollbacks; the motivating defect is verified dead.
 
-**Defined but not active:** v4.2 Home Command Center & Mobile (phases 106–112) lives on branch `v4.2`, to be **rebased** onto `main` after v4.1 ships. v4.3 Observability & Error Handling (phases 114+) is defined below; it becomes the active milestone once 113-11 deploys.
+**Active milestone:** v4.3 Observability & Error Handling (phases 114–120) — defined 2026-08-11, activated 2026-08-12 once v4.1's deploy landed. Start at Phase 114.
+
+**Defined but not active:** v4.2 Home Command Center & Mobile (phases 106–112) lives on branch `v4.2`, now unblocked to be **rebased** onto `main`.
 
 **Phase numbering:** continues from 114 (never reset). 106–112 are consumed by branch `v4.2`; 113 by v4.1.
 
