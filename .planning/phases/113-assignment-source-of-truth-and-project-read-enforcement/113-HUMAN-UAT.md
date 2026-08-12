@@ -84,9 +84,9 @@ As `services_admin`, create a new service. It must **succeed** and receive a `CL
 - Failure shows as the toast *"Failed to create service"*
 - A *"counter is not initialised"* error means that client/year has no counter — **record the client code immediately**
 
-**Result:**
-**Code issued:**
-**Notes:**
+**Result:** ✅ **PASS** (2026-08-12)
+**Code issued:** yes — service created with a `CLMC-...` code
+**Notes:** Confirms the 49-counter production seeding works end to end: `services_admin` is scoped off `projects` (Option B / D-16) *and* service creation still succeeds, which is the exact trade the `code_counters` migration was built to make possible. No *"counter is not initialised"* throw, and no *"Failed to create service"* toast.
 
 ---
 
