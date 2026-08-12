@@ -2,11 +2,12 @@
 gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Observability & Error Handling
-status: planning
-last_updated: "2026-08-12T04:35:56.939Z"
-last_activity: 2026-08-12
+status: Defining requirements
+stopped_at: Phase 114 context gathered
+last_updated: "2026-08-12T09:30:31.407Z"
+last_activity: 2026-08-12 — Milestone v4.3 started
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -723,9 +724,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-08-10
-Last session: 2026-08-10T18:11:00.245Z
-Stopped at: Completed 113-08-PLAN.md
-Resume file: None
+Last session: 2026-08-12T09:30:31.391Z
+Stopped at: Phase 114 context gathered
+Resume file: .planning/phases/114-observability-foundation-v4-3/114-CONTEXT.md
 Next action: Pick next thread. Carry-over loose ends: (1) Phase 86.9 Plan 03 untracked (write SUMMARY-03 + commit/clean DEBUG.md + debug-diag-86.9.js + fix ROADMAP 2/2→3/3); (2) Phase 86.5 (Gantt UI Polish 3) still unplanned; (3) firestore.rules PROD deploy still deferred until v3.3→main merge — NOTE the f785915 project_iterations update rule is now ALSO pending that prod deploy (on top of the Phase 87.4 attachment-gate rule); dev is current, prod is not. Housekeeping: ~17 stale .continue-here files + orphan 83-05 plan + untracked .claude/worktrees/.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
