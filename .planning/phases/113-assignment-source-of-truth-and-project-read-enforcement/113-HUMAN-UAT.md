@@ -95,8 +95,8 @@ That closes D-05 and the bug class behind four recurrences (quick-260627-kg0, qu
 
 A user assigned **before** this phase still sees their existing projects and services on `#/projects`, `#/services`, the MRF form picker and the Procurement tab. No backfill was run.
 
-**Result:**
-**Notes:**
+**Result:** ✅ **PASS** (2026-08-12) — verified as both a scoped `operations_user` and a scoped `services_user`
+**Notes:** Pre-existing assignments resolve correctly with **no migration and no backfill**. This is the load-bearing proof that `personnel_user_ids` alone reconstructs what the retired `assigned_project_codes` / `assigned_service_codes` arrays used to carry — for legacy production data, not just newly-created assignments. Dev could not establish this: its data lacks production's legacy assignment shapes.
 
 ---
 
@@ -141,9 +141,11 @@ Had the counter been missing or seeded too low, this create would have either th
 
 As a scoped `operations_user` **and** a scoped `services_user`: the dedicated MRF form picker and Procurement → Create MRF offer **exactly** the assigned projects/services — no more, no fewer.
 
-**Result — operations_user:**
-**Result — services_user:**
-**Notes:**
+**Result — operations_user:** ✅ **PASS** (2026-08-12)
+**Result — services_user:** ✅ **PASS** (2026-08-12)
+**Notes:** The dedicated MRF form picker offers exactly the assigned projects/services for both scoped roles. Combined with A1, this closes the second half of the original defect — the report was that the assigned project was *"not offered in the MRF form's project picker"* and the user *"cannot write MRFs for that project."*
+
+The Procurement → Create-MRF picker remains known-unscoped and is **not** a pass criterion here — accepted as **T-113-60** in plan 113-11's threat model and carried to its own phase.
 
 ---
 
@@ -153,8 +155,16 @@ As a scoped `operations_user` **and** a scoped `services_user`: the dedicated MR
 
 Exercise a PO reaching **Delivered** on a service-anchored MRF and confirm the service journal entry appears.
 
-**Result:**
-**Notes:**
+**Result:** ⏸ **DEFERRED — not exercisable** (2026-08-12)
+**Notes:** No service-anchored PO was in a state where marking it Delivered would have been a genuine business event. Fabricating one would write real production data purely to satisfy a check.
+
+**Why deferring is acceptable:**
+1. **Not a plan 113-11 acceptance criterion.** This item was added to this UAT from `113-DEV-VERIFICATION.md`'s own gap list ("Still unverified" item 2), as extra rigour. None of plan 113-11's 11 steps require it.
+2. **The rules-layer permission it depends on is already verified** — `113-DEV-VERIFICATION.md` §8a. That is the only layer this phase could have broken.
+3. **This phase did not modify the surrounding client wiring.** The dev doc states it explicitly: *"only the surrounding client wiring, which this phase did not modify, is unobserved."*
+4. The one Phase 113 change that touches this path — plan 113-06's PO-Delivered doc-ID journal lookup (`e62d178`, replacing a name lookup with a direct doc read) — is strictly narrower than what it replaced and needs no list permission.
+
+**Carry as a watch item:** the next time a service-anchored PO reaches Delivered in normal operation, confirm the journal entry appears. If it does not, the fix is scoped to `procurement.js`'s journal write, not to the rules.
 
 ---
 
@@ -164,10 +174,12 @@ Exercise a PO reaching **Delivered** on a service-anchored MRF and confirm the s
 
 On the Projects sub-tab and the Services sub-tab: open Manage for a user, check and uncheck items, save. Confirm the success toast, the updated Assignment Count, and the change reflected in the container's Personnel panel. Then confirm a user assigned via the **Personnel panel only** still appears as a manageable row.
 
-**Result — Projects sub-tab:**
-**Result — Services sub-tab:**
-**Result — personnel-only row manageable:**
-**Notes:**
+**Result — Projects sub-tab:** ✅ **PASS** (2026-08-12)
+**Result — Services sub-tab:** ✅ **PASS** (2026-08-12)
+**Result — personnel-only row manageable:** ✅ **PASS** (2026-08-12)
+**Notes:** Closes D-05 and D-10 on the write side. The Assignments tab now writes `personnel_user_ids` directly onto the container, the change round-trips to the container's Personnel panel, and a user assigned **only** via a Personnel panel still appears as a manageable row — proving the two entry points share one authoritative record rather than two views of a derived array.
+
+Also confirms the D-17 `users.update` carve-out removal caused no regression: the previous verification of this surface (113-09) predates that change.
 
 ---
 
@@ -175,15 +187,15 @@ On the Projects sub-tab and the Services sub-tab: open Manage for a user, check 
 
 **Plan-task writes (step 10)** — as a user assigned via the Personnel panel **only**, open a Plan page and create, rename, delete a task. All three succeed.
 
-**Result:**
+**Result:** ✅ **PASS** (2026-08-12) — create, rename and delete all succeeded. This is the frozen-array trap plan 113-01 closed: the write rules the original research audit never covered. Without this step it would have surfaced weeks later as an unexplained permission error (threat T-113-59).
 
 **See-all roles (step 4, remainder)** — as `finance`, `procurement`, `super_admin`: `#/projects` lists everything. Low risk: these are a plain `hasRole(['super_admin','finance','procurement','operations_admin'])` exemption on both `get` and `list`, with no scoping logic to get wrong. `operations_admin` already covered by dev §8a.
 
-**Result:**
+**Result:** ✅ **PASS** (2026-08-12) — `finance` and `procurement` both list every project. `super_admin` exercised continuously throughout this deploy (seeding, A6, counter verification) with full visibility and no denial; recorded as satisfied by that use rather than as a discrete check.
 
 **Escape hatch (step 5)** — if any account holds `all_projects: true` or `all_services: true`, confirm it still sees everything. If none exists, record that.
 
-**Result:**
+**Result:** ⬜ **NOT RUN** — the enumerating snippet was not executed. Low risk: `getUserData().all_projects == true` is a hoisted top-level OR term in both the `projects` and `services` read rules, and dev §7 verified the hatch under the tightened rules. If no account carries either flag, the branch is unreachable and the step is vacuous.
 
 ---
 
@@ -215,6 +227,38 @@ On the Projects sub-tab and the Services sub-tab: open Manage for a user, check 
 
 ## Outcome
 
-**Overall:**
-**Failing items:**
-**Date completed:**
+**Overall:** ✅ **PASS** — Phase 113's goal is demonstrated in the live application.
+
+| Item | Result |
+|---|---|
+| **A1** — canonical acceptance narrative (D-05) | ✅ PASS |
+| **A2** — no migration required | ✅ PASS (both scoped roles) |
+| **A3** — service creation → `CLMC-AFTMC-2026002` | ✅ PASS (counter verified 1→2) |
+| **A4** — MRF form pickers | ✅ PASS (both scoped roles) |
+| **A5** — PO-Delivered → service journal | ⏸ deferred, not exercisable (rationale above) |
+| **A6** — Assignments tab round trip (D-05/D-10) | ✅ PASS (both sub-tabs + personnel-only row) |
+| **A7.1** — plan-task writes | ✅ PASS |
+| **A7.2** — see-all roles | ✅ PASS |
+| **A7.3** — escape hatch | ⬜ not run (vacuous if no flagged account) |
+
+**Failing items:** none.
+
+**Zero rollbacks.** The rollback path (`a0c4689`) was never exercised. No scoped role was denied wholesale on any list surface at any point.
+
+### What this establishes
+
+- `personnel_user_ids` is the **single authoritative record** for cross-department assignment visibility — proven for both newly-created (A1) and pre-existing, un-migrated (A2) assignments, with both sync pipelines deleted and no backfill run.
+- Read scoping is **enforced server-side**, not cosmetically — dev proved D-15 in both directions; production confirms scoped roles see exactly their assignments.
+- The `services_admin`-scoped-on-`projects` posture (Option B / D-16) works **because** the `code_counters` migration removed service creation's dependency on reading every project — A3 proves both halves of that trade at once.
+- The write layer holds: Assignments-tab round trip (A6) and plan-task writes (A7.1) both succeed under the tightened rules with the D-17 carve-out removed.
+
+### Findings recorded, none blocking
+
+1. **Cross-department Services access gap** — an assigned `operations_user` cannot reach an assigned service (`allow get` omits the role; route blocked). Pre-existing, verified byte-identical pre/post tightening. → `BACKLOG.md`
+2. **`seed-services-role-permissions.js` writes an inert field path** — `tabs.*` instead of `permissions.tabs.*`, creating a stray shadow structure that contradicts the operative one. Cost real debugging time during this UAT. → `BACKLOG.md`
+3. **Plan 113-11 was stale** — claimed no index change and omitted counter seeding; the executed sequence follows `113-10-SUMMARY.md:125`.
+4. **Plan 113-11 repeated 113-09's Assignments-tab role misattribution** — corrected here.
+5. **D-14 residual** (journal subcollections readable by known doc ID) — knowingly accepted, booked as its own phase, not re-tested.
+6. **T-113-60** (Procurement Create-MRF picker unscoped) — accepted, deferred, explicitly excluded from A4's pass criteria.
+
+**Date completed:** 2026-08-12
