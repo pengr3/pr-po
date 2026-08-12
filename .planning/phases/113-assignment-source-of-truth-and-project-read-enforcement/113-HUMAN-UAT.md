@@ -1,4 +1,4 @@
-# Phase 113 — Post-Tightening Browser UAT
+# Phase 113 — Post-Tightening UAT
 
 **Plan:** 113-11 Task 2
 **Environment:** production (`clmc-procurement`) via https://clmcop.netlify.app
@@ -15,11 +15,11 @@
 | Tightened rules commit | `c93d6dc` (shipped as part of `f205889`) |
 | Client bundle | `f205889` pushed to `origin/main`, verified live (`clmcCounterId` present, `syncPersonnelToAssignments` absent) |
 | Composite indexes | 4/4 personnel indexes `READY` before any rules change |
-| `code_counters` seeded | 49/49 written + `MALDOR_2026` created manually; re-verified 49/49 `OK` |
+| `code_counters` seeded | 49/49 written + `MALDOR_2026` created manually at `last_seq: 1`; re-verified 49/49 `OK` |
 | Rules deploy | `released rules firestore.rules to cloud.firestore`, compiled clean |
 | **Immediate smoke check** | **PASS** — scoped user sees assigned projects on `#/projects` |
 
-**Rollback command if any scoped role is denied wholesale:**
+**Rollback if any scoped role is denied wholesale:**
 
 ```bash
 git checkout a0c4689 -- firestore.rules && firebase deploy --only firestore:rules
@@ -29,42 +29,44 @@ Rules apply instantly and no index shipped in this deploy — recovery is second
 
 ### Deviation from plan 113-11 as written
 
-Plan 113-11 stated *"No index change ships in this deploy"* and made no mention of counter seeding. Both were stale — written before plans 113-09 and 113-10 expanded scope. The actual sequence executed follows `113-10-SUMMARY.md:125`:
-
-1. Deploy 4 personnel indexes → wait for `READY`
-2. Deploy `cf0fa92` rules (`code_counters` added, `projects` still permissive) + push client bundle
-3. Seed `code_counters` from the live production site as Super Admin
-4. Deploy tightened rules (`c93d6dc`)
-5. Smoke check → this UAT
+Plan 113-11 stated *"No index change ships in this deploy"* and never mentioned counter seeding. Both were stale — written before plans 113-09 and 113-10 expanded scope. The sequence actually executed follows `113-10-SUMMARY.md:125`: indexes → `cf0fa92` rules + client bundle → seed counters → tightened rules → smoke check.
 
 ---
 
-## Known corrections before you start
+## Scope decision — reduced production UAT
 
-**Step 7 and step 6(c) contain an attribution error that plan 113-09 already identified and resolved.**
+Plan 113-11 was written as if nothing had been browser-verified. That is no longer true: **`113-DEV-VERIFICATION.md` (2026-08-11) exercised all five roles against the TIGHTENED rules** on `clmc-procurement-dev`.
 
-113-09's own UAT hit this: the Assignments tab lives under `#/admin`, gated on `role_config`, which `seed-roles.js` grants to **`super_admin` only**. The plan's attribution of Assignments-tab steps to `operations_admin` / `services_admin` was wrong, and 113-09 recorded it as *"intended design, not a defect — no config change made."*
+This UAT therefore runs only what dev evidence cannot answer — the data-dependent behaviour that exists solely in production. Steps satisfied by prior evidence are recorded in **Section B** with pointers, not re-run.
 
-Plan 113-11 repeats the same wrong attribution. Do **not** file a FAIL if `operations_admin` or `services_admin` cannot reach the Assignments tab — that is the designed behaviour. Run steps 6(c) and 7 as `super_admin`, and record the role you actually used.
+Rationale for each exclusion is stated. Nothing is silently dropped.
 
 ---
 
-## The 11 steps
+## Known corrections
 
-Record PASS / FAIL and the **full text** of any `permission-denied` or `The query requires an index` message. Keep DevTools Console open throughout.
+**Assignments-tab attribution is wrong in plan 113-11.** Steps 6(c) and 7 assign it to `operations_admin` / `services_admin`. The tab lives under `#/admin`, gated on `role_config`, which `seed-roles.js` grants to **`super_admin` only**. Plan 113-09 hit this and recorded it as *"intended design, not a defect — no config change made"*; `113-DEV-VERIFICATION.md` §6 independently corroborates it. Run step 7 as `super_admin`. Do not file a FAIL for 6(c).
 
-### 1. Canonical acceptance narrative (D-05) — the defect that produced this phase
+**`operations_user` cannot reach `#/services`.** Found during this UAT. Not a Phase 113 regression — the Services tab is hidden by role template (`tabs.services.access: false`, `scripts/seed-services-role-permissions.js:49`), deliberate since v2.3, and `services` `allow get` is byte-identical at `a0c4689` and HEAD. Logged to `BACKLOG.md` (`dec07f5`). Mark services rows **N/A** for `operations_user` in step 9.
+
+---
+
+# Section A — must run on production
+
+## A1. Canonical acceptance narrative (D-05) ⭐
+
+*Why prod:* `113-DEV-VERIFICATION.md` "Still unverified" item 1 — this round trip has **never** been re-run under the tightened rules, on any environment. §7a is strong indirect evidence only.
 
 As `operations_admin`, assign a `services_user` to a project via the project-detail Personnel panel. Logged in separately as that `services_user`, with **no** re-save, removal or re-add: `#/projects` lists the project, and the dedicated MRF form's picker offers it.
-
-*Previously this worked only when a `super_admin` performed the assignment.*
 
 **Result:**
 **Notes:**
 
 ---
 
-### 2. No migration required
+## A2. No migration required
+
+*Why prod:* dev lacks production's legacy assignment shapes. A dev pass here would be a false negative.
 
 A user assigned **before** this phase still sees their existing projects and services on `#/projects`, `#/services`, the MRF form picker and the Procurement tab. No backfill was run.
 
@@ -73,60 +75,47 @@ A user assigned **before** this phase still sees their existing projects and ser
 
 ---
 
-### 3. Scoped read enforcement (D-01) — DENY-SHAPED, must be exercised
+## A3. Service creation as `services_admin` (step 6b) ⭐⭐
 
-As a scoped `operations_user` or `services_user`:
+*Why prod:* dev seeded 6 client/year pairs. Production has **49 + MALDOR**, alongside 7 malformed codes and one pre-existing duplicate. This is the payoff of the entire `code_counters` migration and the regression path for RESEARCH.md's highest-severity finding.
 
-- (a) `#/projects` shows **only** assigned projects
-- (b) Navigate directly by URL to an **unassigned** project's detail page — `#/project-detail/<code>` — and confirm it does **not** render
-- (c) Same for a **clientless** project by doc ID — `#/project-detail/<docId>`
+As `services_admin`, create a new service. It must **succeed** and receive a `CLMC-...` code.
 
-This is D-15's `allow get` scoping. It was permitted before this phase.
+- Failure shows as the toast *"Failed to create service"*
+- A *"counter is not initialised"* error means that client/year has no counter — **record the client code immediately**
 
-**Result (a):**
-**Result (b):**
-**Result (c):**
+**Result:**
+**Code issued:**
 **Notes:**
 
 ---
 
-### 4. See-all roles unaffected (D-01)
+## A4. MRF form and Create-MRF pickers
 
-As `super_admin`, `finance`, `procurement` and `operations_admin`: `#/projects` still lists **every** project and every project-detail page opens.
+*Why prod:* `113-DEV-VERIFICATION.md` "Still unverified" item 4 — depends on real assignment data.
 
-**Result — super_admin:**
-**Result — finance:**
-**Result — procurement:**
-**Result — operations_admin:**
+As a scoped `operations_user` **and** a scoped `services_user`: the dedicated MRF form picker and Procurement → Create MRF offer **exactly** the assigned projects/services — no more, no fewer.
+
+**Result — operations_user:**
+**Result — services_user:**
 **Notes:**
 
 ---
 
-### 5. Escape hatch (D-09)
+## A5. PO-Delivered → service journal
 
-If any account holds `all_projects: true` or `all_services: true`, confirm it still sees everything on the corresponding list view after the tightening. If no such account exists, record that.
+*Why prod:* dev has **zero service MRFs** — the flow is untestable there ("Still unverified" item 2). Production has 125 services. The rules-layer permission is verified (§8a); only the client wiring is unobserved.
+
+Exercise a PO reaching **Delivered** on a service-anchored MRF and confirm the service journal entry appears.
 
 **Result:**
 **Notes:**
 
 ---
 
-### 6. `services_admin` posture (D-16 / plan 113-10 Task-1 decision = Option B, SCOPED)
+## A6. Assignments tab round trip (D-05, D-10) — as `super_admin`
 
-- (a) `#/projects` shows **only** its assigned projects
-- (b) Creating a new service **SUCCEEDS** and receives a `CLMC-...` code — failure shows as the toast *"Failed to create service"* and is the regression path for RESEARCH.md's highest-severity finding
-- (c) Assignments tab produces no `permission-denied` console error — **see "Known corrections" above; services_admin is not expected to reach this tab at all**
-
-**Result (a):**
-**Result (b) — code issued:**
-**Result (c):**
-**Notes:**
-
-> (b) is the step the entire `code_counters` migration exists to protect. If it fails with *"counter is not initialised"*, record the client code — that client/year has no counter.
-
----
-
-### 7. Assignments tab round trip (D-05, D-10) — run as `super_admin`
+*Why prod:* 113-09 verified this **pre-tightening**. Plan 113-10 then dropped the `users.update` cross-department carve-out (D-17), so the write path changed after that verification.
 
 On the Projects sub-tab and the Services sub-tab: open Manage for a user, check and uncheck items, save. Confirm the success toast, the updated Assignment Count, and the change reflected in the container's Personnel panel. Then confirm a user assigned via the **Personnel panel only** still appears as a manageable row.
 
@@ -137,58 +126,34 @@ On the Projects sub-tab and the Services sub-tab: open Manage for a user, check 
 
 ---
 
-### 8. D-04 no-leak invariant
+## A7. Quick spot-checks (~5 minutes total)
 
-As a cross-department admin (`services_admin` on the projects side, `operations_admin` on the services side), open Procurement → MRF Records and confirm an **unassigned AND codeless** cross-department item is **not** listed.
+**Plan-task writes (step 10)** — as a user assigned via the Personnel panel **only**, open a Plan page and create, rename, delete a task. All three succeed.
 
 **Result:**
-**Notes:**
+
+**See-all roles (step 4, remainder)** — as `finance`, `procurement`, `super_admin`: `#/projects` lists everything. Low risk: these are a plain `hasRole(['super_admin','finance','procurement','operations_admin'])` exemption on both `get` and `list`, with no scoping logic to get wrong. `operations_admin` already covered by dev §8a.
+
+**Result:**
+
+**Escape hatch (step 5)** — if any account holds `all_projects: true` or `all_services: true`, confirm it still sees everything. If none exists, record that.
+
+**Result:**
 
 ---
 
-### 9. Full surface sweep
+# Section B — covered by prior evidence, not re-run
 
-As a scoped `operations_user` **and again** as a `services_user`, visit each surface. **Zero** `permission-denied` and **zero** `The query requires an index` are required. Record every other console error with full text.
-
-| Surface | operations_user | services_user |
+| Plan step | Disposition | Evidence |
 |---|---|---|
-| `#/projects` | | |
-| Assigned project detail | | |
-| Its Plan page | | |
-| `#/services` | | |
-| Assigned service detail | | |
-| `#/clients` → client detail | | |
-| Procurement → MRF Records | | |
-| Procurement → Create MRF | | |
-| Dedicated MRF form | | |
-| Full Breakdown modal (project detail) | | |
-| Start Proposal flow (where reachable) | | |
-
-**Notes:**
-
----
-
-### 10. Plan-task write authority (the frozen-array trap closed in 113-01)
-
-As a user assigned to a project or service via the **Personnel panel only** (never through the legacy arrays), open the Plan page and **create, rename and delete** a task. All three must succeed.
-
-This is the regression path for the write rules the research audit did not cover.
-
-**Result — create:**
-**Result — rename:**
-**Result — delete:**
-**Notes:**
-
----
-
-### 11. D-14 residual, knowingly accepted — DENY-SHAPED, record as EXPECTED
-
-Confirm — and record as **EXPECTED, not a bug** — that a scoped user who already knows an unassigned project's document ID can still read its journal subcollections.
-
-Do **not** fix it here. `113-CONTEXT.md` `deferred` books it as its own phase, and `firestore.rules` carries the residual note added in 113-10.
-
-**Result (expect: still readable):**
-**Notes:**
+| **3** — scoped read enforcement, incl. unassigned project by direct URL in both `project_code` and doc-ID forms | **Covered** | `113-DEV-VERIFICATION.md` §1 (`getDoc` on unassigned = **DENIED**), §7b (D-15 proven in *both* directions), §7d (portfolio scoping exact), §7e (clientless doc-ID fallback meeting tightened `allow get`) |
+| **4** — `operations_admin` see-all | **Covered** | §8a — preserved `services` exemption verified; remainder spot-checked in A7 |
+| **6a** — `services_admin` scoped on `#/projects` | **Covered** | §2 — Option B confirmed end-to-end |
+| **6c** — Assignments tab as `services_admin` | **N/A by design** | Tab is `role_config`-gated to `super_admin`. §6 + 113-09 both record this as intended configuration |
+| **8** — D-04 no-leak invariant | **Automated** | `scripts/verify-crossdept-admin-scoping.js` asserts both directions; 113-09 added the services-side mirror |
+| **9** — full 15-route console sweep | **Covered on dev**, reduced here | §5 — 15 routes, zero errors. Production-data-dependent surfaces retained as A4/A5 |
+| **11** — D-14 residual subcollection exposure | **Documented acceptance** | Rules unchanged by this phase; recorded in `113-CONTEXT.md` `deferred`, carried in `firestore.rules`, and booked as its own future phase. Not a defect to file |
+| **Composite index readiness** | **Covered twice** | §4 empirical (no `FAILED_PRECONDITION`) + all 4 confirmed `READY` in production before the rules deploy |
 
 ---
 
@@ -199,12 +164,12 @@ Do **not** fix it here. `113-CONTEXT.md` `deferred` books it as its own phase, a
   git checkout a0c4689 -- firestore.rules && firebase deploy --only firestore:rules
   ```
 - **Any other failure** → record it, then run `/gsd:plan-phase 113 --gaps`
-- Steps 3 and 11 are deny-shaped and must be **exercised, not assumed**. An all-allow checklist proves nothing about enforcement.
+- Keep DevTools Console open. Capture the **full text** of any `permission-denied` or `The query requires an index`.
 
 ---
 
 ## Outcome
 
 **Overall:**
-**Failing steps:**
+**Failing items:**
 **Date completed:**
