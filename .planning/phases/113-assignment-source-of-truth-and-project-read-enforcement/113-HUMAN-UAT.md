@@ -47,6 +47,8 @@ Rationale for each exclusion is stated. Nothing is silently dropped.
 
 **Assignments-tab attribution is wrong in plan 113-11.** Steps 6(c) and 7 assign it to `operations_admin` / `services_admin`. The tab lives under `#/admin`, gated on `role_config`, which `seed-roles.js` grants to **`super_admin` only**. Plan 113-09 hit this and recorded it as *"intended design, not a defect — no config change made"*; `113-DEV-VERIFICATION.md` §6 independently corroborates it. Run step 7 as `super_admin`. Do not file a FAIL for 6(c).
 
+**Hard-refresh between role switches.** The role template is read via a live `onSnapshot` (`app/permissions.js:92`), so a session that has not fully torn down can leave the previous role's permissions in memory. This produced one transient false observation during this UAT (a `services_user` appearing to lack Projects access, which did not reproduce). Ctrl+Shift+R after every account switch.
+
 **`operations_user` cannot reach `#/services`.** Found during this UAT. Not a Phase 113 regression — the Services tab is hidden by role template (`tabs.services.access: false`, `scripts/seed-services-role-permissions.js:49`), deliberate since v2.3, and `services` `allow get` is byte-identical at `a0c4689` and HEAD. Logged to `BACKLOG.md` (`dec07f5`). Mark services rows **N/A** for `operations_user` in step 9.
 
 ---
@@ -77,9 +79,13 @@ Both A1 clauses are therefore observable for a `services_user`. Run both.
 
 Also verified: `mrf-form.js:406`'s `showProjects` role list includes `services_user`, so the picker clause is reachable too.
 
-**Result — `#/projects` lists it:**
-**Result — MRF picker offers it:**
-**Notes:**
+**Result — `#/projects` lists it:** ✅ **PASS** (2026-08-12)
+**Result — MRF picker offers it:** ✅ **PASS** (2026-08-12)
+**Notes:** The defect that produced this phase is dead. An `operations_admin`-performed Personnel-panel assignment is immediately visible to the `services_user` on **both** surfaces, with no re-save, removal or re-add — the workaround that previously required a `super_admin` to perform the assignment is no longer needed.
+
+Significance: this is the first time the canonical narrative has been exercised **under the tightened rules on any environment** (`113-DEV-VERIFICATION.md` listed it as still unverified), and the first time with **both sync pipelines deleted**. `personnel_user_ids` is now demonstrably the single authoritative record — the assignment propagates with no derived array, no backfill, and no sync write to fail silently.
+
+That closes D-05 and the bug class behind four recurrences (quick-260627-kg0, quick-260706-mco, quick-260722-msg, and this phase), each of which had previously been patched at a different read/UI layer without the write layer ever being audited.
 
 ---
 
