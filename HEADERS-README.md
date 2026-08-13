@@ -76,6 +76,52 @@ After deploying, verify the headers are working:
 7. Click on any .css or .js file - you should see:
    - `cache-control: public, max-age=31536000, immutable`
 
+## Verifying Sentry / CSP Changes
+
+Both procedures below must be re-run after every deploy that touches CSP. A CSP-blocked
+`connect-src` request throws no catchable JavaScript error — the app behaves perfectly, the
+console stays clean, and the Sentry dashboard shows zero events, which is indistinguishable from
+a healthy, quiet application.
+
+### (a) Read back the live policy
+
+1. Read the `/*` block's live policy:
+   ```bash
+   curl -sI https://clmcop.netlify.app/ | grep -i content-security-policy
+   ```
+2. Read the `/*.html` block's live policy (this exercises the second occurrence — the reason
+   there are four CSP occurrences across the two files, not two):
+   ```bash
+   curl -sI https://clmcop.netlify.app/index.html | grep -i content-security-policy
+   ```
+3. **Expected outcome:** both responses' `content-security-policy` header contains the Sentry
+   ingest host inside `connect-src` (`https://o4511903390236672.ingest.us.sentry.io`), and the
+   two responses' policies match each other.
+4. **Precedence note:** `_headers` and `netlify.toml` are kept byte-identical, so this command
+   cannot tell you *which* file Netlify actually served — and that is the point. If the two
+   files ever diverge, this command is what tells you which one won, and the answer must then be
+   recorded here.
+
+This procedure pairs with `window.__sentryTest()` (registered in `app/sentry-init.js`), the
+production probe that fires a real event through the ingest endpoint this procedure just
+confirmed is unblocked. Run `window.__sentryTest()` from DevTools on the production site to close
+the loop; the full production test-event checkpoint lives in the phase 114 plan record, not here.
+
+### (b) Simulate a blocked bundle (OBS-03)
+
+1. Open the production site, press F12, and go to the Network tab.
+2. Reload the page.
+3. Right-click the `obs.min.js` request and choose **Block request URL**.
+4. Hard-reload with Ctrl+Shift+R.
+5. **Expected outcome:**
+   - Every view still renders normally.
+   - A real write (e.g., saving an MRF) still succeeds.
+   - The console shows exactly one `[Sentry] SDK unavailable — error reporting disabled for this
+     session` warning and no uncaught errors.
+   - `window.Sentry` is `undefined`.
+6. Remove the block rule afterward: Network tab → the blocking pane → delete the pattern for
+   `obs.min.js`, so your own browser doesn't stay permanently unreported.
+
 ## Console Errors - Before vs After
 
 ### Before (Warnings):
