@@ -92,3 +92,13 @@ The CSP change is committed but **not deployed** — it only takes effect once N
 ---
 *Phase: 114-observability-foundation-v4-3*
 *Completed: 2026-08-13*
+
+## Self-Check: PASSED
+
+- FOUND: _headers
+- FOUND: netlify.toml
+- FOUND: HEADERS-README.md
+- FOUND: .planning/phases/114-observability-foundation-v4-3/114-03-SUMMARY.md
+- FOUND: ec95f7a (Task 1 commit)
+- FOUND: 01901e0 (Task 2 commit)
+- FOUND: 658c94f (SUMMARY commit)

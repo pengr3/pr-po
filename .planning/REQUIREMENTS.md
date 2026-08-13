@@ -24,7 +24,7 @@ The SDK install (OBS) is cheap and mechanical. The value is concentrated in the 
 - [ ] **OBS-01**: Sentry browser SDK loads on every page from a self-hosted, version-pinned bundle committed under `lib/` — mirroring the existing `lib/signature_pad.umd.min.js` treatment, because `*.sentry-cdn.com` is a common ad-blocker target and a blocked bundle means silent loss of all reporting
 - [ ] **OBS-02**: `Sentry.init()` runs before the app's ES-module bootstrap, so cold-start failures (bad deploy, blocked Firebase CDN, the stale-ES-module class documented in CLAUDE.md) are captured rather than lost
 - [x] **OBS-03**: The app functions identically when the Sentry bundle fails to load or is blocked — every call site is guarded and no user-facing feature depends on `window.Sentry` existing
-- [ ] **OBS-04**: The Sentry ingest host is permitted by CSP in **all four** CSP string occurrences (`netlify.toml` and `_headers` each duplicate their policy across a `/*` block and a `/*.html` block), and the two files remain byte-identical
+- [x] **OBS-04**: The Sentry ingest host is permitted by CSP in **all four** CSP string occurrences (`netlify.toml` and `_headers` each duplicate their policy across a `/*` block and a `/*.html` block), and the two files remain byte-identical
 - [x] **OBS-05**: No supplier name, client name, PO/PR/RFP contents, line-item amounts, or bank/payment details reach Sentry — `sendDefaultPii` disabled and `beforeSend`/`beforeBreadcrumb` scrubbing shipped in the **same commit** as `Sentry.init()`, since events sent before the scrub hook exists are unrecoverable
 - [ ] **OBS-06**: A deliberately triggered error in production appears in the Sentry dashboard with a readable stack trace — verified empirically, because a CSP-blocked ingest request throws no catchable error and "dashboard is quiet" is otherwise indistinguishable from "no errors occurred"
 - [x] **OBS-07**: Every event carries a `release` string and an `environment` tag, with localhost traffic tagged `development` so local work never pollutes production data
@@ -135,7 +135,7 @@ Which phases cover which requirements.
 | OBS-01 | Phase 114 | Pending |
 | OBS-02 | Phase 114 | Pending |
 | OBS-03 | Phase 114 | Complete |
-| OBS-04 | Phase 114 | Pending |
+| OBS-04 | Phase 114 | Complete |
 | OBS-05 | Phase 114 | Complete |
 | OBS-06 | Phase 114 | Pending |
 | OBS-07 | Phase 114 | Complete |

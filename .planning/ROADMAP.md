@@ -209,7 +209,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 114-02-PLAN.md — W2: `app/sentry-init.js` — init + beforeSend/beforeBreadcrumb scrubbing (one commit), env/release tagging, `window.__sentryTest()`
-- [ ] 114-03-PLAN.md — W2: CSP ingest host in all four occurrences (one atomic commit) + recurring gates written into `HEADERS-README.md`
+- [x] 114-03-PLAN.md — W2: CSP ingest host in all four occurrences (one atomic commit) + recurring gates written into `HEADERS-README.md`
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
