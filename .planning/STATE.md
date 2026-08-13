@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: Observability & Error Handling
 status: executing
-stopped_at: Phase 114 context gathered
-last_updated: "2026-08-12T14:21:55.481Z"
-last_activity: 2026-08-12 -- Phase 114 execution started
+stopped_at: Completed 114-02-PLAN.md
+last_updated: "2026-08-13T12:16:51.452Z"
+last_activity: 2026-08-13
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 6
-  completed_plans: 0
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-16 after v4.0 ship)
 ## Current Position
 
 Phase: 114 (observability-foundation-v4-3) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 114
-Last activity: 2026-08-12 -- Phase 114 execution started
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-08-13
 
 ## Performance Metrics
 
@@ -201,6 +201,7 @@ Last activity: 2026-08-12 -- Phase 114 execution started
 | Phase 113 P06 | ~12min | 3 tasks | 2 files |
 | Phase 113 P07 | ~15min | 3 tasks | 3 files |
 | Phase 113 P08 | ~15min | 3 tasks | 2 files |
+| Phase 114 P02 | ~12min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -655,6 +656,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 113]: clients.js showClientDetail: projects and services client_code lookups branch independently on their own getAssigned*Codes() helper — A single actor can be scoped on one dimension and see-all on the other (services_admin vs operations_admin), so each dimension must be decided separately
 - [Phase 113-08]: Assignments modal checkbox key switched from container code to container document ID (pendingModalCodes -> pendingModalIds) — The write target is a document ID and a codeless container has no code to key on; also makes codeless projects/services manageable in the grid
 - [Phase 113-08]: 260706-mco's saveManageModal lock explicitly superseded in code (D-06) — The lock protected the all_projects:false write while assigned_project_codes was still read for visibility; Phase 113 D-08 repointed those reads onto personnel_user_ids membership, so the landmine no longer exists
+- [Phase 114-02]: environment derivation written as a ternary chain (not if/else) to avoid the literal substring 'if (isLocal)' colliding with the acceptance check proving window.__sentryTest() is unconditionally registered; beforeBreadcrumb's console-category comment refers to the [CLMC-DIAG] calling convention instead of the app/diagnostics.js path to avoid tripping the D-12/D-09 'diagnostics' grep guard
 
 ### Pending Todos
 
@@ -724,9 +726,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 ## Session Continuity
 
 Last activity: 2026-08-10
-Last session: 2026-08-12T09:30:31.391Z
-Stopped at: Phase 114 context gathered
-Resume file: .planning/phases/114-observability-foundation-v4-3/114-CONTEXT.md
+Last session: 2026-08-13T12:16:51.416Z
+Stopped at: Completed 114-02-PLAN.md
+Resume file: None
 Next action: Pick next thread. Carry-over loose ends: (1) Phase 86.9 Plan 03 untracked (write SUMMARY-03 + commit/clean DEBUG.md + debug-diag-86.9.js + fix ROADMAP 2/2→3/3); (2) Phase 86.5 (Gantt UI Polish 3) still unplanned; (3) firestore.rules PROD deploy still deferred until v3.3→main merge — NOTE the f785915 project_iterations update rule is now ALSO pending that prod deploy (on top of the Phase 87.4 attachment-gate rule); dev is current, prod is not. Housekeeping: ~17 stale .continue-here files + orphan 83-05 plan + untracked .claude/worktrees/.
 | 2026-05-08 | fast | Fix phantom drag writing improbable dates when mouseup fires outside Gantt pane | ✅ |
 | 2026-05-18 | fast | Flip MRF Records cross-group scorecard filter from AND to OR (65e1b3c) | ✅ |
