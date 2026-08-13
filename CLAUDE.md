@@ -309,3 +309,22 @@ git push -u origin claude/branch-name-xxxxx
 - **Archive**: Reference only - DO NOT EDIT
 - **Pagination**: 15 items/page (suppliers), 10 items/page (records)
 - **Console Logs**: `[Router]`, `[Procurement]` prefixes for debugging
+- **lib/obs.min.js**: this is the self-hosted Sentry browser SDK error-only bundle, pinned at
+  v10.70.0. The filename is deliberately neutral (never `sentry.min.js`) because `*.sentry-cdn.com`
+  and any path containing "sentry" are ad-blocker filter-list matches — self-hosting only survives
+  that if the path doesn't announce itself. The obscurity lives in the URL only; this note is the
+  disclosure. Source URL: `https://browser.sentry-cdn.com/10.70.0/bundle.min.js`, downloaded
+  2026-08-13, SHA-384 (base64): `79FhSq4eaPA7rdWwXh1Jly3F3Wvgq7HChMpaIIx7feYEZicWt/LnwIfTFTXSJao5`. No
+  `integrity` attribute is used — the file is same-origin, so a re-download is verified by comparing
+  its digest against this recorded value instead. Config lives in `app/sentry-init.js`, which is a
+  **classic script, not an ES module** — never `import` it, and it must stay above the
+  `<script type=module>` block in `index.html`.
+- **SENTRY_RELEASE**: hand-bumped constant in `app/sentry-init.js`, form `clmc@4.3.0-p<phase>`
+  (currently `clmc@4.3.0-p114`). Bump it at each phase close as part of the existing end-of-phase
+  docs-and-deploy ritual — there is no build step to inject a git SHA automatically. ~7 releases
+  across v4.3 is enough granularity to answer "did Phase 119's retrofit introduce this?".
+- **`app/diagnostics.js`'s `client_errors` mirror**: its Firestore mirror and its `.catch()` are a
+  **deliberate exemption** from the v4.3 `reportError()` retrofit, on recursion grounds — routing the
+  mirror's own failure through the reporter risks a report loop, and `app/diagnostics.js:102` already
+  names the hazard in a comment (`NEVER call logDiag() from here`). This is intentional, not a missed
+  conversion.
