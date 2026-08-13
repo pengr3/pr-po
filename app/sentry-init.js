@@ -236,3 +236,34 @@ if (!window.Sentry || typeof window.Sentry.init !== 'function') {
         console.error('[Sentry] init failed', e);
     }
 }
+
+/* ========================================
+   window.__sentryTest() — OBS-06's recurring production probe (D-16)
+   Registered UNCONDITIONALLY — the single deliberate divergence from the
+   window.__createTestNotification precedent (app/notifications.js), which
+   is gated behind an isLocal guard clause so it never exists outside
+   local development. A CSP-blocked ingest request throws no catchable
+   JavaScript error, so "the dashboard is quiet" is indistinguishable from
+   "no errors occurred" — the only way to tell them apart is to fire a
+   real event from the real production origin, and that has to be
+   re-runnable on every CSP-touching deploy, not a one-time ceremony.
+   Works in production BY DESIGN.
+
+   Usage (DevTools console, any environment):
+     window.__sentryTest()
+   ======================================== */
+window.__sentryTest = function () {
+    if (!window.Sentry || typeof window.Sentry.captureException !== 'function') {
+        console.warn('[Sentry] SDK unavailable — __sentryTest cannot run');
+        return false;
+    }
+    try {
+        const probe = new Error(`[Sentry] __sentryTest probe (environment=${SENTRY_ENVIRONMENT})`);
+        const eventId = window.Sentry.captureException(probe);
+        console.log('[Sentry] __sentryTest captured event', eventId);
+        return eventId;
+    } catch (e) {
+        console.error('[Sentry] __sentryTest failed', e);
+        return false;
+    }
+};
