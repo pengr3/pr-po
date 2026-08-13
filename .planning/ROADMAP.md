@@ -213,7 +213,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 114-04-PLAN.md — W3: two classic `<script>` tags in `index.html` head above the ESM bootstrap + `CLAUDE.md` notes
+- [x] 114-04-PLAN.md — W3: two classic `<script>` tags in `index.html` head above the ESM bootstrap + `CLAUDE.md` notes
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
