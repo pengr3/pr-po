@@ -204,7 +204,7 @@ real value is concentrated in the error contract (Phase 116) and the targeted re
 Plans:
 **Wave 1**
 
-- [ ] 114-01-PLAN.md — W1: Sentry org + DSN human gate, SDK version resolved empirically, `lib/obs.min.js` pinned *(blocking human gate)*
+- [x] 114-01-PLAN.md — W1: Sentry org + DSN human gate, SDK version resolved empirically, `lib/obs.min.js` pinned *(blocking human gate)*
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
