@@ -20,6 +20,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <!-- Frappe Gantt (Phase 86) — pinned to v1.2.2; expose window.Gantt for app/views/project-plan.js -->
     <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@1.2.2/dist/frappe-gantt.umd.js"></script>
+    <!-- Sentry (Phase 114) — pinned to v10.70.0; self-hosted under a neutral filename because *.sentry-cdn.com and any path containing "sentry" are ad-blocker filter-list matches -->
+    <script src="lib/obs.min.js"></script>
+    <!-- Sentry init (Phase 114) — classic script, not an ES module; must run before the module bootstrap below so Sentry.init() is live before the first import -->
+    <script src="app/sentry-init.js"></script>
 </head>
 <body>
     <!-- Update strip banner slot (Phase 94) — collapsed by default; opened via app/update-check.js -->
